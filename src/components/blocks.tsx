@@ -73,6 +73,15 @@ function StockBadge({ p }: { p: ProductSummary }) {
   return <span className="rounded-full bg-good-soft px-2 py-0.5 text-[10px] font-semibold text-good">{t("inStock")}</span>;
 }
 
+function ValueBadge() {
+  const t = useT();
+  return (
+    <span className="absolute left-2 top-2 z-[1] rounded-full bg-gold px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#322b45]">
+      {t("bestValue")}
+    </span>
+  );
+}
+
 function PickBadge({ small }: { small?: boolean }) {
   const t = useT();
   return (
@@ -137,6 +146,7 @@ function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockActions 
   return (
     <div className={`rise relative flex w-44 shrink-0 flex-col overflow-hidden rounded-2xl ${CARD} sm:w-52`}>
       {p.pick && <PickBadge />}
+      {!p.pick && p.value && <ValueBadge />}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -638,7 +648,12 @@ export function CartView({
   const body = (
     <>
       <ul className="flex flex-col gap-2 px-3 pt-3">
-        {cart.items.map((i) => (
+        {cart.items.length > 0 && (
+        <p className="mb-2 rounded-[12px] bg-leaf-soft px-3 py-2 text-[11.5px] font-medium leading-snug text-leaf">
+          🌳 {t("basketQuip")}
+        </p>
+      )}
+      {cart.items.map((i) => (
           <li key={i.product_id} className="rounded-[14px] border border-line bg-surface p-2.5">
             <div className="flex items-start gap-2.5">
               <ProductImage src={i.image} alt={i.name} category={i.category} className="h-11 w-11 shrink-0 rounded-[10px]" width={120} iconSize={18} />

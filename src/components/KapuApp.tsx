@@ -1756,12 +1756,12 @@ export default function KapuApp() {
                   , I&apos;m <span className="italic text-leaf">Kapu.</span>
                 </h1>
                 {seasonal?.festival && seasonal.festival.days <= 45 && (
-                  <span aria-hidden className="pointer-events-none absolute inset-x-0 top-8 mx-auto block h-0 max-w-[720px]">
-                    {[...seasonal.festival.glyphs].slice(0, 3).map((g, i) => (
+                  <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-2 mx-auto block h-0 max-w-[860px]">
+                    {[...seasonal.festival.glyphs].slice(0, 2).map((g, i) => (
                       <span
                         key={i}
-                        className="spark absolute text-[26px] opacity-60"
-                        style={{ left: `${12 + i * 38}%`, top: `${(i % 2) * 30 - 10}px`, animationDelay: `${i * 0.5}s` }}
+                        className="spark absolute text-[22px] opacity-40"
+                        style={{ left: i === 0 ? "2%" : "94%", top: `${i * 26 - 34}px`, animationDelay: `${i * 0.7}s` }}
                       >
                         {g}
                       </span>
@@ -2109,7 +2109,7 @@ export default function KapuApp() {
             onClick={(e) => e.stopPropagation()}
             style={{ paddingTop: "max(0px, env(safe-area-inset-top))" }}
           >
-            <div className="flex items-center gap-2.5 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-5 py-4">
               <p className="font-display text-[20px]">{t("yourBasket")}</p>
               {cartCount > 0 && (
                 <span className="rounded-full bg-leaf-soft px-2.5 py-0.5 text-[10.5px] font-semibold text-leaf">{cartCount === 1 ? t("item1") : t("itemsN", { n: cartCount })}</span>

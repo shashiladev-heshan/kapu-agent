@@ -344,6 +344,12 @@ const STR = {
   },
   landPwaBtn: { en: "Add to Home Screen", si: "Home Screen එකට දාන්න", ta: "முகப்புத் திரையில் சேர்" },
   landPwaTag: { en: "PWA · wishes synced", si: "PWA · wishes sync වෙනවා", ta: "PWA · ஒத்திசைவு" },
+  bestValue: { en: "Best value", si: "හොඳම value", ta: "சிறந்த மதிப்பு" },
+  basketQuip: {
+    en: "Lovely picks! Say “checkout” when ready — I'll handle the rest 🌳",
+    si: "ලස්සන picks! Ready උනාම “checkout” කියන්න — ඉතුරු ටික මම බලාගන්නම් 🌳",
+    ta: "அழகான தேர்வுகள்! தயாரானதும் “checkout” சொல்லுங்கள் 🌳",
+  },
   waPay: { en: "Send the pay link on WhatsApp", si: "Pay link එක WhatsApp එකෙන් යවන්න", ta: "WhatsApp-ல் அனுப்பு" },
   waBasket: { en: "Share basket on WhatsApp", si: "බාස්කට් එක WhatsApp share කරන්න", ta: "கூடையை WhatsApp-ல் பகிர்" },
   cardDownload: { en: "Download", si: "Download", ta: "பதிவிறக்கு" },

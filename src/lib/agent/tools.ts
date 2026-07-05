@@ -337,6 +337,14 @@ export async function executeTool(
       const sort = String(input.sort ?? "relevance");
       if (products.length > 1 && (sort === "relevance" || sort === "bestseller")) {
         products[0] = { ...products[0], pick: true };
+        // cheapest in the grid gets BEST VALUE (when it isn't also the pick)
+        if (products.length >= 3) {
+          let vi = 0;
+          for (let i = 1; i < products.length; i++) {
+            if ((products[i].price ?? Infinity) < (products[vi].price ?? Infinity)) vi = i;
+          }
+          if (vi !== 0 && products[vi].price != null) products[vi] = { ...products[vi], value: true };
+        }
       }
       if (products.length > 0) {
         emit({ type: "product_grid", title: typeof input.title === "string" ? input.title : undefined, products });

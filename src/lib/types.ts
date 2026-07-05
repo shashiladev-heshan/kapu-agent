@@ -17,6 +17,8 @@ export interface ProductSummary {
   summary?: string | null;
   /** top relevance/bestseller hit — rendered as the "KAPU'S PICK" badge */
   pick?: boolean;
+  /** cheapest in this grid (when distinct from the pick) — "BEST VALUE" badge */
+  value?: boolean;
 }
 
 export interface ProductDetail extends ProductSummary {
