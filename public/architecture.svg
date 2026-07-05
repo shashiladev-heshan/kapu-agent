@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 920 600" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="920" height="600" rx="20" fill="#1e1633"/>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/>
+        </marker>
+        <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#ffb800"/>
+        </marker>
+      </defs>
+      <!-- channels -->
+      <g font-size="13" text-anchor="middle">
+        <rect x="25"  y="24" width="200" height="66" rx="14" fill="#241740" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="125" y="52" fill="#fff" font-weight="600">🌐 Web app · PWA</text>
+        <text x="125" y="72" fill="#a79fc0" font-size="11">Next.js 15 · React 19 · SSE</text>
+
+        <rect x="245" y="24" width="200" height="66" rx="14" fill="#241740" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="345" y="52" fill="#fff" font-weight="600">✈️ Telegram bot</text>
+        <text x="345" y="72" fill="#a79fc0" font-size="11">webhook · groups · inline pay</text>
+
+        <rect x="465" y="24" width="200" height="66" rx="14" fill="#241740" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="565" y="52" fill="#fff" font-weight="600">🎙 Voice loop</text>
+        <text x="565" y="72" fill="#a79fc0" font-size="11">Web Speech · Whisper · TTS</text>
+
+        <rect x="685" y="24" width="210" height="66" rx="14" fill="#241740" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="790" y="52" fill="#fff" font-weight="600">📸 Vision snap-a-list</text>
+        <text x="790" y="72" fill="#a79fc0" font-size="11">Claude vision OCR · scenes</text>
+      </g>
+      <!-- channel arrows into core -->
+      <path d="M125 90 C 125 130, 320 130, 400 150" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+      <path d="M345 90 C 345 120, 400 125, 435 148" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+      <path d="M565 90 C 565 120, 510 125, 480 148" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+      <path d="M790 90 C 790 130, 600 130, 520 150" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- core -->
+      <rect x="210" y="155" width="500" height="96" rx="18" fill="#241740" stroke="#ffb800" stroke-width="2"/>
+      <text x="460" y="188" fill="#fff" font-size="16" font-weight="700" text-anchor="middle">🌳 KAPU AGENT CORE</text>
+      <text x="460" y="210" fill="#c9c2dd" font-size="12" text-anchor="middle">Claude · 23 tools · trilingual persona · consent memory</text>
+      <text x="460" y="230" fill="#a79fc0" font-size="11" text-anchor="middle">Messages API loop (prompt-cached) / Agent SDK — one core, every channel</text>
+
+      <!-- scheduler -->
+      <rect x="25" y="165" width="155" height="80" rx="14" fill="#1e1633" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="102" y="195" fill="#fff" font-size="12.5" font-weight="600" text-anchor="middle">⏰ Scheduler</text>
+      <text x="102" y="213" fill="#a79fc0" font-size="10.5" text-anchor="middle">60s tick · standing</text>
+      <text x="102" y="228" fill="#a79fc0" font-size="10.5" text-anchor="middle">wishes · price watch</text>
+      <path d="M180 205 L 205 205" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+      <path d="M60 165 C 60 110, 200 100, 305 92" fill="none" stroke="#ffb800" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrg)"/>
+      <text x="120" y="122" fill="#ffb800" font-size="10.5">autonomous alerts → TG</text>
+
+      <!-- mongo -->
+      <rect x="740" y="165" width="155" height="80" rx="14" fill="#1e1633" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="817" y="195" fill="#fff" font-size="12.5" font-weight="600" text-anchor="middle">🗄 MongoDB</text>
+      <text x="817" y="213" fill="#a79fc0" font-size="10.5" text-anchor="middle">sessions · users · orders</text>
+      <text x="817" y="228" fill="#a79fc0" font-size="10.5" text-anchor="middle">schedules · memory</text>
+      <path d="M735 205 L 715 205" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+      <path d="M715 190 L 735 190" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- shield -->
+      <path d="M460 251 L 460 292" fill="none" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+      <rect x="285" y="298" width="350" height="72" rx="16" fill="#241740" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="460" y="327" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">🛡 MCP SHIELD</text>
+      <text x="460" y="348" fill="#a79fc0" font-size="11" text-anchor="middle">LRU cache · request coalescing · 50 rpm bucket · 429 retry</text>
+
+      <!-- kapruka -->
+      <path d="M460 370 L 460 411" fill="none" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+      <rect x="285" y="417" width="350" height="76" rx="16" fill="#1a1329" stroke="#ffb800" stroke-width="1.5"/>
+      <text x="460" y="447" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">🛍 KAPRUKA MCP</text>
+      <text x="460" y="468" fill="#a79fc0" font-size="11" text-anchor="middle">mcp.kapruka.com — search · product · delivery · orders · tracking</text>
+
+      <!-- pay note -->
+      <text x="460" y="530" fill="#ffb800" font-size="11.5" text-anchor="middle" font-style="italic">🔒 create_order only mints a secure pay link — money moves ONLY when a human taps pay</text>
+      <text x="460" y="556" fill="#7c7494" font-size="10.5" text-anchor="middle">Deployed as one Node process on Railway · custom domain kapuwa.shop</text>
+    </svg>

@@ -359,6 +359,12 @@ const STR = {
     si: "මුකුත්ම හොඳ නැත්නම්? ඒකත් කියනවා. අවංකකම feature එකක්.",
     ta: "எதுவும் சிறந்ததாக இல்லை என்றால்? அதையும் சொல்லும்.",
   },
+  landTechTitle: { en: "Under the hood", si: "ඇතුළේ තියෙන්නේ", ta: "உள்ளே என்ன" },
+  landTechSub: {
+    en: "One Node process on Railway. One agent core behind every channel. Every catalog call shielded. Money only through a human-paid link.",
+    si: "Railway එකේ එක Node process එකයි. හැම channel එකක්ම පිටිපස්සේ එකම agent core එක.",
+    ta: "ஒரே Node process. எல்லா சேனல்களுக்கும் ஒரே மூளை.",
+  },
   landSeasonTitle: { en: "Tuned to the Sri Lankan calendar", si: "ලංකාවේ දින දර්ශනයටම හදලා", ta: "இலங்கை நாட்காட்டிக்கு ஏற்ப" },
   landSeasonSub: {
     en: "Kapu knows what Vesak forbids, what Avurudu demands, and when the Perahera season begins — and it acts on it.",

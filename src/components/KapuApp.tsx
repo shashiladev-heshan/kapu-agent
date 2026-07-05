@@ -2632,6 +2632,7 @@ export default function KapuApp() {
                 { href: "#land-seasonal", label: "🎉 Seasonal" },
                 { href: "#land-voice", label: "🎙 Voice agent" },
                 { href: "#land-tg", label: "✈️ Telegram bot" },
+                { href: "#land-tech", label: "🏗 Stack" },
               ].map((n) => (
                 <a
                   key={n.href}
@@ -3519,6 +3520,27 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
             </a>
           )}
         </div>
+      </section>
+
+      {/* ── act 3.5: tech stack + architecture ── */}
+      <section id="land-tech" className="py-12">
+        <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">{t("landTechTitle")}</h2>
+        <p className="mx-auto mt-3 max-w-[560px] text-center text-[13px] leading-relaxed text-ink-soft">{t("landTechSub")}</p>
+        <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-2">
+          {[
+            "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching", "Kapruka MCP",
+            "MongoDB", "Railway · kapuwa.shop", "Whisper STT · gpt-4o-mini-tts", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
+          ].map((x) => (
+            <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
+              {x}
+            </span>
+          ))}
+        </div>
+        <a href="/architecture.html" target="_blank" rel="noreferrer" className="mx-auto mt-7 block max-w-4xl overflow-hidden rounded-[24px] border border-line shadow-[0_30px_80px_rgba(64,41,112,0.25)] transition hover:-translate-y-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/architecture.svg" alt="Kapu architecture — channels → agent core → MCP shield → Kapruka MCP" className="w-full" loading="lazy" />
+        </a>
+        <p className="mt-3 text-center text-[11px] text-ink-faint">tap the diagram for the full page ↗</p>
       </section>
 
       {/* ── act 4: stats + CTA ── */}

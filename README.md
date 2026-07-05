@@ -71,6 +71,8 @@ Works fully as a guest. Optional **Sign in with Google** (GIS ID-token → HMAC 
 
 ## 🏗 Architecture
 
+**📐 Visual diagram:** [kapuwa.shop/architecture.html](https://kapuwa.shop/architecture.html) · [`docs/architecture.html`](docs/architecture.html)
+
 ```
 Browser (PWA, SSE) ──► /api/chat ─┐
 Telegram (private + groups) ──────┤──► ONE agent core (22 tools) ──► MCP Shield ──► mcp.kapruka.com
