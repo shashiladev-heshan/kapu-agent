@@ -11,6 +11,12 @@ export interface Festival {
   approx?: boolean;
   /** what tapping the banner asks Kapu */
   msg: string;
+  /** catalog search that fills the seasonal rail */
+  q: string;
+  /** festive glyphs floated around the hero */
+  glyphs: string;
+  /** one-line seasonal greeting (English; agent localizes in chat) */
+  greet: string;
 }
 
 const FESTIVALS: Festival[] = [
@@ -20,18 +26,24 @@ const FESTIVALS: Festival[] = [
     date: "2026-08-10",
     approx: true,
     msg: "Esala season is coming — show me gift ideas and pirikara offerings for the season",
+    q: "pirikara",
+    glyphs: "🏮🐘✨",
+    greet: "The season of lights and the great procession — pirikara & temple offerings are in demand",
   },
-  { name: "Deepavali", label: "Deepavali", date: "2026-11-08", msg: "Deepavali is coming — show me sweets and gift ideas" },
-  { name: "Christmas", label: "Christmas", date: "2026-12-25", msg: "Christmas is coming — show me hampers and gift ideas" },
-  { name: "Thai Pongal", label: "Thai Pongal", date: "2027-01-14", msg: "Thai Pongal is coming — show me gift ideas for the celebration" },
-  { name: "Valentine's Day", label: "Valentine's", date: "2027-02-14", msg: "Valentine's is coming — show me romantic gift ideas" },
+  { name: "Deepavali", label: "Deepavali", date: "2026-11-08", msg: "Deepavali is coming — show me sweets and gift ideas", q: "deepavali sweets", glyphs: "🪔✨🌼", greet: "Festival of lights — sweets, diyas and gold-touched gifts" },
+  { name: "Christmas", label: "Christmas", date: "2026-12-25", msg: "Christmas is coming — show me hampers and gift ideas", q: "christmas hamper", glyphs: "🎄⭐🎁", greet: "Cake season! Hampers and Christmas cakes book out early" },
+  { name: "Thai Pongal", label: "Thai Pongal", date: "2027-01-14", msg: "Thai Pongal is coming — show me gift ideas for the celebration", q: "pongal", glyphs: "🌾🥥☀️", greet: "Harvest gratitude — pongal rice, brass and sweet treats" },
+  { name: "Valentine's Day", label: "Valentine's", date: "2027-02-14", msg: "Valentine's is coming — show me romantic gift ideas", q: "valentine flowers", glyphs: "🌹💝❤️", greet: "Roses go fast — reserve early for the 14th" },
   {
     name: "Avurudu — Sinhala & Tamil New Year",
     label: "Avurudu",
     date: "2027-04-13",
     msg: "Avurudu is coming — help me build an Avurudu hamper (kavum, kokis, sweetmeats)",
+    q: "avurudu",
+    glyphs: "🌅🍯🎊",
+    greet: "Nekath time matters — kavili hampers and auspicious-hour deliveries",
   },
-  { name: "Vesak", label: "Vesak", date: "2027-05-20", approx: true, msg: "Vesak is coming — show me lanterns, dāna items and pirikara" },
+  { name: "Vesak", label: "Vesak", date: "2027-05-20", approx: true, msg: "Vesak is coming — show me lanterns, dāna items and pirikara", q: "vesak", glyphs: "🏮🕊️🪷", greet: "Lanterns, dāna and white — the gentlest season of giving" },
 ];
 
 /** Next festival from `now` (SL time), with whole-days-until. */

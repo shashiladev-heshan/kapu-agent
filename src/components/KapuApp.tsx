@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { BlockRenderer, CartView, OrderTimeline, ProductHero, ProductImage, fmt, type BlockActions } from "@/components/blocks";
+import { BlockRenderer, CartView, OrderTimeline, ProductGrid, ProductHero, ProductImage, fmt, type BlockActions } from "@/components/blocks";
 import {
   IconArrowRight,
   IconBasket,
@@ -205,6 +205,10 @@ export default function KapuApp() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [occasions, setOccasions] = useState<(Occasion & { in_days: number })[]>([]);
   const [recentOrders, setRecentOrders] = useState<{ order_ref: string; pay_url: string; recipient: string | null; city: string | null; date: string | null; items: string[] }[]>([]);
+  const [seasonal, setSeasonal] = useState<{
+    festival: { name: string; label: string; days: number; approx: boolean; glyphs: string; greet: string; msg: string } | null;
+    products: ProductSummary[];
+  } | null>(null);
   const [schedFeed, setSchedFeed] = useState<{ id: string; title: string; active: boolean; next_run: number; last_result: string | null }[]>([]);
   const [notifSeen, setNotifSeen] = useState(0);
   const [rules, setRules] = useState("");
@@ -277,6 +281,10 @@ export default function KapuApp() {
     void fetch(`/api/occasions?sessionId=${encodeURIComponent(sid)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.upcoming && setOccasions(d.upcoming))
+      .catch(() => {});
+    void fetch("/api/seasonal")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setSeasonal(d))
       .catch(() => {});
     void fetch(`/api/orders?sessionId=${encodeURIComponent(sid)}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -1743,6 +1751,14 @@ export default function KapuApp() {
                   </span>
                   , I&apos;m <span className="italic text-leaf">Kapu.</span>
                 </h1>
+                {seasonal?.festival && (
+                  <button
+                    onClick={() => void send(seasonal.festival!.msg)}
+                    className="rise mx-auto mt-3 block max-w-[560px] rounded-full border border-gold/30 bg-gold-soft px-4 py-1.5 text-[12px] font-semibold text-gold-deep transition hover:-translate-y-0.5"
+                  >
+                    {t("seasonalIn", { glyph: seasonal.festival.glyphs.slice(0, 2), greet: seasonal.festival.greet, d: `${seasonal.festival.approx ? "~" : ""}${seasonal.festival.days}` })}
+                  </button>
+                )}
                 <HeroTicker
                   language={language}
                   onRun={(ph) => {
@@ -1770,6 +1786,15 @@ export default function KapuApp() {
                   ))}
                 </div>
 
+                {seasonal && seasonal.products.length > 0 && seasonal.festival && (
+                  <div className="mx-auto mt-8 w-full max-w-[860px] text-left">
+                    <ProductGrid
+                      title={`${seasonal.festival.glyphs.slice(0, 2)} ${t("seasonalPicks", { name: seasonal.festival.label })}`}
+                      products={seasonal.products}
+                      actions={actions}
+                    />
+                  </div>
+                )}
                 <div className="mt-7 flex flex-col items-center gap-2.5">
                   {tgBot && (
                     <span className="group relative inline-block" data-tour="tg">
