@@ -80,15 +80,16 @@ async function azure(text: string, language: string): Promise<Response | null> {
   if (!key) return null;
   const voice = AZURE_VOICES[language] ?? AZURE_VOICES.en;
   const lang = voice.split("-").slice(0, 2).join("-");
-  const ssml = `<speak version='1.0' xml:lang='${lang}'><voice name='${voice}'>${text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")}</voice></speak>`;
+  // gentle prosody lift — the si/ta-LK neural voices read noticeably less
+  // robotic a touch brisker and brighter (A/B'd on real Kapu replies)
+  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const ssml = `<speak version='1.0' xml:lang='${lang}'><voice name='${voice}'><prosody rate='+6%' pitch='+2%'>${escaped}</prosody></voice></speak>`;
   const res = await fetch(`https://${AZURE_REGION()}.tts.speech.microsoft.com/cognitiveservices/v1`, {
     method: "POST",
     headers: {
       "Ocp-Apim-Subscription-Key": key,
       "Content-Type": "application/ssml+xml",
-      "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+      "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
     },
     body: ssml,
   });
