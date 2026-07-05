@@ -45,13 +45,15 @@ export async function renderGoogleButton(
   if (!id) return;
   id.initialize({ client_id: clientId, ux_mode: "popup", callback: (r) => onCredential(r.credential) });
   el.innerHTML = "";
+  // filled_black sits naturally on Kapu's dark landing; the wrapper clips
+  // the iframe's white corner bleed around the pill.
   id.renderButton(el, {
-    theme: "outline",
+    theme: "filled_black",
     size: "large",
     shape: "pill",
     text: "continue_with",
     logo_alignment: "left",
-    width: 260,
+    width: 300,
   });
 }
 
