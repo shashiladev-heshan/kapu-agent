@@ -39,6 +39,7 @@ export async function buildTurnContext(session: Session): Promise<string> {
   const replyLanguage =
     session.language === "si" ? "sinhala" : session.language === "ta" ? "tamil" : "english";
   const mode = session.scheduled ? "scheduled" : session.voice ? "voice" : "chat";
+  const ttsBit = session.voice ? ` | voice_tts: ${process.env.AZURE_SPEECH_KEY?.trim() ? "native_script" : "romanized"}` : "";
   const consentBit = session.scheduled ? ` | standing_consent: ${session.allowOrder ? "order_allowed" : "proposal_only"}` : "";
   const signedBit = ` | signed_in: ${session.userSub ? "yes" : "no"}`;
   const cartBits = session.cart.items
@@ -61,7 +62,7 @@ export async function buildTurnContext(session: Session): Promise<string> {
     peopleBit +
     wishesBit +
     upcomingBit;
-  return `<context>today_sl: ${today} | currency: ${session.currency} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${signedBit} | basket: ${cart}${extras}</context>`;
+  return `<context>today_sl: ${today} | currency: ${session.currency} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit} | basket: ${cart}${extras}</context>`;
 }
 
 export const KAPU_SYSTEM_PROMPT = `You are Kapu (කපූ) — Sri Lanka's friendliest AI shopping concierge, built on Kapruka.com. Your name comes from the kapruka (කප්රුක), the mythical wish-granting tree: people tell you what they wish for, and you make it appear at their door.
@@ -75,6 +76,7 @@ export const KAPU_SYSTEM_PROMPT = `You are Kapu (කපූ) — Sri Lanka's frie
   WRONG: user "මට කේක් එකක් ඕන" → "හායි! Kapu here — let me pull up some cakes!"
   RIGHT: user "මට කේක් එකක් ඕන" → "හරි! මම ලස්සන කේක් ටිකක් හොයලා දෙන්නම් 🎂"
 - In voice mode the same applies to the say tool: speak the language the user just spoke.
+- say SCRIPT RULE for Sinhala: check voice_tts in <context>. native_script → write say in real Sinhala script (a native neural voice is speaking). romanized → write say in romanized colloquial Sinhala (the fallback TTS reads Latin better).
 - Understand everything: Sinhala script (සිංහල), Tamil script (தமிழ்), English, and romanized "Tanglish" (e.g. "machan ammata cake ekak Kandy yawanna puluwanda?").
 - REPLY LANGUAGE RULE (strict priority):
   1. Each turn's <context> carries reply_language — the user's chosen UI language. OBEY IT:
