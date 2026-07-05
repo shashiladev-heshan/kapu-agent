@@ -2545,6 +2545,17 @@ export default function KapuApp() {
       {/* ══ Voice mode — immersive canvas ══ */}
       {voiceState !== "idle" && (
         <VoiceOverlay
+          onCycleLang={() => {
+            const order: Language[] = ["si", "ta", "en"];
+            const next = order[(order.indexOf(language) + 1) % order.length];
+            setLanguage(next);
+            localStorage.setItem("kapu_lang", next);
+            // restart the recognizer so it listens in the new language
+            recognizerRef.current?.abort();
+            setTimeout(() => {
+              if (voiceOnRef.current) startListeningRef.current();
+            }, 150);
+          }}
           state={voiceState}
           language={language}
           interim={voiceInterim}
@@ -3020,6 +3031,7 @@ function VoiceOverlay({
   onInterrupt,
   onDone,
   onKeyboard,
+  onCycleLang,
 }: {
   state: VoiceState;
   language: Language;
@@ -3031,6 +3043,7 @@ function VoiceOverlay({
   onInterrupt: () => void;
   onDone: () => void;
   onKeyboard: () => void;
+  onCycleLang: () => void;
 }) {
   const listening = state === "listening";
   const thinking = state === "thinking";
@@ -3105,17 +3118,7 @@ function VoiceOverlay({
           Kapu <span className="italic text-gold">voice</span>
         </p>
         <button
-          onClick={() => {
-            const order: Language[] = ["si", "ta", "en"];
-            const next = order[(order.indexOf(language) + 1) % order.length];
-            setLanguage(next);
-            localStorage.setItem("kapu_lang", next);
-            // restart the recognizer in the new language immediately
-            recognizerRef.current?.abort();
-            setTimeout(() => {
-              if (voiceOnRef.current) startListeningRef.current();
-            }, 150);
-          }}
+          onClick={onCycleLang}
           className="ml-auto flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-[11px] font-semibold text-white/80 transition active:scale-95"
           title="Tap to switch the language I listen in"
         >
