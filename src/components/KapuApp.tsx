@@ -2621,9 +2621,7 @@ export default function KapuApp() {
                 </a>
               )}
               <a
-                href="https://youtu.be/zQyPcT_V1_A"
-                target="_blank"
-                rel="noreferrer"
+                href="#land-film"
                 className="flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-soft px-3.5 py-2 text-[11.5px] font-bold text-gold-deep transition hover:-translate-y-0.5"
               >
                 ▶ 75-sec film
@@ -3248,6 +3246,25 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
 
   return (
     <div id="kapu-show" className="relative mx-auto max-w-5xl px-6 pb-20 text-left">
+      {/* ── act −1: the film ── */}
+      <section id="land-film" className="py-14">
+        <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">
+          ▶ Kapu in <span className="italic text-leaf">75 seconds</span>
+        </h2>
+        <div className="mx-auto mt-7 max-w-4xl overflow-hidden rounded-[26px] border border-line bg-card shadow-[0_40px_100px_rgba(64,41,112,0.3)]">
+          <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/zQyPcT_V1_A?rel=0&modestbranding=1"
+              title="Kapu — Sri Lanka's wish-granting shopping agent"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* ── act 0: in your pocket (PWA) ── */}
       <section id="land-pwa" className="grid items-center gap-10 py-14 md:grid-cols-2">
         <div>
