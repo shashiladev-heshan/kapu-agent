@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 832" preserveAspectRatio="xMidYMid slice">
+  <defs><radialGradient id="v" cx="0.5" cy="0.38" r="0.75"><stop offset="0" stop-color="#4A3180"></stop><stop offset="0.55" stop-color="#2A1A4E"></stop><stop offset="1" stop-color="#1D1233"></stop></radialGradient></defs>
+  <rect width="1280" height="832" fill="url(#v)"></rect>
+  <text x="640" y="960" text-anchor="middle" font-family="&#39;Noto Sans Sinhala&#39;,sans-serif" font-size="480" fill="#ffffff" fill-opacity="0.025">කපූ</text>
+</svg>

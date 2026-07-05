@@ -1,0 +1,394 @@
+"use client";
+
+// Kapu's trilingual UI strings. The සිං/த/EN toggle is authoritative for the
+// WHOLE chrome, not just the composer placeholder. Keys hold {en, si, ta};
+// `{var}` placeholders are interpolated by t(). Components inside
+// <LangProvider> use useT(); KapuApp itself uses makeT(language).
+
+import { createContext, useContext } from "react";
+import type { Language } from "@/lib/types";
+
+type Entry = { en: string; si: string; ta: string };
+
+const STR = {
+  // ── shell / sidebar ──────────────────────────────────────────────────
+  newWish: { en: "New wish", si: "අලුත් පැතුමක්", ta: "புதிய விருப்பம்" },
+  recentWishes: { en: "Recent wishes", si: "මෑත පැතුම්", ta: "சமீபத்திய விருப்பங்கள்" },
+  wishesEmpty: { en: "Your wishes will appear here.", si: "ඔයාගේ පැතුම් මෙතන පේනවා.", ta: "உங்கள் விருப்பங்கள் இங்கே தோன்றும்." },
+  darkMode: { en: "Dark mode", si: "අඳුරු තේමාව", ta: "இருண்ட தீம்" },
+  lightMode: { en: "Light mode", si: "ලා තේමාව", ta: "வெளிர் தீம்" },
+  guest: { en: "Guest", si: "අමුත්තෙක්", ta: "விருந்தினர்" },
+  syncOn: { en: "Wishes synced across devices", si: "පැතුම් හැම device එකකම", ta: "எல்லா சாதனங்களிலும் ஒத்திசைவு" },
+  syncCta: { en: "Sign in to sync your wishes", si: "පැතුම් sync කරන්න — sign in වෙන්න", ta: "ஒத்திசைக்க உள்நுழையவும்" },
+  deviceOnly: { en: "Wishes stay on this device", si: "පැතුම් මේ device එකේ විතරයි", ta: "விருப்பங்கள் இந்த சாதனத்தில் மட்டும்" },
+  yourWishTree: { en: "your wish-tree", si: "ඔයාගේ පැතුම් ගහ", ta: "உங்கள் விருப்ப மரம்" },
+
+  // ── deliver-to ───────────────────────────────────────────────────────
+  setCity: { en: "Set delivery city", si: "ගෙන්වන නගරය", ta: "டெலிவரி நகர்" },
+  deliverToChip: { en: "Deliver to {city}", si: "ගෙන්වන්නේ {city}ට", ta: "{city}க்கு டெலிவரி" },
+  deliverToLabel: { en: "Deliver to", si: "ගෙන්වන්නේ", ta: "டெலிவரி" },
+  cityPlaceholder: { en: "Type a city… kandy, kolpity, nugegoda", si: "නගරය ලියන්න… kandy, kolpity", ta: "நகரை எழுதுங்கள்… kandy, kolpity" },
+  save: { en: "Save", si: "සුරකින්න", ta: "சேமி" },
+  clear: { en: "Clear", si: "මකන්න", ta: "அழி" },
+  deliverHelper: {
+    en: "Suggestions are live from Kapruka — every one is deliverable. Kapu uses this as your default city.",
+    si: "යෝජනා එන්නේ Kapruka එකෙන්මයි — ඔක්කොම ගෙන්විය හැකි නගර. මේක ඔයාගේ default නගරය වෙනවා.",
+    ta: "பரிந்துரைகள் நேரடியாக Kapruka-விலிருந்து — அனைத்தும் டெலிவரி சாத்தியம்.",
+  },
+  cityNoMatch: {
+    en: "අනේ — no deliverable city matches that. Try another spelling; Kapu understands Tanglish ones too.",
+    si: "අනේ — ඒ නමට ගැලපෙන නගරයක් නෑ. වෙන spelling එකක් try කරන්න.",
+    ta: "அந்த பெயருக்கு நகரம் இல்லை — வேறு எழுத்துப்பிழை முயற்சிக்கவும்.",
+  },
+
+  // ── hero ─────────────────────────────────────────────────────────────
+  badgeLive: { en: "LIVE ON KAPRUKA · ISLANDWIDE DELIVERY", si: "KAPRUKA සජීවයි · මුළු දිවයිනටම", ta: "KAPRUKA நேரலை · நாடு முழுவதும்" },
+  heroSub: {
+    en: "Whisper a wish — groceries, phones, medicine, cakes to Kandy — and I'll shop all of Kapruka for you.",
+    si: "පැතුමක් කියන්න — බඩු, phone, බෙහෙත්, නුවරට කේක් — Kapruka එකේ ඔක්කොම මම හොයලා දෙන්නම්.",
+    ta: "ஒரு விருப்பம் சொல்லுங்கள் — மளிகை, போன், மருந்து, கண்டிக்கு கேக் — Kapruka முழுவதும் நான் வாங்கித் தருகிறேன்.",
+  },
+  heroLangs: { en: "Sinhala, Tamil, English or Tanglish.", si: "සිංහල, දෙමළ, English හෝ Tanglish.", ta: "தமிழ், சிங்களம், English அல்லது Tanglish." },
+  speaks: { en: "Kapu speaks", si: "Kapu කතා කරන්නේ", ta: "Kapu பேசுவது" },
+  poweredBy: { en: "— powered by the Kapruka MCP", si: "— Kapruka MCP මතින්", ta: "— Kapruka MCP மூலம்" },
+  daysTo: { en: "{n} DAYS TO {name}", si: "{name}ට දින {n}යි", ta: "{name}க்கு {n} நாட்கள்" },
+  festToday: { en: "{name} TODAY", si: "{name} අදයි!", ta: "{name} இன்று!" },
+  giftIdeas: { en: "· gift ideas", si: "· තෑගි", ta: "· பரிசுகள்" },
+
+  // ── demo wish cards ──────────────────────────────────────────────────
+  chipPhone: { en: "Best phone under 60,000?", si: "60,000ට අඩු හොඳම phone එක?", ta: "60,000க்குள் சிறந்த போன்?" },
+  chipPhoneSub: { en: "machan, mokakda hondama eka?", si: "මචං, මොකක්ද හොඳම එක?", ta: "மச்சான், எது பெஸ்ட்?" },
+  chipGrocery: { en: "Weekly grocery run", si: "සතියේ බඩු ටික", ta: "வார மளிகை" },
+  chipGrocerySub: { en: "rice, dhal, tea — build my cart", si: "හාල්, පරිප්පු, තේ — cart එක හදන්න", ta: "அரிசி, பருப்பு, தேயிலை" },
+  chipCake: { en: "Cake to Amma in Kandy", si: "අම්මට නුවරට කේක් එකක්", ta: "கண்டியில் அம்மாவுக்கு கேக்" },
+  chipCakeSub: { en: "surprise ekak — same day", si: "surprise එකක් — අදම", ta: "சர்ப்ரைஸ் — இன்றே" },
+  chipPharmacy: { en: "Pharmacy essentials", si: "බෙහෙත් / first-aid", ta: "மருந்தகம் அத்தியாவசியம்" },
+  chipPharmacySub: { en: "home first-aid kit", si: "ගෙදර first-aid kit එක", ta: "வீட்டு முதலுதவி" },
+  chipFestival: { en: "Festival gift ideas", si: "උත්සව තෑගි", ta: "பண்டிகை பரிசுகள்" },
+  chipFestivalSub: { en: "for parents in Colombo", si: "කොළඹ ඉන්න දෙමව්පියන්ට", ta: "கொழும்பில் பெற்றோருக்கு" },
+  chipTrack: { en: "Track my order", si: "order එක track කරන්න", ta: "ஆர்டரை கண்காணிக்க" },
+  chipTrackSub: { en: "see it arrive, photo proof", si: "photo proof එක්ක බලන්න", ta: "வந்து சேர்வதை பாருங்கள்" },
+  chipRecipe: { en: "Kottu for 4 — recipe to cart", si: "හතරකට කොත්තු — recipe එකෙන් cart එකට", ta: "4 பேருக்கு கொத்து — கார்ட்" },
+  chipRecipeSub: { en: "ingredients, sorted", si: "බඩු ඔක්කොම ලෑස්තියි", ta: "பொருட்கள் தயார்" },
+  chipPirikara: { en: "Pirikara & dāna", si: "පිරිකර සහ දාන", ta: "பிரிகரா & தானம்" },
+  chipPirikaraSub: { en: "arranged with respect", si: "ගෞරවයෙන් ලෑස්ති කරමු", ta: "மரியாதையுடன் ஏற்பாடு" },
+  chipFeeling: { en: "Gift by feeling", si: "හැඟීමට තෑග්ගක්", ta: "உணர்வுக்கு ஒரு பரிசு" },
+  chipFeelingSub: { en: "tell me how they feel — I'll find it", si: "එයාට දැනෙන විදිහ කියන්න", ta: "உணர்வை சொல்லுங்கள் — நான் தேடுகிறேன்" },
+
+  // ── composer ─────────────────────────────────────────────────────────
+  askAnything: { en: "Ask me anything… ඕන දෙයක්!", si: "ඕන දෙයක් අහන්න…", ta: "எதுவும் கேளுங்கள்…" },
+  replyToKapu: { en: "Reply to Kapu…", si: "Kapuට reply කරන්න…", ta: "Kapu-க்கு பதில்…" },
+  offlinePlaceholder: { en: "Offline — Kapu is napping…", si: "Offline — Kapu නිදි…", ta: "ஆஃப்லைன் — Kapu தூங்குகிறார்…" },
+
+  // ── basket ───────────────────────────────────────────────────────────
+  yourBasket: { en: "Your basket", si: "ඔයාගේ බාස්කට් එක", ta: "உங்கள் கூடை" },
+  itemsN: { en: "{n} items", si: "බඩු {n}ක්", ta: "{n} பொருட்கள்" },
+  item1: { en: "1 item", si: "බඩු 1යි", ta: "1 பொருள்" },
+  basketEmpty: { en: "Your basket is empty — whisper a wish!", si: "බාස්කට් එක හිස් — පැතුමක් කියන්න!", ta: "கூடை காலி — ஒரு விருப்பம் சொல்லுங்கள்!" },
+  flatNote: {
+    en: "One flat delivery fee for the whole basket — Kapruka magic.",
+    si: "මුළු බාස්කට් එකටම එක delivery ගාස්තුවයි — Kapruka magic.",
+    ta: "முழு கூடைக்கும் ஒரே டெலிவரி கட்டணம் — Kapruka மேஜிக்.",
+  },
+  subtotal: { en: "Subtotal", si: "එකතුව", ta: "கூட்டுத்தொகை" },
+  checkout: { en: "Checkout with Kapu", si: "Kapu එක්ක checkout", ta: "Kapu உடன் செக்அவுட்" },
+  forgotChip: { en: "Anything I forgot?", si: "මොනවහරි අමතක වුණාද?", ta: "ஏதாவது மறந்துவிட்டதா?" },
+  remove: { en: "Remove", si: "අයින් කරන්න", ta: "நீக்கு" },
+
+  // ── product blocks ───────────────────────────────────────────────────
+  inStock: { en: "In stock", si: "තියෙනවා", ta: "கையிருப்பில்" },
+  outOfStock: { en: "Out of stock", si: "ඉවරයි", ta: "தீர்ந்துவிட்டது" },
+  kapusPick: { en: "Kapu's pick", si: "Kapu ගේ තේරීම", ta: "Kapu தேர்வு" },
+  saveToday: { en: "Save {n}% today", si: "අද {n}% අඩුයි", ta: "இன்று {n}% சேமிப்பு" },
+  savePct: { en: "SAVE {n}%", si: "{n}% අඩුයි", ta: "{n}% தள்ளுபடி" },
+  icingLabel: { en: "Icing message", si: "කේක් එකේ ලියන දේ", ta: "கேக் மீது எழுத" },
+  deliverDay: { en: "Delivery day", si: "ගෙන්වන දවස", ta: "டெலிவரி நாள்" },
+  deliverToCityLabel: { en: "Deliver to {city}", si: "{city}ට ගෙන්වන්න", ta: "{city}க்கு டெலிவரி" },
+  tomorrow: { en: "Tomorrow", si: "හෙට", ta: "நாளை" },
+  shipCheck: { en: "checking delivery to {city}…", si: "{city}ට ගෙන්වීම බලනවා…", ta: "{city}க்கு டெலிவரி சரிபார்க்கிறேன்…" },
+  shipLine: { en: "flat {rate} to {city} · {date}", si: "{city}ට flat {rate} · {date}", ta: "{city}க்கு flat {rate} · {date}" },
+  shipNext: { en: "not available {city} today — next: {date}", si: "{city}ට අද බෑ — ළඟම: {date}", ta: "{city}க்கு இன்று முடியாது — அடுத்து: {date}" },
+  shipFrom: { en: "flat {rate} to {city} · from {date}", si: "{city}ට flat {rate} · {date} ඉඳන්", ta: "{city}க்கு flat {rate} · {date} முதல்" },
+  totalBeforeDelivery: { en: "Total (delivery added at payment)", si: "එකතුව (ගෙන්වීම ගෙවීමේදී)", ta: "மொத்தம் (டெலிவரி பின்)" },
+  options: { en: "Options", si: "විකල්ප", ta: "விருப்பங்கள்" },
+  addToBasket: { en: "Add to basket", si: "බාස්කට් එකට දාන්න", ta: "கூடையில் சேர்" },
+  viewOnKapruka: { en: "View on Kapruka", si: "Kapruka එකේ බලන්න", ta: "Kapruka-வில் பார்" },
+  add: { en: "Add", si: "දාන්න", ta: "சேர்" },
+  price: { en: "Price", si: "මිල", ta: "விலை" },
+  deal: { en: "Deal", si: "වට්ටම", ta: "சலுகை" },
+  availability: { en: "Availability", si: "තිබීම", ta: "இருப்பு" },
+  weight: { en: "Weight", si: "බර", ta: "எடை" },
+  seller: { en: "Seller", si: "විකුණන්නා", ta: "விற்பனையாளர்" },
+  verdict: { en: "Kapu's verdict:", si: "Kapu ගේ තීන්දුව:", ta: "Kapu தீர்ப்பு:" },
+
+  // ── delivery card ────────────────────────────────────────────────────
+  deliversTo: { en: "Delivers to {city}", si: "{city}ට ගෙන්විය හැක", ta: "{city}க்கு டெலிவரி உண்டு" },
+  flatRateLine: { en: "flat {rate} — one fee for the whole basket", si: "flat {rate} — මුළු බාස්කට් එකටම", ta: "flat {rate} — முழு கூடைக்கும்" },
+  notAvailable: { en: "Not available for {city}", si: "{city}ට බෑ", ta: "{city}க்கு முடியாது" },
+  nextAvailable: { en: "Next available: {date}", si: "ළඟම දවස: {date}", ta: "அடுத்த நாள்: {date}" },
+  tryAnother: { en: "Try another date or a nearby city", si: "වෙන දවසක් හෝ ළඟ නගරයක් බලන්න", ta: "வேறு நாள் அல்லது அருகிலுள்ள நகரம்" },
+
+  // ── order summary / pay ──────────────────────────────────────────────
+  orderSummary: { en: "Order summary", si: "ඇණවුම් සාරාංශය", ta: "ஆர்டர் சுருக்கம்" },
+  deliverToUpper: { en: "Deliver to", si: "ලබන්නා", ta: "பெறுநர்" },
+  deliveryUpper: { en: "Delivery", si: "ගෙන්වීම", ta: "டெலிவரி" },
+  flatRateWhole: { en: "Flat rate {rate} — whole order", si: "Flat {rate} — මුළු order එකටම", ta: "Flat {rate} — முழு ஆர்டருக்கும்" },
+  rateAtPay: { en: "Flat rate confirmed at payment", si: "ගාස්තුව ගෙවීමේදී තහවුරු වේ", ta: "கட்டணம் செலுத்தும்போது உறுதி" },
+  dateUnavailable: { en: "⚠ Not available this date — pick another", si: "⚠ මේ දවසට බෑ — වෙනත් දවසක්", ta: "⚠ இந்த நாளுக்கு முடியாது" },
+  surpriseKept: { en: "Surprise kept — sender hidden", si: "Surprise එක රහසයි — යවන්නා හංගලා", ta: "சர்ப்ரைஸ் ரகசியம்" },
+  cardLabel: { en: "Card:", si: "සුබපැතුම:", ta: "வாழ்த்து:" },
+  total: { en: "Total", si: "මුළු එකතුව", ta: "மொத்தம்" },
+  placeOrder: { en: "Yes — place the order", si: "හරි — order එක දාන්න", ta: "சரி — ஆர்டர் செய்" },
+  changeSomething: { en: "Change something", si: "මොකක්හරි වෙනස් කරන්න", ta: "எதையாவது மாற்று" },
+  orderCreated: { en: "Order created —", si: "Order එක හැදුවා —", ta: "ஆர்டர் உருவானது —" },
+  wishGranted: { en: "wish granted!", si: "පැතුම ඉටුයි!", ta: "விருப்பம் நிறைவேறியது!" },
+  refLine: {
+    en: "Ref {ref} · your tracking number arrives by email after payment",
+    si: "Ref {ref} · ගෙවීමෙන් පස්සේ tracking number එක email එකෙන් එනවා",
+    ta: "Ref {ref} · பணம் செலுத்திய பின் tracking எண் மின்னஞ்சலில்",
+  },
+  paySecurely: { en: "Pay securely on Kapruka", si: "Kapruka එකෙන් ගෙවන්න", ta: "Kapruka-வில் பணம் செலுத்து" },
+  priceLocked: { en: "Price locked", si: "මිල lock", ta: "விலை லாக்" },
+  breakdown: { en: "Items {items} + delivery {delivery}", si: "බඩු {items} + ගෙන්වීම {delivery}", ta: "பொருட்கள் {items} + டெலிவரி {delivery}" },
+
+  // ── timeline ─────────────────────────────────────────────────────────
+  order: { en: "Order", si: "Order", ta: "ஆர்டர்" },
+  stepReceived: { en: "Order received", si: "Order එක ලැබුණා", ta: "ஆர்டர் கிடைத்தது" },
+  stepConfirmed: { en: "Confirmed", si: "තහවුරුයි", ta: "உறுதியானது" },
+  stepShipped: { en: "Out for delivery", si: "ගෙනියනවා", ta: "டெலிவரிக்கு புறப்பட்டது" },
+  stepDelivered: { en: "Delivered", si: "භාර දුන්නා", ta: "வழங்கப்பட்டது" },
+  proofAppear: { en: "Photo proof will appear here", si: "Photo proof එක මෙතන එයි", ta: "புகைப்பட சான்று இங்கே வரும்" },
+  seeArrive: { en: "See it arrive", si: "ලැබෙනවා බලන්න", ta: "வந்து சேர்வதை பாருங்கள்" },
+  proofWait: { en: "Kapruka's rider snaps a photo or video at the door", si: "Kapruka rider දොරකඩදීම photo/video එකක් ගන්නවා", ta: "Kapruka ரைடர் வாசலில் புகைப்படம் எடுப்பார்" },
+  proofCaptured: {
+    en: "Delivery {kind} proof captured — view it on your Kapruka order page (email link)",
+    si: "Delivery {kind} proof එක තියෙනවා — Kapruka order පිටුවෙන් බලන්න (email link)",
+    ta: "டெலிவரி {kind} சான்று உள்ளது — Kapruka ஆர்டர் பக்கத்தில் பார்க்கவும்",
+  },
+  photo: { en: "photo", si: "photo", ta: "புகைப்பட" },
+  video: { en: "video", si: "video", ta: "வீடியோ" },
+  nudge: { en: "Nudge me on delivery", si: "ලැබුණම මට කියන්න", ta: "வந்ததும் சொல்லுங்கள்" },
+  delivered: { en: "Delivered", si: "භාර දුන්නා", ta: "வழங்கப்பட்டது" },
+
+  // ── misc blocks ──────────────────────────────────────────────────────
+  noMatch: { en: "No exact match for “{q}”", si: "“{q}”ට හරියටම ගැලපෙන දෙයක් නෑ", ta: "“{q}”க்கு பொருத்தம் இல்லை" },
+
+  // ── offline / errors ─────────────────────────────────────────────────
+  napping: { en: "Kapu is napping", si: "Kapu නිදාගෙන", ta: "Kapu தூங்குகிறார்" },
+  offline: { en: "offline", si: "offline", ta: "ஆஃப்லைன்" },
+  offlineBody: {
+    en: "— your chat and basket are saved on this phone. I'll wake the moment you're back online.",
+    si: "— chat එකයි බාස්කට් එකයි මේ phone එකේ save වෙලා. Online වුණ ගමන් මම ඇහැරෙනවා.",
+    ta: "— உங்கள் அரட்டையும் கூடையும் சேமிக்கப்பட்டுள்ளன. ஆன்லைனில் வந்ததும் எழுகிறேன்.",
+  },
+  noWorries: { en: "කරදරයක් නෑ", si: "කරදරයක් නෑ", ta: "கவலை வேண்டாம்" },
+  itemsWaiting: { en: "{n} waiting · {total}", si: "{n}ක් බලාගෙන · {total}", ta: "{n} காத்திருக்கிறது · {total}" },
+  savedTag: { en: "SAVED", si: "SAVE වුණා", ta: "சேமித்தது" },
+  aiyoLost: { en: "Aiyo, I lost the connection!", si: "අයියෝ, connection එක ගියා!", ta: "ஐயோ, இணைப்பு போய்விட்டது!" },
+  basketSafe: {
+    en: "Your basket is safe with me. Check your signal and we'll pick up right where we left off.",
+    si: "බාස්කට් එක මං ළඟ safe. Signal එක බලලා ආපහු එමු — නැවතුණ තැනින්ම පටන් ගමු.",
+    ta: "உங்கள் கூடை பத்திரம். சிக்னலை சரிபார்த்து மீண்டும் தொடரலாம்.",
+  },
+  tryAgain: { en: "Try again", si: "ආයෙ try කරන්න", ta: "மீண்டும் முயற்சி" },
+  copyMsg: { en: "Copy my message", si: "message එක copy කරන්න", ta: "செய்தியை நகலெடு" },
+  gatesBusy: { en: "The Kapruka gates are busy", si: "Kapruka ගේට්ටුව කාර්යබහුලයි", ta: "Kapruka நுழைவாயில் பரபரப்பு" },
+  retryingIn: { en: "Lots of wishes right now — retrying yours in {s}s", si: "දැන් පැතුම් ගොඩයි — තත්පර {s}කින් ආයෙ try කරනවා", ta: "நிறைய விருப்பங்கள் — {s} வினாடியில் மீண்டும்" },
+  placeHeld: { en: "Your place in line is held — no need to resend.", si: "ඔයාගේ තැන තියලා තියෙනවා — ආයෙ එවන්න එපා.", ta: "உங்கள் இடம் பாதுகாக்கப்பட்டது." },
+
+  // ── scan ─────────────────────────────────────────────────────────────
+  readingPhoto: { en: "Kapu is reading your photo…", si: "Kapu photo එක කියවනවා…", ta: "Kapu புகைப்படத்தை படிக்கிறார்…" },
+  holdOn: { en: "දැන් කියවනවා — hold on", si: "පොඩ්ඩක් ඉන්න…", ta: "கொஞ்சம் பொறுங்கள்…" },
+  cantRead: { en: "Couldn't read that one", si: "ඒක කියවගන්න බැරි වුණා", ta: "அதை படிக்க முடியவில்லை" },
+  retake: { en: "Retake", si: "ආයෙ ගන්න", ta: "மீண்டும் எடு" },
+  close: { en: "Close", si: "වහන්න", ta: "மூடு" },
+  cancel: { en: "Cancel", si: "නවත්තන්න", ta: "ரத்து" },
+
+  // ── voice ────────────────────────────────────────────────────────────
+  endVoice: { en: "End voice", si: "Voice නවත්තන්න", ta: "குரலை நிறுத்து" },
+  doneSend: { en: "Done — send it", si: "ඉවරයි — යවන්න", ta: "முடிந்தது — அனுப்பு" },
+  listeningPill: { en: "Listening — speak now!", si: "අහගෙන — කතා කරන්න!", ta: "கேட்கிறேன் — பேசுங்கள்!" },
+  thinkingPill: { en: "Kapu is thinking…", si: "Kapu හිතනවා…", ta: "Kapu யோசிக்கிறார்…" },
+  tapInterrupt: { en: "Speaking — tap anywhere to interrupt", si: "කතා කරනවා — නවත්තන්න tap කරන්න", ta: "பேசுகிறேன் — நிறுத்த தட்டவும்" },
+
+  // ── welcome / sheet / account ────────────────────────────────────────
+  welcomeSub: {
+    en: "Sri Lanka's wish-granting shopping concierge —",
+    si: "ලංකාවේ පැතුම් ඉටුකරන shopping සහයකයා —",
+    ta: "இலங்கையின் விருப்பம் நிறைவேற்றும் ஷாப்பிங் உதவியாளர் —",
+  },
+  continueGuest: { en: "Continue as guest", si: "අමුත්තෙක් විදිහට යන්න", ta: "விருந்தினராக தொடர்" },
+  guestKeep: {
+    en: "Guests keep wishes on this device. Sign in with Google anytime — your wishes then follow you across devices.",
+    si: "අමුත්තන්ගේ පැතුම් මේ device එකේ. ඕන වෙලාවක Google වලින් sign in වෙන්න — එතකොට පැතුම් හැමතැනම එනවා.",
+    ta: "விருந்தினர் விருப்பங்கள் இந்த சாதனத்தில். எப்போது வேண்டுமானாலும் Google மூலம் உள்நுழையலாம்.",
+  },
+  repliesIn: { en: "Kapu replies in…", si: "Kapu reply කරන්නේ…", ta: "Kapu பதிலளிப்பது…" },
+  pricesIn: { en: "Prices in…", si: "මිල පෙන්නන්නේ…", ta: "விலைகள்…" },
+  voiceNote: {
+    en: "Voice mode always speaks your language back — Sinhala included. Tip: just ask in chat —",
+    si: "Voice mode එකේ Kapu ඔයාගේ භාෂාවෙන්ම කතා කරනවා — සිංහලත් ඇතුළුව. Tip: chat එකේම ඉල්ලන්න —",
+    ta: "குரல் பயன்முறை உங்கள் மொழியிலேயே பேசும். குறிப்பு: அரட்டையில் கேளுங்கள் —",
+  },
+  switchInstant: { en: "— and Kapu switches instantly.", si: "— Kapu එසැණින් මාරු වෙනවා.", ta: "— Kapu உடனே மாறுவார்." },
+  sendingAbroad: {
+    en: "Sending from abroad? Kapu shows both — “Rs 4,850 · about $16”.",
+    si: "පිටරට ඉඳන් එවනවද? Kapu දෙකම පෙන්නනවා — “Rs 4,850 · $16 විතර”.",
+    ta: "வெளிநாட்டிலிருந்தா? இரண்டையும் காட்டுவார் — “Rs 4,850 · $16”.",
+  },
+  wishesEverywhere: { en: "Your wishes, everywhere", si: "ඔයාගේ පැතුම්, හැමතැනම", ta: "உங்கள் விருப்பங்கள், எங்கும்" },
+  guestBrowsing: {
+    en: "You're browsing as a guest — wishes stay on this device. Sign in and they follow you.",
+    si: "ඔයා ඉන්නේ අමුත්තෙක් විදිහට — පැතුම් මේ device එකේ විතරයි. Sign in වුණොත් හැමතැනම එනවා.",
+    ta: "விருந்தினராக உலாவுகிறீர்கள் — உள்நுழைந்தால் விருப்பங்கள் உங்களுடன் வரும்.",
+  },
+  signOut: { en: "Sign out", si: "Sign out", ta: "வெளியேறு" },
+  guestModeNote: { en: "Guest mode — wishes stay on this device", si: "අමුත්තෙක් — පැතුම් මේ device එකේ", ta: "விருந்தினர் — இந்த சாதனத்தில் மட்டும்" },
+  onTelegram: { en: "Also on Telegram", si: "Telegram එකෙනුත්", ta: "Telegram-லும்" },
+  tgTitle: { en: "Kapu on Telegram", si: "Telegram එකේ Kapu", ta: "Telegram-ல் Kapu" },
+  tgBlurb: {
+    en: "Chat, send Sinhala voice notes, snap lists — and add Kapu to the family group (@mention to wake it; one shared basket).",
+    si: "Chat කරන්න, සිංහල voice notes එවන්න, list photo ගන්න — family group එකටත් දාන්න (@mention කළාම ඇහැරෙනවා; බාස්කට් එක හැමෝටම එකයි).",
+    ta: "அரட்டை, குரல் குறிப்புகள், பட்டியல் புகைப்படங்கள் — குடும்ப குழுவிலும் சேர்க்கலாம் (@mention செய்தால் விழிக்கும்).",
+  },
+  open: { en: "Open", si: "අරින්න", ta: "திற" },
+  tgGuideTitle: { en: "Kapu in your pocket", si: "Kapu ඔයාගේ සාක්කුවේ", ta: "உங்கள் பாக்கெட்டில் Kapu" },
+  tgGuideTag: {
+    en: "Same brain, zero installs — full shopping inside Telegram.",
+    si: "ඒ මොළේම — install කරන්න දෙයක් නෑ. Telegram ඇතුළෙම shopping.",
+    ta: "அதே மூளை — நிறுவல் இல்லை. Telegram-க்குள் முழு ஷாப்பிங்.",
+  },
+  tgStep1: { en: "Tap the button — it opens", si: "Button එක ඔබන්න — ඇරෙනවා", ta: "பட்டனை தட்டுங்கள் — திறக்கும்" },
+  tgStep2: { en: "Send /start, then just talk", si: "/start එවලා, ඊට පස්සේ කතා කරන්න", ta: "/start அனுப்பி, பேசுங்கள்" },
+  tgCanVoice: { en: "Sinhala voice notes → basket", si: "සිංහල voice notes → බාස්කට් එකට", ta: "குரல் குறிப்புகள் → கூடைக்கு" },
+  tgCanSnap: { en: "Snap a handwritten list — I read it", si: "අතේ ලියපු list එකේ photo එකක් — මම කියවනවා", ta: "கையெழுத்து பட்டியல் புகைப்படம் — படிக்கிறேன்" },
+  tgCanGroup: {
+    en: "Add me to the family group — @mention me; one shared basket",
+    si: "Family group එකට දාන්න — @mention කරන්න; බාස්කට් එක හැමෝටම එකයි",
+    ta: "குடும்ப குழுவில் சேர்க்கவும் — @mention; ஒரே கூடை",
+  },
+  tgCanBday: {
+    en: "Unlike your friends, I actually remember birthdays 🎂",
+    si: "යාළුවො වගේ නෙමෙයි — මට birthdays මතකයි 🎂",
+    ta: "நண்பர்களை போல் அல்ல — பிறந்தநாட்கள் நினைவில் 🎂",
+  },
+  favorites: { en: "Favorites", si: "ප්‍රියතම", ta: "பிடித்தவை" },
+  buildFromFavs: { en: "Build a basket from these", si: "මේවායින් බාස්කට් එකක් හදන්න", ta: "இவற்றில் கூடை உருவாக்கு" },
+  favEmpty: { en: "Tap ♥ on any product — they collect here.", si: "ඕනම බඩුවක ♥ ඔබන්න — මෙතනට එකතු වෙනවා.", ta: "எந்த பொருளிலும் ♥ தட்டுங்கள்." },
+  askKapu: { en: "Ask Kapu about this", si: "මේ ගැන Kapu ගෙන් අහන්න", ta: "இதைப் பற்றி Kapu-விடம் கேள்" },
+  trackOrder: { en: "Track an order", si: "Order එක track කරන්න", ta: "ஆர்டரை கண்காணி" },
+  trackHint: {
+    en: "Use the order number Kapruka EMAILED after payment (e.g. VIMP34456CB2) — not the pre-payment ref.",
+    si: "ගෙවීමෙන් පස්සේ Kapruka EMAIL කරපු order number එක දාන්න (උදා: VIMP34456CB2).",
+    ta: "பணம் செலுத்திய பின் மின்னஞ்சலில் வந்த ஆர்டர் எண்ணை பயன்படுத்தவும்.",
+  },
+  trackPlaceholder: { en: "Order number… VIMP34456CB2", si: "Order number එක…", ta: "ஆர்டர் எண்…" },
+  trackBtn: { en: "Track", si: "බලන්න", ta: "பார்" },
+  recentOrdersT: { en: "Recent orders (pre-payment refs)", si: "මෑත orders (pre-payment refs)", ta: "சமீபத்திய ஆர்டர்கள்" },
+  notifTitle: { en: "For you", si: "ඔයාට", ta: "உங்களுக்காக" },
+  notifEmpty: { en: "Nothing right now — Kapu will nudge you here.", si: "දැනට මුකුත් නෑ — Kapu මෙතනින් මතක් කරයි.", ta: "இப்போது எதுவும் இல்லை — Kapu இங்கே நினைவூட்டுவார்." },
+  planGift: { en: "Plan a gift", si: "තෑග්ග plan කරමු", ta: "பரிசு திட்டமிடு" },
+  occLine: { en: "{who}'s {type} in {d} days", si: "{who}ගේ {type} එකට දින {d}යි", ta: "{who}-இன் {type}க்கு {d} நாட்கள்" },
+  orderLine: { en: "Order {ref} — pay link ready", si: "Order {ref} — pay link එක ready", ta: "ஆர்டர் {ref} — கட்டண இணைப்பு" },
+  openPay: { en: "Pay", si: "ගෙවන්න", ta: "செலுத்து" },
+  notifications: { en: "Notifications", si: "දැනුම්දීම්", ta: "அறிவிப்புகள்" },
+  myKapu: { en: "My Kapu — teach it your rules", si: "මගේ Kapu — ඔයාගේ නීති කියලා දෙන්න", ta: "என் Kapu — உங்கள் விதிகள்" },
+  rulesPlaceholder: {
+    en: "e.g. Vegetarian household. Never suggest alcohol. Warn me over Rs 20,000. Talk to me like a friend.",
+    si: "උදා: අපේ ගෙදර vegetarian. Alcohol යෝජනා කරන්න එපා. රු. 20,000ට වැඩි නම් කියන්න.",
+    ta: "உதா: சைவ வீடு. மது வேண்டாம். ரூ. 20,000க்கு மேல் எச்சரிக்கவும்.",
+  },
+  rulesHint: {
+    en: "Kapu follows these in every conversation on this device — shopping rules, budgets, tone.",
+    si: "මේ device එකේ හැම conversation එකකදීම Kapu මේවා පිළිපදිනවා.",
+    ta: "இந்த சாதனத்தில் எல்லா உரையாடல்களிலும் Kapu இவற்றை பின்பற்றுவார்.",
+  },
+  rulesSaved: { en: "Saved — Kapu will remember", si: "Save වුණා — Kapu මතක තියාගනීවි", ta: "சேமிக்கப்பட்டது" },
+  schedules: { en: "Schedules", si: "Schedules", ta: "அட்டவணைகள்" },
+  schedTitle: { en: "Standing wishes", si: "නිත්‍ය පැතුම්", ta: "நிலையான விருப்பங்கள்" },
+  schedBlurb: {
+    en: "Kapu runs these on its own and reports back — ask in chat: “every month-end, flowers for Amma under Rs 5,000”.",
+    si: "Kapu මේවා තනියම කරලා report කරනවා — chat එකේ කියන්න: “හැම මාසේ අන්තිමට අම්මට මල් — රු. 5,000ට යටින්”.",
+    ta: "Kapu இவற்றை தானாக இயக்கி அறிக்கை அனுப்பும் — சாட்டில் கேளுங்கள்.",
+  },
+  schedEmpty: { en: "No standing wishes yet — ask Kapu to schedule one.", si: "තාම නෑ — Kapu ට කියන්න schedule කරන්න.", ta: "இன்னும் இல்லை — Kapu-விடம் கேளுங்கள்." },
+  schedSignIn: { en: "Schedules need a Google sign-in, so they belong to YOU — not this browser.", si: "Schedules වලට Google sign-in ඕන — ඒවා ඔයාගේ, browser එකේ නෙමෙයි.", ta: "அட்டவணைகளுக்கு Google உள்நுழைவு தேவை." },
+  schedNext: { en: "next: {when}", si: "ඊළඟ: {when}", ta: "அடுத்து: {when}" },
+  schedOrderOk: { en: "may place orders (you pay via link)", si: "order දාන්න පුළුවන් (ගෙවන්නේ ඔයා)", ta: "ஆர்டர் செய்யலாம் (நீங்கள் செலுத்துவீர்கள்)" },
+  schedProposeOnly: { en: "proposals only", si: "යෝජනා විතරයි", ta: "முன்மொழிவுகள் மட்டும்" },
+  schedPaused: { en: "paused", si: "නවත්තලා", ta: "இடைநிறுத்தம்" },
+  linkTg: { en: "Link Telegram for updates", si: "Updates වලට Telegram link කරන්න", ta: "புதுப்பிப்புகளுக்கு Telegram-ஐ இணைக்கவும்" },
+  linkTgHint: { en: "Send /link to @{bot}, then enter the 6-digit code:", si: "@{bot} ට /link එවලා, code එක මෙතන දාන්න:", ta: "@{bot}க்கு /link அனுப்பி, குறியீட்டை உள்ளிடவும்:" },
+  linkTgDone: { en: "Telegram linked ✓ — schedule updates go there", si: "Telegram link වුණා ✓", ta: "Telegram இணைக்கப்பட்டது ✓" },
+  tryIt: { en: "Try: ", si: "Try කරන්න: ", ta: "முயற்சி: " },
+  signIn: { en: "Sign in with Google", si: "Google එකෙන් sign in වෙන්න", ta: "Google மூலம் உள்நுழை" },
+  watchOrder: { en: "Watch this order — Telegram updates", si: "මේ order එක බලාගන්න — TG updates", ta: "இந்த ஆர்டரை கண்காணி — TG" },
+  schedRan: { en: "{title}: {result}", si: "{title}: {result}", ta: "{title}: {result}" },
+  schedUpcoming: { en: "{title} — runs {when}", si: "{title} — {when}ට duwanawa", ta: "{title} — {when}க்கு இயங்கும்" },
+  tgFoot: { en: "Free · works in groups · pays with a secure Kapruka link", si: "නොමිලේ · groups වලත් · secure Kapruka link එකෙන් ගෙවීම", ta: "இலவசம் · குழுக்களில் · பாதுகாப்பான Kapruka லிங்க்" },
+} satisfies Record<string, Entry>;
+
+export type StrKey = keyof typeof STR;
+
+export function makeT(lang: Language) {
+  return (key: StrKey, vars?: Record<string, string | number>): string => {
+    let s: string = STR[key][lang] ?? STR[key].en;
+    if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+    return s;
+  };
+}
+
+/** Rotating hero phrases — each is a REAL runnable capability. */
+export interface HeroPhrase {
+  text: string;
+  kind: "msg" | "voice" | "camera";
+  msg?: string;
+}
+export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
+  en: [
+    { text: "🎂 I can send a surprise cake to Amma in Kandy — today.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
+    { text: "🎙 I understand Sinhala when you SPEAK it — try me.", kind: "voice" },
+    { text: "📸 I can read your handwritten shopping list from a photo.", kind: "camera" },
+    { text: "🧺 I can build a festival hamper under Rs 15,000 — one flat delivery.", kind: "msg", msg: "Build me a festival hamper under Rs 15,000 — everything in one delivery" },
+    { text: "💜 Tell me a feeling — “amma feels lonely” — I'll find the gift.", kind: "msg", msg: "My mother has been feeling lonely since I moved abroad — what should I send her?" },
+    { text: "🚚 I deliver islandwide — Jaffna to Galle, next day, flat rate.", kind: "msg", msg: "Can you deliver to Jaffna tomorrow? What's the flat rate?" },
+    { text: "🔮 I can book a real horoscope reading for auspicious timing.", kind: "msg", msg: "Show me Kapruka's astrology and horoscope reading services" },
+    { text: "🎁 Unlike your friends, I actually remember birthdays.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
+    { text: "⏰ I can send flowers every month-end — all on my own.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
+  ],
+  si: [
+    { text: "🎂 අම්මට නුවරට කේක් එකක් — අදම යවන්න පුළුවන්.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
+    { text: "🎙 සිංහලෙන් කතා කරන්න — මට තේරෙනවා. Try කරන්න!", kind: "voice" },
+    { text: "📸 අතේ ලියපු බඩු list එකේ photo එක මම කියවනවා.", kind: "camera" },
+    { text: "🧺 රු. 15,000ට අඩුවෙන් hamper එකක් — එක delivery එකයි.", kind: "msg", msg: "Build me a festival hamper under Rs 15,000 — everything in one delivery" },
+    { text: "💜 හැඟීම කියන්න — “අම්මා තනිවෙලා” — තෑග්ග මම හොයන්නම්.", kind: "msg", msg: "My mother has been feeling lonely since I moved abroad — what should I send her?" },
+    { text: "🚚 යාපනේ ඉඳන් ගාල්ල වෙනකම් — හෙට වෙනකොට, flat rate.", kind: "msg", msg: "Can you deliver to Jaffna tomorrow? What's the flat rate?" },
+    { text: "🔮 නැකතට — ඇත්තම horoscope reading එකක් book කරන්න පුළුවන්.", kind: "msg", msg: "Show me Kapruka's astrology and horoscope reading services" },
+    { text: "🎁 යාළුවො වගේ නෙමෙයි — මට birthdays මතකයි.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
+    { text: "⏰ හැම මාසෙම මල් — මම තනියම යවන්නම්.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
+  ],
+  ta: [
+    { text: "🎂 கண்டியில் அம்மாவுக்கு கேக் — இன்றே அனுப்பலாம்.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
+    { text: "🎙 தமிழில் பேசுங்கள் — எனக்கு புரியும். முயற்சிக்கவும்!", kind: "voice" },
+    { text: "📸 கையெழுத்து பட்டியலின் புகைப்படத்தை படிக்கிறேன்.", kind: "camera" },
+    { text: "🧺 ரூ. 15,000க்குள் ஒரு hamper — ஒரே டெலிவரி.", kind: "msg", msg: "Build me a festival hamper under Rs 15,000 — everything in one delivery" },
+    { text: "💜 உணர்வை சொல்லுங்கள் — பரிசை நான் தேடுகிறேன்.", kind: "msg", msg: "My mother has been feeling lonely since I moved abroad — what should I send her?" },
+    { text: "🚚 யாழ்ப்பாணம் முதல் காலி வரை — நாளை, flat rate.", kind: "msg", msg: "Can you deliver to Jaffna tomorrow? What's the flat rate?" },
+    { text: "🔮 நேரம் பார்க்க — உண்மையான ஜாதக சேவை புக் செய்யலாம்.", kind: "msg", msg: "Show me Kapruka's astrology and horoscope reading services" },
+    { text: "🎁 நண்பர்களை போல் அல்ல — பிறந்தநாட்கள் நினைவில்.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
+    { text: "⏰ மாத இறுதியில் பூக்கள் — நானே அனுப்புவேன்.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
+  ],
+};
+
+const LangContext = createContext<Language>("en");
+export const LangProvider = LangContext.Provider;
+
+/** Translator hook for components below <LangProvider> (blocks etc.). */
+export function useT() {
+  const lang = useContext(LangContext);
+  return makeT(lang);
+}
+
+export function useLang(): Language {
+  return useContext(LangContext);
+}
