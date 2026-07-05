@@ -41,11 +41,15 @@ async function tick(): Promise<void> {
       // advance nextRun FIRST so a crash can't cause a rapid-fire loop
       s.lastRun = Date.now();
       // watchers re-poll every 3h until delivered; tasks follow their cadence
-      s.nextRun = s.kind === "watch_order" ? Date.now() + 3 * 3600_000 : computeNextRun(s.cadence, Date.now() + 60_000);
-      if (s.kind !== "watch_order" && s.cadence.kind === "once") s.active = false;
+      s.nextRun =
+        s.kind === "watch_order" ? Date.now() + 3 * 3600_000
+        : s.kind === "watch_price" ? Date.now() + 6 * 3600_000
+        : computeNextRun(s.cadence, Date.now() + 60_000);
+      if (s.kind === "task" && s.cadence.kind === "once") s.active = false;
       await updateSchedule(s);
       try {
         if (s.kind === "watch_order" && s.orderNumber) await runOrderWatch(s);
+        else if (s.kind === "watch_price" && s.productId) await runPriceWatch(s);
         else await runTask(s);
       } catch (err) {
         console.error(`[schedules] ${s.id} failed:`, err);
@@ -99,6 +103,32 @@ async function runTask(s: Schedule): Promise<void> {
     await sendMessage(chatId, `⏰ <b>${esc(s.title)}</b>\n${mdToTelegram(text).slice(0, 3500)}`);
     await deliverBlocks(chatId, blocks.slice(0, 4));
   }
+}
+
+async function runPriceWatch(s: Schedule): Promise<void> {
+  const res = parseJson(await kapruka("kapruka_get_product", { product_id: s.productId }));
+  const prod = (res.product ?? res) as Record<string, unknown>;
+  const priceObj = prod.price as { amount?: number } | number | undefined;
+  const price = typeof priceObj === "number" ? priceObj : typeof priceObj?.amount === "number" ? priceObj.amount : null;
+  if (price == null) return;
+  if (s.baselinePrice == null) {
+    s.baselinePrice = price;
+    s.lastResult = `Watching at Rs ${Math.round(price).toLocaleString()}`;
+    await updateSchedule(s);
+    return;
+  }
+  s.lastResult = `Rs ${Math.round(price).toLocaleString()} (was Rs ${Math.round(s.baselinePrice).toLocaleString()})`;
+  const dropped = price < s.baselinePrice * 0.98; // ≥2% real drop
+  const chatId = await tgChatFor(s);
+  if (dropped && chatId && telegramEnabled()) {
+    await sendMessage(
+      chatId,
+      `📉 <b>Price drop!</b> ${esc(s.title)}\nRs ${Math.round(s.baselinePrice).toLocaleString()} → <b>Rs ${Math.round(price).toLocaleString()}</b> (−${Math.round((1 - price / s.baselinePrice) * 100)}%)\nGrab it in Kapu before it climbs back 🌳`
+    );
+    s.active = false; // one good alert, then rest
+  }
+  if (price < s.baselinePrice) s.baselinePrice = price;
+  await updateSchedule(s);
 }
 
 async function runOrderWatch(s: Schedule): Promise<void> {

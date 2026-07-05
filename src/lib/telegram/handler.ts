@@ -473,6 +473,14 @@ async function renderBlock(chatId: number, session: Awaited<ReturnType<typeof ge
     case "no_results":
       await sendMessage(chatId, `🔍 No exact match for "<i>${esc(block.query)}</i>" — let me suggest something close.`);
       break;
+    case "greeting_card": {
+      await sendMessage(
+        chatId,
+        `${block.glyph} <b>Card for ${esc(block.to)}</b>\n<i>“${esc(block.message)}”</i>${block.from ? `\n— ${esc(block.from)}` : ""}\n🌳 <i>full designed card in the Kapu web app</i>`
+      );
+      break;
+    }
+
     case "chips": {
       session.tgChips = block.chips.slice(0, 6);
       saveSession(session);

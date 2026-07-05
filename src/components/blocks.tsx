@@ -1022,6 +1022,100 @@ export function OrderTimeline({ block, actions }: { block: Extract<UiBlock, { ty
   );
 }
 
+// ── greeting card — canvas-download festival card (perfect Sinhala) ─────
+
+function drawCard(block: Extract<UiBlock, { type: "greeting_card" }>): HTMLCanvasElement {
+  const W = 1080;
+  const H = 1350;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d")!;
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, block.color_from);
+  grad.addColorStop(1, block.color_to);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, W, H);
+  g.strokeStyle = "rgba(255,184,0,0.55)";
+  g.lineWidth = 6;
+  g.strokeRect(42, 42, W - 84, H - 84);
+  g.textAlign = "center";
+  g.font = "170px serif";
+  g.fillText(block.glyph, W / 2, 330);
+  g.fillStyle = "rgba(255,255,255,0.75)";
+  g.font = "36px 'Instrument Sans', system-ui";
+  g.fillText(`to ${block.to}`, W / 2, 450);
+  g.fillStyle = "#ffffff";
+  g.font = "64px 'Instrument Serif', 'Noto Sans Sinhala', 'Noto Sans Tamil', serif";
+  const words = block.message.split(/\s+/);
+  const lines: string[] = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (g.measureText(test).width > W - 220 && line) {
+      lines.push(line);
+      line = w;
+    } else line = test;
+  }
+  if (line) lines.push(line);
+  lines.slice(0, 5).forEach((l, i) => g.fillText(l, W / 2, 600 + i * 92));
+  if (block.from) {
+    g.fillStyle = "rgba(255,255,255,0.75)";
+    g.font = "38px 'Instrument Sans', system-ui";
+    g.fillText(`— ${block.from}`, W / 2, 620 + Math.min(lines.length, 5) * 92 + 40);
+  }
+  g.fillStyle = "#ffb800";
+  g.font = "600 30px 'Instrument Sans', system-ui";
+  g.fillText("🌳 sent with Kapu · kapuwa.shop", W / 2, H - 96);
+  return c;
+}
+
+export function GreetingCard({ block }: { block: Extract<UiBlock, { type: "greeting_card" }> }) {
+  const t = useT();
+  const download = () => {
+    drawCard(block).toBlob((b) => {
+      if (!b) return;
+      const url = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kapu-card-${block.to.toLowerCase().replace(/\s+/g, "-")}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }, "image/png");
+  };
+  const share = () => {
+    drawCard(block).toBlob(async (b) => {
+      if (!b) return;
+      const file = new File([b], "kapu-card.png", { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: block.message }).catch(() => {});
+      } else download();
+    }, "image/png");
+  };
+  return (
+    <div className="my-2 max-w-[330px]">
+      <div
+        className="rise overflow-hidden rounded-[22px] p-7 text-center text-white shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+        style={{ background: `linear-gradient(180deg, ${block.color_from}, ${block.color_to})`, border: "1.5px solid rgba(255,184,0,0.4)" }}
+      >
+        <p className="text-[56px] leading-none">{block.glyph}</p>
+        <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-white/60">to {block.to}</p>
+        <p className="font-display mt-3 text-[21px] leading-snug">{block.message}</p>
+        {block.from && <p className="mt-3 text-[12px] text-white/70">— {block.from}</p>}
+        <p className="mt-5 text-[9.5px] font-semibold text-gold">🌳 sent with Kapu</p>
+      </div>
+      <div className="mt-2 flex gap-2">
+        <button onClick={download} className="flex-1 rounded-[12px] bg-gold py-2.5 text-[12px] font-bold text-ink shadow-sm transition active:scale-[0.98] dark:text-[#322b45]">
+          ⬇️ {t("cardDownload")}
+        </button>
+        <button onClick={share} className="flex-1 rounded-[12px] border border-edge bg-card py-2.5 text-[12px] font-semibold text-leaf transition active:scale-[0.98]">
+          📤 {t("cardShare")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── no results — always a path forward ─────────────────────────────────
 
 export function NoResults({ query }: { query: string }) {
@@ -1074,6 +1168,8 @@ export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; a
       return <PayLink block={block} />;
     case "order_timeline":
       return <OrderTimeline block={block} actions={actions} />;
+    case "greeting_card":
+      return <GreetingCard block={block} />;
     case "no_results":
       return <NoResults query={block.query} />;
     case "chips":

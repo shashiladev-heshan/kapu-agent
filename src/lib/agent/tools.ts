@@ -229,8 +229,9 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
       properties: {
         title: { type: "string", description: "Short human label, e.g. 'Flowers for Amma — month-end'" },
         instruction: { type: "string", description: "The task Kapu runs each time, incl. budget/limits, e.g. 'Pick a fresh flower bouquet under Rs 5,000 and send to Amma (saved recipient)'" },
-        kind: { type: "string", enum: ["task", "watch_order"] },
+        kind: { type: "string", enum: ["task", "watch_order", "watch_price"] },
         order_number: { type: "string", description: "watch_order only — the EMAILED tracking number" },
+        product_id: { type: "string", description: "watch_price only — the product to watch; alerts on a ≥2% drop via Telegram, then stops" },
         cadence_kind: { type: "string", enum: ["once", "daily", "weekly", "monthly", "yearly"] },
         at: { type: "string", description: "HH:mm Sri Lanka time, default 09:00" },
         date: { type: "string", description: "once: YYYY-MM-DD · yearly: MM-DD" },
@@ -250,6 +251,21 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
     name: "cancel_schedule",
     description: "Cancel one of the user's schedules by id (from list_schedules).",
     input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+  },
+  {
+    name: "create_card",
+    description:
+      "Render a beautiful festival/occasion greeting card the user can download or share (WhatsApp etc.). Use when they set a gift message, or ask for a card. The card renders in-app with perfect Sinhala/Tamil script.",
+    input_schema: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Recipient name, e.g. 'Amma'" },
+        message: { type: "string", description: "The greeting, in the user's language/script, max 140 chars" },
+        from: { type: "string", description: "Sender name (omit for anonymous)" },
+        occasion: { type: "string", description: "e.g. 'birthday', 'Esala', 'Avurudu', 'Vesak', 'Christmas', 'Deepavali', 'love'" },
+      },
+      required: ["to", "message"],
+    },
   },
   {
     name: "say",
@@ -645,8 +661,9 @@ export async function executeTool(
           sub: session.userSub,
           title: String(input.title ?? "").slice(0, 60) || "Standing wish",
           instruction: String(input.instruction ?? "").slice(0, 500),
-          kind: input.kind === "watch_order" ? "watch_order" : "task",
+          kind: input.kind === "watch_order" ? "watch_order" : input.kind === "watch_price" ? "watch_price" : "task",
           ...(input.order_number ? { orderNumber: String(input.order_number).slice(0, 40) } : {}),
+          ...(input.product_id ? { productId: String(input.product_id).slice(0, 80) } : {}),
           cadence: {
             kind: (input.cadence_kind as "once" | "daily" | "weekly" | "monthly" | "yearly") ?? "once",
             at: typeof input.at === "string" && /^\d{1,2}:\d{2}$/.test(input.at) ? input.at : "09:00",
@@ -690,6 +707,28 @@ export async function executeTool(
       if (!session.userSub) return JSON.stringify({ error: "Not signed in." });
       const ok = await cancelSchedule(session.userSub, String(input.id ?? ""));
       return JSON.stringify(ok ? { cancelled: true } : { error: "No schedule with that id." });
+    }
+
+    case "create_card": {
+      const occ = String(input.occasion ?? "").toLowerCase();
+      const theme =
+        occ.includes("vesak") || occ.includes("poson") ? { glyph: "🏮", from: "#1e2a4a", to: "#0f1830" }
+        : occ.includes("avurudu") || occ.includes("new year") ? { glyph: "🌅", from: "#7a3d1f", to: "#3a1c0e" }
+        : occ.includes("deepavali") || occ.includes("diwali") ? { glyph: "🪔", from: "#6b3a10", to: "#2e1806" }
+        : occ.includes("christmas") ? { glyph: "🎄", from: "#14382a", to: "#081c14" }
+        : occ.includes("esala") || occ.includes("perahera") ? { glyph: "🐘", from: "#3A2868", to: "#1c1236" }
+        : occ.includes("love") || occ.includes("valentine") ? { glyph: "❤️", from: "#5c1f35", to: "#2a0d18" }
+        : { glyph: "🎂", from: "#3A2868", to: "#241740" };
+      emit({
+        type: "greeting_card",
+        to: String(input.to ?? "").slice(0, 40),
+        message: String(input.message ?? "").slice(0, 140),
+        from: input.from ? String(input.from).slice(0, 40) : undefined,
+        glyph: theme.glyph,
+        color_from: theme.from,
+        color_to: theme.to,
+      });
+      return JSON.stringify({ rendered: true, note: "Card shown with download & share buttons. Tell them they can attach the message to the order too." });
     }
 
     case "say": {

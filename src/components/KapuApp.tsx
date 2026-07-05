@@ -1751,6 +1751,19 @@ export default function KapuApp() {
                   </span>
                   , I&apos;m <span className="italic text-leaf">Kapu.</span>
                 </h1>
+                {seasonal?.festival && seasonal.festival.days <= 45 && (
+                  <span aria-hidden className="pointer-events-none absolute inset-x-0 top-8 mx-auto block h-0 max-w-[720px]">
+                    {[...seasonal.festival.glyphs].slice(0, 3).map((g, i) => (
+                      <span
+                        key={i}
+                        className="spark absolute text-[26px] opacity-60"
+                        style={{ left: `${12 + i * 38}%`, top: `${(i % 2) * 30 - 10}px`, animationDelay: `${i * 0.5}s` }}
+                      >
+                        {g}
+                      </span>
+                    ))}
+                  </span>
+                )}
                 {seasonal?.festival && (
                   <button
                     onClick={() => void send(seasonal.festival!.msg)}

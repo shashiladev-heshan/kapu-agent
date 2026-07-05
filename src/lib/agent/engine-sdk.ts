@@ -34,6 +34,7 @@ const TOOL_LABELS: Record<string, string> = {
   create_schedule: "Setting up your standing wish…",
   list_schedules: "Checking your schedules…",
   cancel_schedule: "Cancelling…",
+  create_card: "Designing your card…",
   suggest_replies: "…",
 };
 
@@ -229,6 +230,17 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
       tool("list_schedules", "List the user's standing schedules.", {}, run("list_schedules")),
       tool("cancel_schedule", "Cancel a schedule by id.", { id: z.string() }, run("cancel_schedule")),
       tool(
+        "create_card",
+        "Render a downloadable/shareable festival or occasion greeting card (perfect Sinhala/Tamil script). Use when a gift message is set or a card is requested.",
+        {
+          to: z.string(),
+          message: z.string().max(140),
+          from: z.string().optional(),
+          occasion: z.string().optional(),
+        },
+        run("create_card")
+      ),
+      tool(
         "say",
         "VOICE MODE ONLY (mode: voice in context). The exact text the voice engine should SPEAK for this reply — short natural sentences, no formatting, prices in words; for Sinhala conversations use ROMANIZED colloquial Sinhala. Call exactly once, after your reply text.",
         { text: z.string().describe("The speakable version, 1-3 short sentences") },
@@ -265,6 +277,7 @@ const KAPU_TOOL_NAMES = [
   "create_schedule",
   "list_schedules",
   "cancel_schedule",
+  "create_card",
   "say",
   "suggest_replies",
 ].map((t) => `mcp__kapu__${t}`);

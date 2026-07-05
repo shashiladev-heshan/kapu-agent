@@ -344,6 +344,8 @@ const STR = {
   },
   landPwaBtn: { en: "Add to Home Screen", si: "Home Screen එකට දාන්න", ta: "முகப்புத் திரையில் சேர்" },
   landPwaTag: { en: "PWA · wishes synced", si: "PWA · wishes sync වෙනවා", ta: "PWA · ஒத்திசைவு" },
+  cardDownload: { en: "Download", si: "Download", ta: "பதிவிறக்கு" },
+  cardShare: { en: "Share", si: "Share කරන්න", ta: "பகிர்" },
   seasonalPicks: { en: "{name} — Kapu's seasonal picks", si: "{name} — Kapu ගේ seasonal picks", ta: "{name} — Kapu-வின் பருவ தேர்வுகள்" },
   seasonalIn: { en: "{glyph} {greet} — {d} days to go", si: "{glyph} {greet} — තව දින {d}", ta: "{glyph} {greet} — இன்னும் {d} நாட்கள்" },
   landPickTitle: { en: "It doesn't list. It recommends.", si: "List කරනවා විතරක් නෙමෙයි — recommend කරනවා.", ta: "பட்டியல் அல்ல — பரிந்துரை." },

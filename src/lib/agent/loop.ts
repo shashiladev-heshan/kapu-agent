@@ -44,6 +44,7 @@ const TOOL_LABELS: Record<string, string> = {
   create_schedule: "Setting up your standing wish…",
   list_schedules: "Checking your schedules…",
   cancel_schedule: "Cancelling…",
+  create_card: "Designing your card…",
   suggest_replies: "…",
 };
 

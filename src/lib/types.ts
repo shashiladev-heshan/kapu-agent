@@ -75,6 +75,7 @@ export type UiBlock =
   | { type: "order_summary"; summary: OrderSummaryData }
   | { type: "pay_link"; order_ref: string; pay_url: string; total?: number; currency?: string; created_at?: number; expires_at?: string; breakdown?: { items_total: number | null; delivery_fee: number | null; addons_total: number | null } }
   | { type: "order_timeline"; order_number: string; status: string; status_display?: string; progress: { step: string; timestamp?: string | null }[]; has_delivery_photo?: boolean; has_delivery_video?: boolean; items?: { name?: string; quantity?: number }[] }
+  | { type: "greeting_card"; to: string; message: string; from?: string; glyph: string; color_from: string; color_to: string }
   | { type: "no_results"; query: string }
   | { type: "chips"; chips: string[] }
   // voice mode: the exact text the TTS should speak (may differ from the

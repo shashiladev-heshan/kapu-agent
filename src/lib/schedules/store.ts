@@ -24,8 +24,10 @@ export interface Schedule {
   sub: string; // owner (Google sub) — auth required
   title: string;
   instruction: string;
-  kind: "task" | "watch_order";
+  kind: "task" | "watch_order" | "watch_price";
   orderNumber?: string; // watch_order
+  productId?: string; // watch_price
+  baselinePrice?: number; // watch_price — alert when price dips below this
   cadence: Cadence;
   allowOrder: boolean;
   active: boolean;
@@ -123,7 +125,7 @@ export async function createSchedule(
     id: crypto.randomUUID().slice(0, 8),
     active: true,
     // watchers start almost immediately; tasks follow their cadence
-    nextRun: input.kind === "watch_order" ? Date.now() + 2 * 60_000 : computeNextRun(input.cadence),
+    nextRun: input.kind === "watch_order" || input.kind === "watch_price" ? Date.now() + 2 * 60_000 : computeNextRun(input.cadence),
     createdAt: Date.now(),
   };
   schedules.set(s.id, s);
