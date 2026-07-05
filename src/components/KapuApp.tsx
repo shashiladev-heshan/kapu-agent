@@ -859,6 +859,9 @@ export default function KapuApp() {
       stopVoice();
       return;
     }
+    // iOS: unlock the shared audio element while we're inside the tap gesture
+    playerRef.current ??= new VoicePlayer();
+    playerRef.current.unlock();
     if (!localStorage.getItem("kapu_mic_ok")) {
       setMicModal(true);
       return;

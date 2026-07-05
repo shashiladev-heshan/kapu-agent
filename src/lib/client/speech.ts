@@ -82,6 +82,28 @@ export function createRecognizer(language: Language, handlers: RecognizerHandler
   r.maxAlternatives = 1;
 
   let finalText = "";
+  let lastHeard = "";
+  let aborted = false;
+  // iOS WebKit never auto-ends on silence and rarely flags isFinal — the
+  // transcript just sits there while "Listening" spins forever. Finalize
+  // ourselves: when the transcript stops changing for 1.6s, stop() the
+  // recognizer and treat what we heard as final. Harmless on Chrome, whose
+  // native endpointing fires sooner.
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const clearStall = () => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = null;
+  };
+  const armStall = () => {
+    clearStall();
+    stallTimer = setTimeout(() => {
+      try {
+        r.stop();
+      } catch {
+        /* already stopped */
+      }
+    }, 1600);
+  };
   r.onresult = (event) => {
     let interim = "";
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -89,14 +111,29 @@ export function createRecognizer(language: Language, handlers: RecognizerHandler
       if (res.isFinal) finalText += res[0].transcript;
       else interim += res[0].transcript;
     }
+    lastHeard = (finalText + interim).trim();
     handlers.onInterim(finalText + interim);
+    if (lastHeard) armStall();
   };
-  r.onerror = (event) => handlers.onError(event.error);
+  r.onerror = (event) => {
+    clearStall();
+    handlers.onError(event.error);
+  };
   r.onend = () => {
-    const text = finalText.trim();
+    clearStall();
+    // isFinal results when the engine provides them; the last interim
+    // transcript when it doesn't (iOS). Never send after an abort.
+    const text = (finalText.trim() || lastHeard).trim();
     finalText = "";
-    if (text) handlers.onFinal(text);
+    lastHeard = "";
+    if (text && !aborted) handlers.onFinal(text);
     handlers.onEnd();
+  };
+  const origAbort = r.abort.bind(r);
+  r.abort = () => {
+    aborted = true;
+    clearStall();
+    origAbort();
   };
   return r;
 }
@@ -167,7 +204,21 @@ export class VoiceRecorder {
 
 export class VoicePlayer {
   private audio: HTMLAudioElement | null = null;
+  private el: HTMLAudioElement | null = null;
   private stopped = false;
+
+  /** Call from a user-gesture handler (the mic tap). iOS only allows
+   *  audio.play() on elements that have played during a gesture — one
+   *  silent play here unlocks the shared element for every reply after. */
+  unlock(): void {
+    if (this.el || typeof window === "undefined") return;
+    this.el = new Audio();
+    this.el.src =
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+    void this.el.play().catch(() => {
+      /* pre-unlock is best-effort */
+    });
+  }
 
   /** Speak text; resolves when playback finishes (or immediately on stop()). */
   async speak(rawText: string, language: Language): Promise<void> {
@@ -198,7 +249,7 @@ export class VoicePlayer {
     this.stopped = true;
     if (this.audio) {
       this.audio.pause();
-      this.audio.src = "";
+      if (this.audio !== this.el) this.audio.src = "";
       this.audio = null;
     }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -209,7 +260,9 @@ export class VoicePlayer {
   private playBlob(blob: Blob): Promise<void> {
     return new Promise((resolve) => {
       const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
+      // reuse the gesture-unlocked element on iOS; fresh element elsewhere
+      const audio = this.el ?? new Audio();
+      audio.src = url;
       this.audio = audio;
       const done = () => {
         URL.revokeObjectURL(url);
