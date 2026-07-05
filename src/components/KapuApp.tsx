@@ -3104,10 +3104,25 @@ function VoiceOverlay({
         <p className="font-display text-[17px]">
           Kapu <span className="italic text-gold">voice</span>
         </p>
-        <span className="ml-auto flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-[11px] font-semibold text-white/80">
+        <button
+          onClick={() => {
+            const order: Language[] = ["si", "ta", "en"];
+            const next = order[(order.indexOf(language) + 1) % order.length];
+            setLanguage(next);
+            localStorage.setItem("kapu_lang", next);
+            // restart the recognizer in the new language immediately
+            recognizerRef.current?.abort();
+            setTimeout(() => {
+              if (voiceOnRef.current) startListeningRef.current();
+            }, 150);
+          }}
+          className="ml-auto flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-[11px] font-semibold text-white/80 transition active:scale-95"
+          title="Tap to switch the language I listen in"
+        >
           <IconGlobe size={12} />
           {LANG_LABEL[language]}
-        </span>
+          <span className="text-white/40">▸</span>
+        </button>
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">

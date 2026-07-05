@@ -105,6 +105,22 @@ async function rawCall(tool: string, params: Record<string, unknown>): Promise<s
   return text;
 }
 
+/** Rate-limit blips (shared per-IP bucket — busier on challenge day) are
+ *  retried once in place after a short wait, so the model never narrates
+ *  "system busy" for a 2-second hiccup. Long waits still surface honestly. */
+async function callWithRetry(tool: string, params: Record<string, unknown>): Promise<string> {
+  try {
+    return await rawCall(tool, params);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/rate.?limit|429|too many/i.test(msg)) throw err;
+    const after = Number(/retry[_-\s]?after[^0-9]*(\d+)/i.exec(msg)?.[1] ?? 3);
+    if (after > 6) throw err;
+    await new Promise((r) => setTimeout(r, (after + 0.5) * 1000));
+    return rawCall(tool, params);
+  }
+}
+
 /**
  * Call a Kapruka MCP tool through the shield. Always requests JSON and
  * returns the raw JSON string. Reads are cached; identical concurrent
@@ -122,7 +138,7 @@ export async function kapruka(tool: string, params: Record<string, unknown>): Pr
     if (pending) return pending;
   }
 
-  const promise = rawCall(tool, fullParams)
+  const promise = callWithRetry(tool, fullParams)
     .then((text) => {
       if (cacheable) cache.set(key, text, { ttl: TTL[tool] });
       return text;
