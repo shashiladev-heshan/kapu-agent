@@ -2281,6 +2281,15 @@ export default function KapuApp() {
               </div>
             </div>
 
+            {/* continue on your phone — QR handoff */}
+            <div className="mt-3 flex items-center gap-4 rounded-2xl border border-line bg-card p-4">
+              <QrTile size={104} />
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-[16px]">📱 {t("qrTitle")}</p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">{t("qrHint")}</p>
+              </div>
+            </div>
+
             {/* account — guest by default, Google to sync wishes */}
             <div className="mt-3 rounded-2xl border border-line bg-card p-4">
               {authUser ? (
@@ -3017,6 +3026,32 @@ function TrackModal({
   );
 }
 
+// ── QR handoff — desktop → phone in one scan ────────────────────────────
+
+function QrTile({ size = 132 }: { size?: number }) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void import("qrcode").then((QR) => {
+      if (alive && ref.current) {
+        void QR.toCanvas(ref.current, "https://kapuwa.shop/?src=qr", {
+          width: size,
+          margin: 1,
+          color: { dark: "#241740", light: "#ffffff" },
+        });
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [size]);
+  return (
+    <span className="inline-block rounded-[14px] bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+      <canvas ref={ref} width={size} height={size} className="block rounded-[6px]" />
+    </span>
+  );
+}
+
 // ── landing voice teaser — animated waveform strip under the demo ───────
 
 const VOICE_LINES = ["මට කේක් එකක් ඕන…", "machan phone ekak hoyala denna…", "அம்மாவுக்கு பூக்கள்…"];
@@ -3293,6 +3328,10 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
               {t("landPwaBtn")}
             </button>
             <span className="flex items-center rounded-full border border-edge bg-card px-5 py-3 text-[13px] font-semibold text-leaf">{t("landPwaTag")}</span>
+          </div>
+          <div className="mt-6 flex items-center gap-4">
+            <QrTile size={116} />
+            <p className="max-w-[220px] text-[11.5px] leading-relaxed text-ink-soft">📱 {t("qrHint")}</p>
           </div>
         </div>
         <div className="relative mx-auto flex h-[420px] w-full max-w-[430px] items-center justify-center">

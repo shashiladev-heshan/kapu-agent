@@ -344,6 +344,12 @@ const STR = {
   },
   landPwaBtn: { en: "Add to Home Screen", si: "Home Screen එකට දාන්න", ta: "முகப்புத் திரையில் சேர்" },
   landPwaTag: { en: "PWA · wishes synced", si: "PWA · wishes sync වෙනවා", ta: "PWA · ஒத்திசைவு" },
+  qrTitle: { en: "Continue on your phone", si: "Phone එකෙන් continue කරන්න", ta: "உங்கள் தொலைபேசியில் தொடரவும்" },
+  qrHint: {
+    en: "Scan → kapuwa.shop opens. Sign in with the same Google and your wishes follow you. Install as an app from the browser menu.",
+    si: "Scan කරන්න → kapuwa.shop ඇරෙනවා. ඒ Google එකෙන්ම sign in උනාම wishes ඔයා පස්සෙන් එනවා.",
+    ta: "ஸ்கேன் செய்யுங்கள் → kapuwa.shop திறக்கும். அதே Google-ல் உள்நுழைந்தால் உங்கள் விருப்பங்கள் பின்தொடரும்.",
+  },
   bestValue: { en: "Best value", si: "හොඳම value", ta: "சிறந்த மதிப்பு" },
   basketQuip: {
     en: "Lovely picks! Say “checkout” when ready — I'll handle the rest 🌳",
