@@ -63,16 +63,41 @@ function pickEngine(): "api" | "agent-sdk" {
   return "api";
 }
 
+// When the API key hits a billing/credit wall we fall back to the
+// subscription engine (if a token exists) and stay there briefly before
+// probing the key again — a dead key must never take the demo down.
+let billingFallbackUntil = 0;
+const hasAuthToken = () =>
+  Boolean(process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || process.env.ANTHROPIC_AUTH_TOKEN?.trim());
+function isBillingError(err: unknown): boolean {
+  if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) return true;
+  if (err instanceof Anthropic.APIError) {
+    return /credit|billing|balance|purchase|payment/i.test(String(err.message));
+  }
+  return false;
+}
+
 export async function runTurn(
   session: Session,
   userMessage: string,
   send: (event: StreamEvent) => void
 ): Promise<void> {
-  if (pickEngine() === "agent-sdk") {
+  const sdkAvailable = hasAuthToken();
+  if (pickEngine() === "agent-sdk" || (sdkAvailable && Date.now() < billingFallbackUntil)) {
     const { runTurnSdk } = await import("@/lib/agent/engine-sdk");
     return runTurnSdk(session, userMessage, send);
   }
-  return runTurnApi(session, userMessage, send);
+  try {
+    return await runTurnApi(session, userMessage, send);
+  } catch (err) {
+    if (sdkAvailable && isBillingError(err)) {
+      billingFallbackUntil = Date.now() + 10 * 60_000;
+      console.error("[engine] API key billing/auth failure — falling back to subscription engine for 10 min:", err instanceof Error ? err.message.slice(0, 120) : err);
+      const { runTurnSdk } = await import("@/lib/agent/engine-sdk");
+      return runTurnSdk(session, userMessage, send);
+    }
+    throw err;
+  }
 }
 
 async function runTurnApi(
