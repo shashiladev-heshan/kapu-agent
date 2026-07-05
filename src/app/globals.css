@@ -172,6 +172,13 @@ body {
 }
 .drawer-in-l { animation: kapu-drawer-l 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
+/* Gentle idle float for landing phone mockups */
+@keyframes kapu-float {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-9px) rotate(var(--tilt, 0deg)); }
+}
+.floaty { animation: kapu-float 5.5s ease-in-out infinite; }
+
 /* Markdown inside chat bubbles */
 .bubble-md p { margin: 0.35rem 0; }
 .bubble-md p:first-child { margin-top: 0; }

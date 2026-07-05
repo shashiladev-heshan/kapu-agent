@@ -3113,6 +3113,84 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
 
   return (
     <div id="kapu-show" className="relative mx-auto max-w-5xl px-6 pb-20 text-left">
+      {/* ── act 0: in your pocket (PWA) ── */}
+      <section className="grid items-center gap-10 py-14 md:grid-cols-2">
+        <div>
+          <h2 className="font-display text-[30px] italic leading-tight text-ink sm:text-[40px]">{t("landPwaTitle")}</h2>
+          <p className="mt-4 max-w-[420px] text-[14px] leading-relaxed text-ink-soft">{t("landPwaSub")}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              onClick={onStart}
+              className="rounded-full bg-gold px-6 py-3 text-[13.5px] font-bold text-ink shadow-[0_8px_24px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+            >
+              {t("landPwaBtn")}
+            </button>
+            <span className="flex items-center rounded-full border border-edge bg-card px-5 py-3 text-[13px] font-semibold text-leaf">{t("landPwaTag")}</span>
+          </div>
+        </div>
+        <div className="relative mx-auto flex h-[420px] w-full max-w-[430px] items-center justify-center">
+          {/* phone A — the app shell drawer */}
+          <div className="floaty absolute left-0 top-6 w-[205px] rounded-[30px] border-[7px] border-[#0e0a1c] bg-surface p-3 shadow-[0_30px_70px_rgba(0,0,0,0.5)]" style={{ "--tilt": "-4deg" } as React.CSSProperties}>
+            <div className="flex items-center gap-1.5">
+              <KapuMark size={20} radius={6} />
+              <span className="font-display text-[11px] text-leaf">Kapu</span>
+            </div>
+            <div className="mt-2 rounded-[10px] bg-gold py-2 text-center text-[10px] font-bold text-ink dark:text-[#322b45]">+ New wish</div>
+            <p className="mt-2.5 text-[7px] font-bold uppercase tracking-[0.1em] text-ink-faint">Recent wishes</p>
+            {["මට කේක් එකක් one, හාල් 5kg…", "pirikara offering for the temple", "Esala season — gift ideas"].map((w) => (
+              <div key={w} className="mt-1.5 truncate rounded-[8px] bg-cream px-2 py-1.5 text-[8.5px] text-ink-soft dark:bg-cream-deep">
+                {w}
+              </div>
+            ))}
+            <div className="mt-2.5 space-y-1.5 border-t border-line pt-2">
+              <p className="flex items-center gap-1.5 text-[9px] font-semibold"><IconHeart size={10} className="text-clay" filled /> Favorites <span className="ml-auto text-ink-faint">3</span></p>
+              <p className="flex items-center gap-1.5 text-[9px] font-semibold"><IconPackage size={10} /> Track an order</p>
+              <p className="flex items-center gap-1.5 text-[9px] font-semibold"><IconClock size={10} /> Schedules</p>
+            </div>
+            <p className="mt-2 flex items-center gap-1 rounded-[8px] bg-good-soft px-2 py-1.5 text-[7.5px] font-semibold text-good">✓ Wishes synced across devices</p>
+          </div>
+          {/* phone B — chat with product cards */}
+          <div className="floaty absolute right-0 top-0 z-[1] w-[225px] rounded-[30px] border-[7px] border-[#0e0a1c] bg-cream p-3 shadow-[0_36px_80px_rgba(0,0,0,0.55)]" style={{ "--tilt": "3.5deg", animationDelay: "0.9s" } as React.CSSProperties}>
+            <div className="flex items-center gap-1.5">
+              <KapuMark size={20} radius={6} />
+              <span className="font-display text-[11px]">Kapu</span>
+              <span className="ml-auto rounded-full bg-leaf-soft px-1.5 py-0.5 text-[7px] font-bold text-leaf">LKR</span>
+            </div>
+            <p className="ml-auto mt-2.5 w-fit rounded-[10px] rounded-br-[3px] bg-bubble px-2 py-1 text-[9px] text-white">mata ala 1kg one 🥔</p>
+            <p className="mt-1.5 w-fit rounded-[10px] rounded-bl-[3px] bg-card px-2 py-1 text-[9px] text-ink shadow-sm">අල / Potatoes — මේ දෙක බලන්න:</p>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {[
+                { n: "1KG Potatoes — Bagged", p: "Rs 520", pick: true },
+                { n: "Potato Ricer — Steel", p: "Rs 2,000", pick: false },
+              ].map((x) => (
+                <div key={x.n} className="relative overflow-hidden rounded-[10px] border border-line bg-card">
+                  {x.pick && <span className="absolute left-1 top-1 z-[1] rounded-full bg-leaf px-1 py-0.5 text-[5.5px] font-bold uppercase text-gold dark:bg-[#402970]">Kapu's pick</span>}
+                  <div className="flex h-12 items-center justify-center" style={{ background: "#EDF3E8" }}>
+                    <IconTrolley size={16} style={{ color: "#5B8C51" }} />
+                  </div>
+                  <div className="p-1.5">
+                    <p className="truncate text-[7.5px] font-semibold">{x.n}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="price-serif text-[9px]">{x.p}</span>
+                      <span className="flex h-4 w-4 items-center justify-center rounded-[5px] bg-gold text-ink dark:text-[#322b45]"><IconPlus size={7} /></span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex gap-1">
+              <span className="rounded-full border border-edge bg-card px-2 py-1 text-[7.5px] font-semibold text-ink-soft">Add 1kg to basket</span>
+              <span className="rounded-full border border-edge bg-card px-2 py-1 text-[7.5px] font-semibold text-ink-soft">More veggies</span>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5 rounded-[10px] border border-edge bg-card px-2 py-1.5">
+              <span className="flex-1 text-[8px] text-ink-faint">Reply to Kapu…</span>
+              <IconCamera size={9} className="text-leaf" />
+              <IconMic size={9} className="text-leaf" />
+              <span className="flex h-4 w-4 items-center justify-center rounded-[5px] bg-gold"><IconSendUp size={7} className="text-ink dark:text-[#322b45]" /></span>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* ── act 2: capabilities grid ── */}
       <section className="py-10">
         <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">{t("landFeatTitle")}</h2>

@@ -336,6 +336,14 @@ const STR = {
     si: "සිංහල voice notes, අතේ ලියපු lists වල photos, family group එකට එක basket එකක් — @mention කරන්න.",
     ta: "தமிழ்/சிங்கள குரல் குறிப்புகள், புகைப்படங்கள், குடும்ப குழு — ஒரே கூடை.",
   },
+  landPwaTitle: { en: "In your pocket, too.", si: "සාක්කුවෙත් ඉන්නවා.", ta: "உங்கள் பாக்கெட்டிலும்." },
+  landPwaSub: {
+    en: "Kapu is a full mobile experience — install it as an app straight from the browser. No app store needed.",
+    si: "Kapu සම්පූර්ණ mobile app එකක් — browser එකෙන්ම install කරන්න. App store එකක් ඕන නෑ.",
+    ta: "Kapu ஒரு முழு மொபைல் அனுபவம் — உலாவியில் இருந்தே நிறுவுங்கள். ஆப் ஸ்டோர் தேவையில்லை.",
+  },
+  landPwaBtn: { en: "Add to Home Screen", si: "Home Screen එකට දාන්න", ta: "முகப்புத் திரையில் சேர்" },
+  landPwaTag: { en: "PWA · wishes synced", si: "PWA · wishes sync වෙනවා", ta: "PWA · ஒத்திசைவு" },
   landVoiceTitle: { en: "Talk to Kapu — a real voice agent", si: "Kapu එක්ක කතා කරන්න — ඇත්තම voice agent", ta: "Kapu-வுடன் பேசுங்கள் — உண்மையான குரல் முகவர்" },
   landVoiceSub: {
     en: "Not a gimmick — a hands-free conversation loop. Speak Sinhala, Tamil or English; Kapu hears, thinks aloud, replies in your language and listens again.",
