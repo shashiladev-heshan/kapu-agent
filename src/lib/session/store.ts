@@ -33,6 +33,8 @@ export interface Session {
   favorites?: string[];
   /** transient: "My Kapu" standing rules (custom instructions) */
   userRules?: string;
+  /** transient: a turn is currently executing server-side */
+  busy?: boolean;
   /** transient: automated scheduled run (no human present) */
   scheduled?: boolean;
   /** transient: standing order consent for this scheduled run */

@@ -25,6 +25,7 @@ export async function GET(req: Request): Promise<Response> {
   }
   const snapshot: SessionSnapshot = {
     exists: true,
+    busy: session.busy === true,
     title: session.title,
     ui: session.ui ?? [],
     cart: session.cart,

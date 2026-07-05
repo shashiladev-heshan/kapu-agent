@@ -115,6 +115,8 @@ export interface ChatRequest {
 /** GET /api/session response — used to rehydrate a recent wish. */
 export interface SessionSnapshot {
   exists: boolean;
+  /** a turn is still running server-side — poll until it lands */
+  busy?: boolean;
   title?: string;
   ui: UiTurn[];
   cart: Cart;

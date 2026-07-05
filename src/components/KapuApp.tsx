@@ -228,6 +228,7 @@ export default function KapuApp() {
   const recorderRef = useRef<VoiceRecorder | null>(null);
   const startListeningRef = useRef<() => void>(() => {});
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const busyPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const authUserRef = useRef<AuthProfile | null>(null);
   /** sticky: Web Speech is broken here (Brave etc.) — use the Whisper recorder */
   const sttFallbackRef = useRef(false);
@@ -344,6 +345,7 @@ export default function KapuApp() {
           if (snap.exists) {
             if (snap.ui.length) setItems(itemsFromUi(snap.ui));
             setCart(snap.cart);
+            if (snap.busy) watchBusySession(sessionIdRef.current);
           }
         }
       } catch {
@@ -626,6 +628,38 @@ export default function KapuApp() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  /** A turn was still running server-side when this tab (re)loaded or the
+   *  wish was reopened — keep the typing indicator on and poll until the
+   *  finished reply is in the transcript, then paint it. */
+  const watchBusySession = useCallback((id: string) => {
+    if (busyPollRef.current) clearInterval(busyPollRef.current);
+    setBusy(true);
+    const startedAt = Date.now();
+    busyPollRef.current = setInterval(async () => {
+      if (sessionIdRef.current !== id || Date.now() - startedAt > 150_000) {
+        if (busyPollRef.current) clearInterval(busyPollRef.current);
+        busyPollRef.current = null;
+        if (sessionIdRef.current === id) setBusy(false);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/session?id=${encodeURIComponent(id)}`);
+        if (!res.ok) return;
+        const snap = (await res.json()) as SessionSnapshot;
+        if (sessionIdRef.current !== id) return;
+        if (!snap.busy) {
+          if (busyPollRef.current) clearInterval(busyPollRef.current);
+          busyPollRef.current = null;
+          if (snap.ui.length) setItems(itemsFromUi(snap.ui));
+          setCart(snap.cart);
+          setBusy(false);
+        }
+      } catch {
+        /* transient — keep polling */
+      }
+    }, 2500);
   }, []);
 
   const toggleFav = useCallback((p: ProductSummary) => {
@@ -951,11 +985,16 @@ export default function KapuApp() {
         setCartOpen(false);
         setWishesOpen(false);
         setNavOpen(false);
+        if (snap.busy) watchBusySession(id);
+        else {
+          if (busyPollRef.current) clearInterval(busyPollRef.current);
+          setBusy(false);
+        }
       } catch {
         /* network hiccup — stay on current wish */
       }
     },
-    [persistRecents, recents, stopVoice]
+    [persistRecents, recents, stopVoice, watchBusySession]
   );
 
   // ── account (guest ↔ Google) ─────────────────────────────────────────

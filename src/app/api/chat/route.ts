@@ -57,6 +57,7 @@ export async function POST(req: Request): Promise<Response> {
         }
       };
 
+      session.busy = true;
       try {
         await runTurn(session, message, send);
       } catch (err) {
@@ -83,6 +84,7 @@ export async function POST(req: Request): Promise<Response> {
         }
         send({ type: "done" });
       } finally {
+        session.busy = false;
         if (assistantText || assistantBlocks.length) {
           appendUiTurn(session, { role: "assistant", text: assistantText, blocks: assistantBlocks, at: Date.now() });
           saveSession(session);
