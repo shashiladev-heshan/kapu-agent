@@ -2623,6 +2623,7 @@ export default function KapuApp() {
               {[
                 { href: "#land-pwa", label: "📱 In your pocket" },
                 { href: "#land-pick", label: "🏅 Kapu's Pick" },
+                { href: "#land-seasonal", label: "🎉 Seasonal" },
                 { href: "#land-voice", label: "🎙 Voice agent" },
                 { href: "#land-tg", label: "✈️ Telegram bot" },
               ].map((n) => (
@@ -3329,6 +3330,54 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
           <p className="mt-3 max-w-[420px] rounded-[13px] border border-dashed border-edge px-3.5 py-2.5 text-[12px] italic text-ink-soft">
             🤝 {t("landPickHonest")}
           </p>
+        </div>
+      </section>
+
+      {/* ── act 1.8: seasonal intelligence ── */}
+      <section id="land-seasonal" className="grid items-center gap-8 py-12 md:grid-cols-2">
+        <div>
+          <span className="rounded-full bg-gold-soft px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-gold-deep">🎉 seasonal</span>
+          <h2 className="font-display mt-3 text-[26px] leading-tight text-ink sm:text-[32px]">{t("landSeasonTitle")}</h2>
+          <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landSeasonSub")}</p>
+          <ul className="mt-4 space-y-2 text-[12.5px] text-ink-soft">
+            <li>🛍 {t("landSeasonB1")}</li>
+            <li>🙏 {t("landSeasonB2")}</li>
+            <li>📉 {t("landSeasonB3")}</li>
+            <li>💌 {t("landSeasonB4")}</li>
+          </ul>
+        </div>
+        <div className="relative mx-auto flex min-h-[360px] w-full max-w-[420px] items-center justify-center">
+          {/* festival countdown chip */}
+          <span className="floaty absolute left-2 top-2 z-[2] rounded-full border border-gold/40 bg-gold-soft px-4 py-2 text-[11.5px] font-bold text-gold-deep shadow-lg" style={{ "--tilt": "-2deg" } as React.CSSProperties}>
+            🏮 ~36 DAYS TO ESALA PERAHERA · gift ideas
+          </span>
+          {/* mini greeting card */}
+          <div
+            className="floaty absolute bottom-4 left-0 w-[190px] rounded-[18px] p-5 text-center text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+            style={{ background: "linear-gradient(180deg, #3A2868, #1c1236)", border: "1.5px solid rgba(255,184,0,0.4)", "--tilt": "-4deg", animationDelay: "0.6s" } as React.CSSProperties}
+          >
+            <p className="text-[34px] leading-none">🐘</p>
+            <p className="mt-2 text-[8px] uppercase tracking-[0.16em] text-white/60">to Amma</p>
+            <p className="font-display mt-1.5 text-[13.5px] leading-snug">සුබ පැතුම්! ඔයාට සෙත් පතනවා 🙏</p>
+            <p className="mt-3 text-[7px] font-semibold text-gold">🌳 sent with Kapu</p>
+          </div>
+          {/* TG price-drop alert */}
+          <div
+            className="floaty absolute right-0 top-24 z-[1] w-[230px] rounded-[16px] bg-[#1c2733] p-3.5 shadow-[0_24px_60px_rgba(0,0,0,0.5)]"
+            style={{ "--tilt": "3deg", animationDelay: "1.2s" } as React.CSSProperties}
+          >
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2AABEE] text-white"><IconTelegram size={13} /></span>
+              <span className="text-[11px] font-bold text-white">Kapu</span>
+              <span className="ml-auto text-[8px] text-white/40">now</span>
+            </div>
+            <p className="mt-2 text-[11px] leading-snug text-white/90">
+              📉 <b>Price drop!</b> Avurudu Hamper
+              <br />
+              <s className="text-white/50">Rs 7,800</s> → <b className="text-[#6ab3f3]">Rs 7,200</b> (−8%)
+            </p>
+            <p className="mt-1.5 text-[9px] text-white/50">Grab it in Kapu before it climbs back 🌳</p>
+          </div>
         </div>
       </section>
 

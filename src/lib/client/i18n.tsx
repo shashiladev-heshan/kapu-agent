@@ -359,6 +359,16 @@ const STR = {
     si: "මුකුත්ම හොඳ නැත්නම්? ඒකත් කියනවා. අවංකකම feature එකක්.",
     ta: "எதுவும் சிறந்ததாக இல்லை என்றால்? அதையும் சொல்லும்.",
   },
+  landSeasonTitle: { en: "Tuned to the Sri Lankan calendar", si: "ලංකාවේ දින දර්ශනයටම හදලා", ta: "இலங்கை நாட்காட்டிக்கு ஏற்ப" },
+  landSeasonSub: {
+    en: "Kapu knows what Vesak forbids, what Avurudu demands, and when the Perahera season begins — and it acts on it.",
+    si: "Vesak වලට නොදිය යුතු දේ, Avurudu වලට ඕන දේ, Perahera season එක එන වෙලාව — Kapu දන්නවා, ඒ අනුව වැඩ කරනවා.",
+    ta: "வெசாக்கிற்கு எது கூடாது, புத்தாண்டுக்கு எது வேண்டும் — Kapu அறியும், செயல்படும்.",
+  },
+  landSeasonB1: { en: "Seasonal picks rail — real products for the coming festival, refreshed automatically", si: "Seasonal picks — එන festival එකට ඇත්ත products, auto refresh", ta: "பருவ தேர்வுகள் — வரும் பண்டிகைக்கு உண்மையான பொருட்கள்" },
+  landSeasonB2: { en: "Festival etiquette built-in: no alcohol for Vesak, vegetarian for Deepavali, nekath timing for Avurudu", si: "Festival etiquette: Vesak ට alcohol නෑ, Deepavali ට vegetarian, Avurudu ට නැකැත්", ta: "பண்டிகை மரபுகள் உள்ளடக்கம்: தீபாவளிக்கு சைவம், நேரம் பார்த்தல்" },
+  landSeasonB3: { en: "Price-drop watch — “tell me on Telegram if the hamper gets cheaper before Deepavali”", si: "Price-drop watch — “Deepavali කලින් hamper එක ලාබ උනොත් TG එකෙන් කියන්න”", ta: "விலை வீழ்ச்சி கண்காணிப்பு — Telegram-ல் அறிவிப்பு" },
+  landSeasonB4: { en: "Greeting cards in perfect සිංහල/தமிழ் — designed, downloadable, WhatsApp-ready", si: "Greeting cards — perfect සිංහලෙන්, download කරලා WhatsApp යවන්න", ta: "வாழ்த்து அட்டைகள் — சரியான தமிழில், WhatsApp தயார்" },
   landVoiceTitle: { en: "Talk to Kapu — a real voice agent", si: "Kapu එක්ක කතා කරන්න — ඇත්තම voice agent", ta: "Kapu-வுடன் பேசுங்கள் — உண்மையான குரல் முகவர்" },
   landVoiceSub: {
     en: "Not a gimmick — a hands-free conversation loop. Speak Sinhala, Tamil or English; Kapu hears, thinks aloud, replies in your language and listens again.",
