@@ -18,6 +18,8 @@ import {
   IconBell,
   IconCake,
   IconCamera,
+  IconCheckCircle,
+  IconLock,
   IconCapsule,
   IconCheck,
   IconChevronDown,
@@ -2461,7 +2463,7 @@ export default function KapuApp() {
       )}
 
       {welcomeOpen && sessionReady && (
-        <div className="fixed inset-0 z-[55] overflow-hidden bg-cream">
+        <div className="fixed inset-0 z-[55] overflow-y-auto bg-cream">
           <span
             aria-hidden
             className="pointer-events-none absolute -right-10 -top-16 select-none text-[240px] font-semibold leading-none text-leaf/[0.05] sm:text-[340px]"
@@ -2469,8 +2471,7 @@ export default function KapuApp() {
           >
             කපූ
           </span>
-          <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-[380px] w-[380px] rounded-full border-[1.5px] border-leaf/[0.07]" />
-          <div className="relative flex h-full flex-col items-center justify-center px-6 text-center">
+          <div className="relative flex min-h-[92dvh] flex-col items-center justify-center px-6 text-center">
             <KapuMark size={72} radius={22} />
             <h1 className="font-display mt-5 text-[30px] leading-tight text-ink sm:text-[40px]">
               <span className="font-semibold text-leaf" style={{ fontFamily: "var(--font-sinhala-var), 'Noto Sans Sinhala'" }}>
@@ -2517,7 +2518,12 @@ export default function KapuApp() {
             <p className="mt-5 max-w-[300px] text-[11px] leading-snug text-ink-faint">
               {t("guestKeep")}
             </p>
+            <a href="#kapu-show" className="mt-10 flex flex-col items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint transition hover:text-leaf">
+              {t("landSee")}
+              <IconChevronDown size={10} className="animate-bounce" />
+            </a>
           </div>
+          <LandingShowcase onStart={closeWelcome} tgBot={tgBot} />
         </div>
       )}
 
@@ -2860,6 +2866,195 @@ function TrackModal({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── landing showcase — the welcome gate's below-the-fold marketing ──────
+
+function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { username: string; link: string } | null }) {
+  const t = useT();
+  const [beat, setBeat] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setBeat((b) => (b + 1) % 9), 1600);
+    return () => clearInterval(id);
+  }, []);
+
+  const FEATURES: { Icon: typeof IconGlobe; tt: StrKey; bb: StrKey }[] = [
+    { Icon: IconGlobe, tt: "landF1t", bb: "landF1b" },
+    { Icon: IconCamera, tt: "landF2t", bb: "landF2b" },
+    { Icon: IconClock, tt: "landF3t", bb: "landF3b" },
+    { Icon: IconUser, tt: "landF4t", bb: "landF4b" },
+    { Icon: IconLock, tt: "landF5t", bb: "landF5b" },
+    { Icon: IconGift, tt: "landF6t", bb: "landF6b" },
+  ];
+
+  return (
+    <div id="kapu-show" className="relative mx-auto max-w-5xl px-6 pb-20 text-left">
+      {/* ── act 1: the wish, played live ── */}
+      <section className="grid items-center gap-8 py-14 md:grid-cols-2">
+        <div>
+          <h2 className="font-display text-[28px] leading-tight text-ink sm:text-[36px]">{t("landChatTitle")}</h2>
+          <p className="mt-3 max-w-[400px] text-[13.5px] leading-relaxed text-ink-soft">{t("landChatSub")}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {["🎙 voice", "📸 snap-a-list", "⚖️ compare", "🔒 confirm gate", "📦 photo proof"].map((c) => (
+              <span key={c} className="rounded-full border border-edge bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-soft">{c}</span>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-[26px] border border-line bg-card p-4 shadow-[0_30px_80px_rgba(64,41,112,0.15)]">
+          <div className="mb-3 flex items-center gap-2 border-b border-line pb-3">
+            <KapuMark size={26} radius={8} />
+            <p className="font-display text-[14px]">Kapu</p>
+            <span className="ml-auto flex items-center gap-1 rounded-full bg-good-soft px-2 py-0.5 text-[9px] font-bold uppercase text-good">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" /> live demo
+            </span>
+          </div>
+          <div className="flex min-h-[300px] flex-col justify-end gap-2.5">
+            {beat >= 1 && (
+              <p className="rise self-end rounded-[16px] rounded-br-[5px] bg-bubble px-3.5 py-2 text-[12.5px] text-white">
+                ammata cake ekak yawanna one 🎂
+              </p>
+            )}
+            {beat === 2 && (
+              <span className="rise flex gap-1 self-start rounded-[16px] bg-cream px-3.5 py-2.5 dark:bg-cream-deep">
+                <span className="dot h-1.5 w-1.5 rounded-full bg-leaf" />
+                <span className="dot h-1.5 w-1.5 rounded-full bg-leaf" />
+                <span className="dot h-1.5 w-1.5 rounded-full bg-leaf" />
+              </span>
+            )}
+            {beat >= 3 && (
+              <p className="rise self-start rounded-[16px] rounded-bl-[5px] bg-cream px-3.5 py-2 text-[12.5px] text-ink dark:bg-cream-deep">
+                හරි! Kandy වලට <b>same-day</b> පුළුවන් 🚚 — මේක අම්මට perfect:
+              </p>
+            )}
+            {beat >= 4 && (
+              <div className="rise flex items-center gap-3 self-start rounded-[16px] border border-line bg-card p-2.5 shadow-sm">
+                <span className="flex h-12 w-12 items-center justify-center rounded-[12px]" style={{ background: "#F3E8FA" }}>
+                  <IconCake size={22} style={{ color: "#8A5CB8" }} />
+                </span>
+                <span>
+                  <span className="block text-[12px] font-semibold">Ribbon Chocolate Cake — 1kg</span>
+                  <span className="price-serif block text-[14px]">Rs 4,850</span>
+                </span>
+                <span className="ml-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-gold text-ink shadow-sm dark:text-[#322b45]">
+                  <IconPlus size={13} />
+                </span>
+              </div>
+            )}
+            {beat >= 5 && (
+              <p className="rise self-end rounded-[16px] rounded-br-[5px] bg-bubble px-3.5 py-2 text-[12.5px] text-white">
+                icing eke "සුබ උපන්දිනයක් අම්මේ!" liyanna ✍️
+              </p>
+            )}
+            {beat >= 6 && (
+              <div className="rise flex items-center gap-2.5 self-start rounded-[16px] border border-gold/40 bg-gold-soft px-3.5 py-2.5">
+                <IconLock size={14} className="text-gold-deep" />
+                <span className="text-[12px] font-semibold text-ink">Pay link · Rs 5,925 incl. delivery</span>
+                <span className="rounded-full bg-gold px-2 py-0.5 text-[9.5px] font-bold text-ink dark:text-[#322b45]">59:46</span>
+              </div>
+            )}
+            {beat >= 7 && (
+              <p className="rise flex items-center gap-2 self-start rounded-[16px] bg-good-soft px-3.5 py-2 text-[12px] font-semibold text-good">
+                <IconCheckCircle size={15} /> Delivered — photo proof 📸🎉
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── act 2: capabilities grid ── */}
+      <section className="py-10">
+        <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">{t("landFeatTitle")}</h2>
+        <div className="mt-8 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((f, i) => (
+            <div
+              key={f.tt}
+              className="rise rounded-[20px] border border-line bg-card p-5 transition hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(64,41,112,0.12)]"
+              style={{ animationDelay: `${i * 90}ms` }}
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-leaf-soft text-leaf">
+                <f.Icon size={20} />
+              </span>
+              <p className="mt-3.5 text-[14.5px] font-semibold">{t(f.tt)}</p>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{t(f.bb)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── act 3: telegram ── */}
+      <section className="grid items-center gap-8 py-12 md:grid-cols-2">
+        <div className="order-2 md:order-1">
+          <div className="mx-auto max-w-[360px] rounded-[26px] border border-line bg-[#1c2733] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+            <div className="mb-3 flex items-center gap-2.5 border-b border-white/10 pb-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2AABEE] text-white">
+                <IconTelegram size={17} />
+              </span>
+              <span>
+                <span className="block text-[13px] font-bold text-white">Family Group 🏠</span>
+                <span className="block text-[10px] text-white/50">Amma, Akki, Malli +2</span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="self-end rounded-[14px] rounded-br-[4px] bg-[#2b5278] px-3 py-1.5 text-[12px] text-white">
+                @{tgBot?.username ?? "KapuLKBot"} avurudu hamper ekak? 🧺
+              </p>
+              <div className="self-start rounded-[14px] rounded-bl-[4px] bg-[#182533] px-3 py-2 text-[12px] text-white/90">
+                <span className="mb-1 block text-[10px] font-bold text-[#6ab3f3]">Kapu</span>
+                Avurudu Hamper Pack 03 — <b>Rs 7,800</b> · one flat delivery 🚚
+                <span className="mt-2 flex gap-1.5">
+                  <span className="rounded-[8px] bg-white/10 px-2.5 py-1 text-[10.5px] font-semibold">➕ Add</span>
+                  <span className="rounded-[8px] bg-white/10 px-2.5 py-1 text-[10.5px] font-semibold">💳 Pay link</span>
+                </span>
+              </div>
+              <p className="self-start rounded-[14px] bg-[#182533] px-3 py-1.5 text-[11px] italic text-white/50">
+                ⏳ Comparing options… <s>Searching Kapruka ✓</s>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="order-1 md:order-2">
+          <h2 className="font-display text-[26px] leading-tight text-ink sm:text-[32px]">{t("landTgTitle")}</h2>
+          <p className="mt-3 max-w-[400px] text-[13.5px] leading-relaxed text-ink-soft">{t("landTgSub")}</p>
+          <ul className="mt-4 space-y-2 text-[12.5px] text-ink-soft">
+            <li>🎙 {t("tgCanVoice")}</li>
+            <li>📸 {t("tgCanSnap")}</li>
+            <li>👨‍👩‍👧 {t("tgCanGroup")}</li>
+            <li>⏰ {t("landF3b")}</li>
+          </ul>
+          {tgBot && (
+            <a
+              href={tgBot.link}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-[13px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+            >
+              <IconTelegram size={15} />
+              @{tgBot.username}
+            </a>
+          )}
+        </div>
+      </section>
+
+      {/* ── act 4: stats + CTA ── */}
+      <section className="py-10 text-center">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
+          {["22 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
+            <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
+              {x}
+            </span>
+          ))}
+        </div>
+        <button
+          onClick={onStart}
+          className="mt-8 inline-flex items-center gap-2.5 rounded-full bg-gold px-8 py-4 text-[15px] font-bold text-ink shadow-[0_10px_30px_rgba(255,184,0,0.4)] transition hover:-translate-y-0.5 active:scale-[0.98] dark:text-[#322b45]"
+        >
+          {t("landStart")}
+          <IconArrowRight size={16} />
+        </button>
+        <p className="mt-6 text-[11px] text-ink-faint">Kapu speaks සිංහල · தமிழ் · English · Tanglish — powered by the Kapruka MCP + Claude</p>
+      </section>
     </div>
   );
 }
