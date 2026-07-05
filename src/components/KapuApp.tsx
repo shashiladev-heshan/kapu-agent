@@ -220,6 +220,7 @@ export default function KapuApp() {
   const voiceStateRef = useRef<VoiceState>("idle");
   const languageRef = useRef<Language>("en");
   const playerRef = useRef<VoicePlayer | null>(null);
+  const ackCacheRef = useRef<Record<string, Blob[]>>({});
   const recognizerRef = useRef<{ abort: () => void } | null>(null);
   const recorderRef = useRef<VoiceRecorder | null>(null);
   const startListeningRef = useRef<() => void>(() => {});
@@ -411,6 +412,9 @@ export default function KapuApp() {
       if (voiceOnRef.current) {
         setVoice("thinking");
         setVoiceTool(null);
+        // instant spoken ack while the agent works (prefetched at mic tap)
+        const acks = ackCacheRef.current[languageRef.current];
+        if (acks?.length) void playerRef.current?.playAck(acks[Math.floor(acks.length * ((Date.now() % 97) / 97))]);
       }
       setItems((prev) => [
         ...prev,
@@ -862,6 +866,29 @@ export default function KapuApp() {
     // iOS: unlock the shared audio element while we're inside the tap gesture
     playerRef.current ??= new VoicePlayer();
     playerRef.current.unlock();
+    // prefetch instant-ack audio for this language (plays the moment the
+    // user stops talking, while the agent thinks — kills perceived latency)
+    const ackLang = languageRef.current;
+    if (!ackCacheRef.current[ackLang]?.length) {
+      const ACKS: Record<string, string[]> = {
+        si: ["හරි, බලන්නම්!", "මං check කරන්නම්!"],
+        ta: ["சரி, பார்க்கிறேன்!", "ஒரு நிமிடம்!"],
+        en: ["On it — let me check!", "Give me a second!"],
+      };
+      void Promise.all(
+        (ACKS[ackLang] ?? ACKS.en).map((text) =>
+          fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, language: ackLang }),
+          })
+            .then((r) => (r.ok && r.status !== 204 ? r.blob() : null))
+            .catch(() => null)
+        )
+      ).then((blobs) => {
+        ackCacheRef.current[ackLang] = blobs.filter(Boolean) as Blob[];
+      });
+    }
     if (!localStorage.getItem("kapu_mic_ok")) {
       setMicModal(true);
       return;
@@ -1170,7 +1197,7 @@ export default function KapuApp() {
       }}
     >
       {slashMatches.length > 0 && (
-        <div className="absolute bottom-full left-0 right-0 z-20 mb-2 overflow-hidden rounded-2xl border border-line bg-card p-1.5 shadow-[0_16px_50px_rgba(64,41,112,0.18)]">
+        <div className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-[290px] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-card p-1.5 shadow-[0_16px_50px_rgba(64,41,112,0.18)]">
           <p className="px-3 pb-1 pt-1.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-ink-faint">Kapu commands</p>
           {slashMatches.map((c, i) => (
             <button

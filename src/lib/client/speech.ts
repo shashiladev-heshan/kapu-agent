@@ -102,7 +102,7 @@ export function createRecognizer(language: Language, handlers: RecognizerHandler
       } catch {
         /* already stopped */
       }
-    }, 1600);
+    }, 1200);
   };
   r.onresult = (event) => {
     let interim = "";
@@ -243,6 +243,14 @@ export class VoicePlayer {
       /* fall through to browser synthesis */
     }
     if (!this.stopped) await this.speakWithBrowser(text, language);
+  }
+
+  /** Fire-and-forget short acknowledgment ("හරි, බලන්නම්!") — played from a
+   *  prefetched blob the instant the user stops talking. The real reply's
+   *  speak() simply takes over the shared element when it arrives. */
+  playAck(blob: Blob): Promise<void> {
+    this.stopped = false;
+    return this.playBlob(blob);
   }
 
   stop(): void {
