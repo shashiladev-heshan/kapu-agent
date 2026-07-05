@@ -2578,7 +2578,7 @@ export default function KapuApp() {
             <LandingTicker language={language} />
             <div className="mt-6 flex w-full max-w-[320px] flex-col items-stretch gap-3">
               {GOOGLE_CLIENT_ID ? (
-                <div className="mx-auto w-fit overflow-hidden rounded-full lg:mx-0" style={{ colorScheme: "light" }}>
+                <div className="w-full overflow-hidden rounded-full" style={{ colorScheme: "light" }}>
                   <div ref={googleBtnRef} className="flex min-h-[44px] justify-center" />
                 </div>
               ) : process.env.NODE_ENV !== "production" ? (

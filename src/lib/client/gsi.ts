@@ -53,7 +53,7 @@ export async function renderGoogleButton(
     shape: "pill",
     text: "continue_with",
     logo_alignment: "left",
-    width: 300,
+    width: 320, // matches the CTA column — same width as 'Continue as guest'
   });
 }
 
