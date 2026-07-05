@@ -6,6 +6,9 @@ Named after the mythical **kapruka** — the wish-granting tree. Tell Kapu what 
 
 **One agent brain, three doors:** Web app · installable PWA · Telegram bot (**@KapuLKBot**, groups included).
 
+### 🔗 Live
+**Web / PWA:** **[kapuwa.shop](https://kapuwa.shop)** &nbsp;·&nbsp; **Telegram:** **[t.me/KapuLKBot](https://t.me/KapuLKBot)** — try: `machan mata phone ekak one 60000 ta aduwen`
+
 ---
 
 ## ✨ What Kapu can do
