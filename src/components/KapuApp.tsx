@@ -2570,7 +2570,34 @@ export default function KapuApp() {
             <p className="mt-5 text-[11px] font-semibold tracking-wide text-ink-faint">
               22 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
             </p>
-            <a href="#kapu-show" className="mt-6 flex flex-col items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint transition hover:text-leaf lg:items-start">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+              {tgBot && (
+                <a
+                  href={tgBot.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-full bg-gold px-3.5 py-2 text-[11.5px] font-bold text-ink shadow-[0_4px_14px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+                >
+                  <IconTelegram size={13} />
+                  @{tgBot.username}
+                </a>
+              )}
+              {[
+                { href: "#land-pwa", label: "📱 In your pocket" },
+                { href: "#land-pick", label: "🏅 Kapu's Pick" },
+                { href: "#land-voice", label: "🎙 Voice agent" },
+                { href: "#land-tg", label: "✈️ Telegram bot" },
+              ].map((n) => (
+                <a
+                  key={n.href}
+                  href={n.href}
+                  className="rounded-full border border-edge bg-card px-3.5 py-2 text-[11.5px] font-semibold text-ink-soft transition hover:-translate-y-0.5 hover:border-leaf/40 hover:text-leaf"
+                >
+                  {n.label}
+                </a>
+              ))}
+            </div>
+            <a href="#kapu-show" className="mt-5 flex flex-col items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint transition hover:text-leaf lg:items-start">
               {t("landSee")}
               <IconChevronDown size={10} className="animate-bounce" />
             </a>
@@ -3097,6 +3124,67 @@ function LiveWishDemo() {
   );
 }
 
+// ── pick duel — the recommendation engine, played live ──────────────────
+
+function PickDuel() {
+  const [beat, setBeat] = useState(1);
+  useEffect(() => {
+    const id = setInterval(() => setBeat((b) => (b % 7) + 1), 1500);
+    return () => clearInterval(id);
+  }, []);
+  const rows = [
+    { label: "මිල / Price", a: "Rs 58,900", b: "Rs 56,400", win: "b", at: 2 },
+    { label: "RAM · storage", a: "8 · 256GB", b: "6 · 128GB", win: "a", at: 3 },
+    { label: "Battery", a: "5000 mAh", b: "5000 mAh", win: "tie", at: 4 },
+  ];
+  return (
+    <div className="rounded-[26px] border border-line bg-card p-4 shadow-[0_30px_80px_rgba(64,41,112,0.2)]">
+      <div className="grid grid-cols-2 gap-2.5">
+        {[
+          { n: "Redmi Note 13", sub: "8/256GB", picked: beat >= 5 },
+          { n: "Galaxy A25 5G", sub: "6/128GB", picked: false },
+        ].map((p, i) => (
+          <div key={p.n} className={`relative rounded-[16px] border p-3 transition-all duration-300 ${p.picked ? "border-gold shadow-[0_0_0_2px_rgba(255,184,0,0.35)]" : "border-line"}`}>
+            {p.picked && (
+              <span className="rise absolute -top-2 left-2 rounded-full bg-leaf px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-gold dark:bg-[#402970]">
+                Kapu's pick
+              </span>
+            )}
+            <div className="flex h-16 items-center justify-center rounded-[10px]" style={{ background: i === 0 ? "#E8EDF7" : "#F3E8FA" }}>
+              <IconPhone size={24} style={{ color: i === 0 ? "#4A6FA5" : "#8A5CB8" }} />
+            </div>
+            <p className="mt-2 text-[11.5px] font-semibold leading-tight">{p.n}</p>
+            <p className="text-[9.5px] text-ink-faint">{p.sub}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2.5 space-y-1">
+        {rows.map((r) => (
+          <div key={r.label} className={`grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-[10.5px] transition ${beat >= r.at ? "bg-cream dark:bg-cream-deep" : "opacity-30"}`}>
+            <span className={`flex items-center gap-1 ${beat >= r.at && r.win === "a" ? "font-bold text-good" : "text-ink-soft"}`}>
+              {beat >= r.at && r.win === "a" && <IconCheck size={9} />}
+              {r.a}
+            </span>
+            <span className="text-[8.5px] font-semibold uppercase tracking-wide text-ink-faint">{r.label}</span>
+            <span className={`flex items-center justify-end gap-1 text-right ${beat >= r.at && r.win === "b" ? "font-bold text-good" : "text-ink-soft"}`}>
+              {r.b}
+              {beat >= r.at && r.win === "b" && <IconCheck size={9} />}
+            </span>
+          </div>
+        ))}
+      </div>
+      {beat >= 6 && (
+        <div className="rise mt-2.5 flex items-start gap-2 rounded-[13px] bg-leaf px-3.5 py-2.5 text-white dark:bg-[#402970]">
+          <KapuMark size={18} radius={6} />
+          <p className="text-[11px] leading-snug">
+            <b className="text-gold">Kapu's verdict:</b> <i>battery එක සමානයි — storage වලට Redmi. Amma phone එක අවුරුදු 4+ තියාගන්නවා නම් Samsung.</i>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── landing showcase — the welcome gate's below-the-fold marketing ──────
 
 function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { username: string; link: string } | null }) {
@@ -3114,7 +3202,7 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
   return (
     <div id="kapu-show" className="relative mx-auto max-w-5xl px-6 pb-20 text-left">
       {/* ── act 0: in your pocket (PWA) ── */}
-      <section className="grid items-center gap-10 py-14 md:grid-cols-2">
+      <section id="land-pwa" className="grid items-center gap-10 py-14 md:grid-cols-2">
         <div>
           <h2 className="font-display text-[30px] italic leading-tight text-ink sm:text-[40px]">{t("landPwaTitle")}</h2>
           <p className="mt-4 max-w-[420px] text-[14px] leading-relaxed text-ink-soft">{t("landPwaSub")}</p>
@@ -3191,6 +3279,21 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
           </div>
         </div>
       </section>
+      {/* ── act 1: the recommendation engine ── */}
+      <section id="land-pick" className="grid items-center gap-8 py-12 md:grid-cols-2">
+        <div className="order-2 md:order-1">
+          <PickDuel />
+        </div>
+        <div className="order-1 md:order-2">
+          <span className="rounded-full bg-leaf px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-gold dark:bg-[#402970]">Kapu's pick</span>
+          <h2 className="font-display mt-3 text-[26px] leading-tight text-ink sm:text-[32px]">{t("landPickTitle")}</h2>
+          <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landPickSub")}</p>
+          <p className="mt-3 max-w-[420px] rounded-[13px] border border-dashed border-edge px-3.5 py-2.5 text-[12px] italic text-ink-soft">
+            🤝 {t("landPickHonest")}
+          </p>
+        </div>
+      </section>
+
       {/* ── act 2: capabilities grid ── */}
       <section className="py-10">
         <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">{t("landFeatTitle")}</h2>
@@ -3212,7 +3315,7 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
       </section>
 
       {/* ── act 2.5: the voice agent ── */}
-      <section className="grid items-center gap-8 py-12 md:grid-cols-2">
+      <section id="land-voice" className="grid items-center gap-8 py-12 md:grid-cols-2">
         <div>
           <h2 className="font-display text-[26px] leading-tight text-ink sm:text-[32px]">{t("landVoiceTitle")}</h2>
           <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landVoiceSub")}</p>
@@ -3253,7 +3356,7 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
       </section>
 
       {/* ── act 3: telegram ── */}
-      <section className="grid items-center gap-8 py-12 md:grid-cols-2">
+      <section id="land-tg" className="grid items-center gap-8 py-12 md:grid-cols-2">
         <div className="order-2 md:order-1">
           <div className="mx-auto max-w-[360px] rounded-[26px] border border-line bg-[#1c2733] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
             <div className="mb-3 flex items-center gap-2.5 border-b border-white/10 pb-3">

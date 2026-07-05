@@ -344,6 +344,17 @@ const STR = {
   },
   landPwaBtn: { en: "Add to Home Screen", si: "Home Screen එකට දාන්න", ta: "முகப்புத் திரையில் சேர்" },
   landPwaTag: { en: "PWA · wishes synced", si: "PWA · wishes sync වෙනවා", ta: "PWA · ஒத்திசைவு" },
+  landPickTitle: { en: "It doesn't list. It recommends.", si: "List කරනවා විතරක් නෙමෙයි — recommend කරනවා.", ta: "பட்டியல் அல்ல — பரிந்துரை." },
+  landPickSub: {
+    en: "Every search is ranked and the best gets the KAPU'S PICK badge. Ask to compare and you get a side-by-side duel — per-row winners and a one-line verdict that tells you WHY, in your language.",
+    si: "හැම search එකක්ම rank වෙනවා — හොඳම එකට KAPU'S PICK badge එක. Compare කරන්න කිව්වම per-row winners + ඇයි කියලා verdict එකක්, ඔයාගේ භාෂාවෙන්.",
+    ta: "ஒவ்வொரு தேடலும் தரவரிசை — சிறந்ததற்கு KAPU'S PICK. ஒப்பிடுங்கள் — வரிசை வெற்றியாளர்கள் + ஏன் என்ற தீர்ப்பு.",
+  },
+  landPickHonest: {
+    en: "And when nothing truly wins? Kapu says so. Honesty is a feature.",
+    si: "මුකුත්ම හොඳ නැත්නම්? ඒකත් කියනවා. අවංකකම feature එකක්.",
+    ta: "எதுவும் சிறந்ததாக இல்லை என்றால்? அதையும் சொல்லும்.",
+  },
   landVoiceTitle: { en: "Talk to Kapu — a real voice agent", si: "Kapu එක්ක කතා කරන්න — ඇත්තම voice agent", ta: "Kapu-வுடன் பேசுங்கள் — உண்மையான குரல் முகவர்" },
   landVoiceSub: {
     en: "Not a gimmick — a hands-free conversation loop. Speak Sinhala, Tamil or English; Kapu hears, thinks aloud, replies in your language and listens again.",
