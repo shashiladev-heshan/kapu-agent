@@ -28,6 +28,22 @@ export const metadata: Metadata = {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
   },
+  metadataBase: new URL("https://kapuwa.shop"),
+  openGraph: {
+    title: "Kapu (කපූ) — Sri Lanka's wish-granting shopping agent",
+    description:
+      "Whisper a wish in සිංහල, தமிழ், English or Tanglish — voice, photo or text — and Kapu shops all of Kapruka for you. Web · PWA · Telegram.",
+    url: "https://kapuwa.shop",
+    siteName: "Kapu",
+    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "Kapu — the wish tree" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Kapu (කපූ) — Sri Lanka's wish-granting shopping agent",
+    description: "Trilingual AI shopping agent for Kapruka — voice, vision, Telegram, autonomous schedules.",
+    images: ["/icons/icon-512.png"],
+  },
 };
 
 export const viewport: Viewport = {

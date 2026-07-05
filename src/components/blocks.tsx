@@ -720,6 +720,14 @@ export function CartView({
           {t("checkout")}
           <IconArrowRight size={15} />
         </button>
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`🌳 Kapu basket · ${cart.items.map((i) => `${i.name} ×${i.quantity}`).join(", ")} · ${fmt(subtotal, cart.currency)} — kapuwa.shop`)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 flex items-center justify-center gap-2 rounded-[13px] border border-edge bg-card py-2.5 text-[12px] font-semibold text-ink-soft transition active:scale-[0.99]"
+        >
+          <span className="text-[#25D366]">🟢</span> {t("waBasket")}
+        </a>
       </div>
     </>
   );
@@ -882,6 +890,14 @@ export function PayLink({ block }: { block: Extract<UiBlock, { type: "pay_link" 
       >
         <IconLock size={14} />
         {t("paySecurely")}{block.total != null ? ` · ${fmt(block.total, block.currency || "LKR")}` : ""}
+      </a>
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(`🌳 Kapu order ${block.order_ref}${block.total != null ? ` · ${fmt(block.total, block.currency || "LKR")}` : ""} — pay securely: ${block.pay_url}`)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="relative mt-2 flex items-center justify-center gap-2 rounded-[13px] border border-white/20 bg-white/[0.07] py-2.5 text-[12.5px] font-semibold text-white transition active:scale-[0.99]"
+      >
+        <span className="text-[#25D366]">🟢</span> {t("waPay")}
       </a>
     </div>
   );

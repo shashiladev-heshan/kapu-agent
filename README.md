@@ -22,7 +22,7 @@ Named after the mythical **kapruka** — the wish-granting tree. Tell Kapu what 
 ### 📸 Snap-a-list (vision)
 Photograph a handwritten shopping list — Sinhala, Tamil, or Tanglish scrawl — and Kapu reads it (Claude vision, GPT-4o-mini fallback), translates "හාල්" → rice, and fills the basket. Also understands **product photos** ("find me this") and **scene photos** ("recreate this birthday table"). Any shop-shelf or competitor screenshot becomes an honest **price-check**.
 
-### 🛍 Agentic commerce, visually rich (22 tools)
+### 🛍 Agentic commerce, visually rich (23 tools)
 - Streaming SSE chat with **UI blocks**, not walls of text: product rails with *KAPU'S PICK*, a **cake-moment hero** (inline icing-message field + delivery-date pills + variant picker), **compare duels** with per-row winners and Kapu's verdict, delivery cards, live basket, order timeline.
 - **Instant cart** — ➕ steppers hit `/api/cart` directly, no LLM round-trip.
 - **Click any product** → full-detail modal fetched straight from the MCP (gallery, variants, delivery quote) with an *"Ask Kapu about this"* handoff.
@@ -75,7 +75,7 @@ Works fully as a guest. Optional **Sign in with Google** (GIS ID-token → HMAC 
 
 ```
 Browser (PWA, SSE) ──► /api/chat ─┐
-Telegram (private + groups) ──────┤──► ONE agent core (22 tools) ──► MCP Shield ──► mcp.kapruka.com
+Telegram (private + groups) ──────┤──► ONE agent core (23 tools) ──► MCP Shield ──► mcp.kapruka.com
      /api/telegram (webhook)      │        │ system prompt · session store · memory
 Voice /api/stt · /api/tts ────────┘        │
 Vision /api/scan ──────────────────────────┘

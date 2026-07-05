@@ -344,6 +344,8 @@ const STR = {
   },
   landPwaBtn: { en: "Add to Home Screen", si: "Home Screen එකට දාන්න", ta: "முகப்புத் திரையில் சேர்" },
   landPwaTag: { en: "PWA · wishes synced", si: "PWA · wishes sync වෙනවා", ta: "PWA · ஒத்திசைவு" },
+  waPay: { en: "Send the pay link on WhatsApp", si: "Pay link එක WhatsApp එකෙන් යවන්න", ta: "WhatsApp-ல் அனுப்பு" },
+  waBasket: { en: "Share basket on WhatsApp", si: "බාස්කට් එක WhatsApp share කරන්න", ta: "கூடையை WhatsApp-ல் பகிர்" },
   cardDownload: { en: "Download", si: "Download", ta: "பதிவிறக்கு" },
   cardShare: { en: "Share", si: "Share කරන්න", ta: "பகிர்" },
   seasonalPicks: { en: "{name} — Kapu's seasonal picks", si: "{name} — Kapu ගේ seasonal picks", ta: "{name} — Kapu-வின் பருவ தேர்வுகள்" },

@@ -69,7 +69,7 @@ type Part =
   | { kind: "error"; variant: "connection" | "rate_limit" | "auth" | "generic"; message: string; lastMessage: string; retryAfter?: number; attempt: number };
 type ChatItem =
   | { role: "user"; text: string }
-  | { role: "assistant"; parts: Part[]; streaming?: boolean; toolLabel?: string | null };
+  | { role: "assistant"; parts: Part[]; streaming?: boolean; toolLabel?: string | null; steps?: string[] };
 
 interface WishMeta {
   id: string;
@@ -490,6 +490,10 @@ export default function KapuApp() {
               setVoiceTool(event.status === "start" ? event.label ?? null : null);
               patchAssistant((a) => {
                 a.toolLabel = event.status === "start" ? event.label || "Working…" : null;
+                if (event.status === "start" && event.label && event.label !== "…") {
+                  a.steps = a.steps ?? [];
+                  if (a.steps[a.steps.length - 1] !== event.label) a.steps.push(event.label);
+                }
               });
               break;
             case "block":
@@ -1888,13 +1892,21 @@ export default function KapuApp() {
                         )
                       )}
                       {item.streaming && (
-                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-1.5 text-[12px] text-ink-soft shadow-[0_2px_8px_rgba(64,41,112,0.05)]">
-                          <span className="flex gap-1">
-                            <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
-                            <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
-                            <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {(item.steps ?? []).slice(0, -1).slice(-4).map((st, si) => (
+                            <span key={si} className="rise inline-flex items-center gap-1 rounded-full bg-good-soft px-2.5 py-1 text-[10.5px] font-medium text-good">
+                              <IconCheck size={8} />
+                              {st.replace(/…$/, "")}
+                            </span>
+                          ))}
+                          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-1.5 text-[12px] text-ink-soft shadow-[0_2px_8px_rgba(64,41,112,0.05)]">
+                            <span className="flex gap-1">
+                              <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
+                              <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
+                              <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
+                            </span>
+                            <span>{item.toolLabel ?? (item.steps?.length ? item.steps[item.steps.length - 1] : "Kapu is thinking…")}</span>
                           </span>
-                          <span>{item.toolLabel ?? "Kapu is thinking…"}</span>
                         </div>
                       )}
                     </div>
@@ -2606,7 +2618,7 @@ export default function KapuApp() {
               ))}
             </div>
             <p className="mt-5 text-[11px] font-semibold tracking-wide text-ink-faint">
-              22 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
+              23 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
               {tgBot && (
@@ -3546,7 +3558,7 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
       {/* ── act 4: stats + CTA ── */}
       <section className="py-10 text-center">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
-          {["22 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
+          {["23 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
             </span>
