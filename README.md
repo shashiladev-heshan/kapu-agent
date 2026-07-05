@@ -16,7 +16,7 @@ Named after the mythical **kapruka** — the wish-granting tree. Tell Kapu what 
 ### 🗣 Truly trilingual — script, speech and soul
 - Full UI chrome in **Sinhala / Tamil / English** (සිං · த · EN toggle localizes *everything*, ~130 keys) — and the agent replies in your script.
 - **Tanglish/Singlish native**: `machan mata phone ekak one 60000 ta aduwen` just works.
-- **Hands-free voice loop**: speak Sinhala → Web Speech API (or Whisper fallback with a Sinhala-exemplar prompt + wrong-script retry guard) → Kapu answers **aloud**. Sinhala speech is romanized for TTS so it sounds natural, not robotic. Barge-in, thinking quips, full voice canvas UI.
+- **Hands-free voice loop**: speak Sinhala → Web Speech API (or Whisper fallback with a Sinhala-exemplar prompt + wrong-script retry guard) → Kapu answers **aloud in a native Sri Lankan voice** — Azure `si-LK-ThiliniNeural` (Sinhala) and `ta-LK-SaranyaNeural` (Tamil), prosody-tuned. **Instant spoken acknowledgments** kill dead air, barge-in interrupts mid-sentence, and a tap on the voice-canvas chip switches the listening language. If Azure is unavailable the chain gracefully falls back to OpenAI TTS reading romanized Sinhala — the agent auto-switches its speech script to match whichever engine is live.
 - Slash commands: `/si /ta /en` flip the whole experience instantly.
 
 ### 📸 Snap-a-list (vision)
@@ -48,7 +48,10 @@ Photograph a handwritten shopping list — Sinhala, Tamil, or Tanglish scrawl �
 - *"Remember Amma — Kandy, 077…"* → saved recipients & occasions (birthdays, anniversaries), **asked first, never scraped**. Signed-in users get account-backed memory across devices; guests stay on-device.
 - **My Kapu — teach it your rules**: standing instructions ("vegetarian household, never suggest alcohol, warn me over Rs 20,000, talk like a friend") honored in every conversation.
 - **Cross-conversation awareness**: recent wish titles ride along so Kapu can pick up threads ("continuing your pirikara arrangement?").
-- 🎂 A **Sri Lankan festival calendar** (Avurudu, Vesak, Esala Perahera, Deepavali, Christmas…) powers the hero countdown chip and gift nudges.
+- 🎂 A **Sri Lankan festival calendar** (Avurudu, Vesak, Esala Perahera, Deepavali, Christmas…) powers a live **seasonal picks rail** (real products for the coming festival, auto-refreshed), the hero countdown + festive dressing, and built-in **festival etiquette** — no alcohol for Vesak, vegetarian Deepavali, nekath timing for Avurudu (with Kapruka's real astrology services for picking the hour).
+- 💌 **Greeting cards**: after a gift message, Kapu offers a designed festival card — occasion-themed palettes, perfect Sinhala/Tamil script (canvas-rendered, not AI-mangled), downloadable and WhatsApp-shareable.
+- 📉 **Price-drop watch**: "tell me on Telegram if this hamper gets cheaper" → an autonomous watcher polls, alerts on a real ≥2% drop, then retires itself.
+- 🟢 **WhatsApp handoff**: share the basket or send the price-locked pay link to the family group in one tap — she orders in Melbourne, aiya in Colombo pays.
 
 ### 🔔 Agentic notification center
 The bell is a real feed: upcoming saved occasions ("Amma's birthday in 12 days — *Plan a gift*"), festival countdowns, pay-links awaiting payment, autonomous schedule results and next runs — every item has an action button that makes Kapu *do* the thing.
@@ -63,6 +66,12 @@ The bell is a real feed: upcoming saved occasions ("Amma's birthday in 12 days �
 - App shell: sidebar → icon rail + live basket panel (collapsible), recent wishes with cross-device sync, deliver-to city typeahead with vernacular aliases ("nugegoda", "යාපනය"), mobile nav drawer, hero **typewriter ticker** that *demonstrates* capabilities — every phrase is tappable and actually does the thing.
 - **`/` command palette** in the composer: `/track /basket /fav /schedule /deals /gift /voice /scan /dark /telegram /help` with ↑↓ + Tab completion.
 - Edge states with grace: friendly no-results, rate-limit and connection-lost cards — every failure speaks Kapu ("Aiyo!").
+- **First-run guided tour** — spotlight coach-marks over the composer, camera, mic, wish cards, Telegram and language toggle (replay anytime with `/tour`).
+- **Live activity trail** — while Kapu works, completed steps stack up as green ✓ chips ("✓ Searching Kapruka ✓ Comparing options") ahead of the animated current step; agentic work is visible, not hidden.
+- **Turns survive anything** — refresh or navigate away mid-search and the agent finishes server-side; returning to the conversation picks the reply up automatically.
+- **Ranked merchandising** — the top hit wears **KAPU'S PICK**, the cheapest-in-grid wears **BEST VALUE**; tap a product for the instant detail modal.
+- **QR handoff** — scan from the account sheet (or the landing) and continue on your phone; sign in with the same Google and wishes follow.
+- **The landing page is a product demo**: embedded 75-sec film, auto-playing wish demo, floating PWA phone mockups, an animated Kapu's-Pick comparison duel, the seasonal collage, a voice-agent orb, a Telegram family-group mock, the full tech stack and a clickable architecture diagram.
 
 ### 🔐 Guest-first auth
 Works fully as a guest. Optional **Sign in with Google** (GIS ID-token → HMAC cookie; no client secret, no extra deps) unlocks cross-device wish sync, account memory, and Schedules.
@@ -83,6 +92,7 @@ Vision /api/scan ─────────────────────
 ```
 
 - **Next.js 15 monolith** (frontend + API in one Node process) → **Railway**.
+- **Self-healing engine**: if the API key hits a billing/credit wall mid-judging, the failed turn is automatically retried on the subscription-token engine and sticks there for 10 minutes before re-probing — a dead key can never take the demo down.
 - **Dual Claude engine**, auto-selected by credential: `ANTHROPIC_API_KEY` → manual Messages-API loop (streaming + prompt caching); `ANTHROPIC_AUTH_TOKEN` (subscription OAuth) → Claude Agent SDK. Force with `KAPU_ENGINE=api|agent-sdk`. Model via `KAPU_MODEL` (default `claude-sonnet-4-6`).
 - **MCP Shield** — the only module that touches the Kapruka MCP: per-tool LRU cache, in-flight coalescing, token-bucket queue under the shared 60 req/min/IP limit.
 - **MongoDB (optional but recommended)**: sessions, users, orders, schedules survive redeploys; app runs fully in-memory without it.
@@ -138,6 +148,23 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-domain>/a
 | `src/app/api/` | chat (SSE), cart, cities, delivery, product, track, orders, occasions, schedules, scan, stt, tts, auth, wishes, telegram, health |
 | `src/lib/client/i18n.tsx` | the full trilingual dictionary |
 | `scripts/tg-poll.mjs` | local Telegram long-poller |
+
+## 📜 Build log — the challenge weekend
+
+Everything shipped, in order, across ~48 hours:
+
+- **UI**: implemented the 11-section "Kapu redesigned" spec — app shell (sidebar → icon rail + live basket panel), Instrument Serif design system, 1.6px stroke icons, dark mode, PWA
+- **Agent core**: 23 tools over the Kapruka MCP behind a caching/coalescing/rate-limited shield; dual Claude engines (Messages API + Agent SDK) with automatic billing fallback
+- **Blocks**: product rails with pick/value badges, cake-moment hero (icing + date pills + variants + live delivery quote), compare duels with verdicts, confirm-gate order summary, price-locked pay card, order timeline with delivery photo-proof
+- **Voice**: full hands-free loop (Web Speech si-LK + Whisper fallback), instant spoken acks, barge-in, iOS stall-finalizer, language cycling — and native **Thilini/Saranya** neural voices via Azure with automatic script switching
+- **Vision**: snap-a-list camera OCR (Sinhala handwriting → basket), scene recreation, price-check-anything
+- **Telegram**: @KapuLKBot — private + group chats (@mention wake, one shared family basket), voice notes, photo lists, inline add/confirm/pay keyboards, live self-editing status ticker, byte-uploaded product photos, `/link` account binding, command menu
+- **Memory**: consent-first recipients & occasions, "My Kapu" standing rules, favorites that ride into agent context, cross-conversation awareness — account-backed via Google sign-in, guest-first otherwise
+- **Autonomy**: Kapu Schedules — a 60s in-process runner executing standing wishes with recorded consent (AP2-style mandates), order watchers, price-drop alerts, all delivered to Telegram
+- **Seasonal**: live festival calendar → seasonal picks rail, hero dressing, etiquette rules, delivery-cutoff nudges, canvas greeting cards, autonomous festival-gift offers
+- **Experience**: first-run spotlight tour, `/` command palette, background-surviving turns, live ✓-step activity trail, notification center, Track-Order UI, product detail modals, instant cart, WhatsApp share, QR phone handoff
+- **Landing**: two-column hero with auto-playing demo + voice teaser, embedded film, floating phone mockups, animated Pick duel, seasonal collage, voice-agent section, Telegram mock, tech stack + SVG architecture diagram, honest "real capabilities" toasts
+- **Ops**: deployed to Railway (`kapuwa.shop` custom domain), MongoDB persistence, webhook + secret hardening, OG link previews, PWA service worker, production smoke suites after every deploy
 
 ## 🔍 Field notes from the live Kapruka MCP
 
