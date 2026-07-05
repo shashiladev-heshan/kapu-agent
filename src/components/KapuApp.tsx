@@ -2525,7 +2525,8 @@ export default function KapuApp() {
               <strong className="font-semibold text-ink">සිංහල · தமிழ் · English · Tanglish.</strong>
             </p>
 
-            <div className="mt-7 flex w-full max-w-[320px] flex-col items-stretch gap-3">
+            <LandingTicker language={language} />
+            <div className="mt-6 flex w-full max-w-[320px] flex-col items-stretch gap-3">
               {GOOGLE_CLIENT_ID ? (
                 <div ref={googleBtnRef} className="flex min-h-[44px] justify-center" />
               ) : process.env.NODE_ENV !== "production" ? (
@@ -2566,7 +2567,10 @@ export default function KapuApp() {
                 </span>
               ))}
             </div>
-            <a href="#kapu-show" className="mt-8 flex flex-col items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint transition hover:text-leaf lg:items-start">
+            <p className="mt-5 text-[11px] font-semibold tracking-wide text-ink-faint">
+              22 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
+            </p>
+            <a href="#kapu-show" className="mt-6 flex flex-col items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint transition hover:text-leaf lg:items-start">
               {t("landSee")}
               <IconChevronDown size={10} className="animate-bounce" />
             </a>
@@ -2574,10 +2578,12 @@ export default function KapuApp() {
             <div className="w-full max-w-[500px] justify-self-center lg:justify-self-end">
               <p className="font-display mb-3 text-center text-[17px] italic text-leaf lg:text-left">{t("landChatTitle")}</p>
               <LiveWishDemo />
+              <VoiceTeaser onStart={closeWelcome} />
             </div>
             </div>
           </div>
           <LandingShowcase onStart={closeWelcome} tgBot={tgBot} />
+          <KnowToast />
         </div>
       )}
 
@@ -2924,12 +2930,108 @@ function TrackModal({
   );
 }
 
+// ── landing voice teaser — animated waveform strip under the demo ───────
+
+const VOICE_LINES = ["මට කේක් එකක් ඕන…", "machan phone ekak hoyala denna…", "அம்மாவுக்கு பூக்கள்…"];
+
+function VoiceTeaser({ onStart }: { onStart: () => void }) {
+  const t = useT();
+  const [li, setLi] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setLi((x) => (x + 1) % VOICE_LINES.length), 2600);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <button
+      onClick={onStart}
+      className="mt-3 flex w-full items-center gap-3 rounded-[18px] p-3.5 text-left text-white shadow-[0_16px_44px_rgba(64,41,112,0.35)] transition hover:-translate-y-0.5"
+      style={{ background: "radial-gradient(280px 160px at 20% 0%, #3A2868, #241740)" }}
+    >
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10">
+        <span className="voicering absolute inset-0 rounded-full border border-gold/60" />
+        <IconMic size={18} className="text-gold" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-[12.5px] font-bold">
+          Kapu <i className="font-display font-normal text-gold">voice</i>
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white/70">hands-free · sinhala</span>
+        </span>
+        <span className="mt-0.5 block truncate text-[11.5px] italic text-white/70">“{VOICE_LINES[li]}”</span>
+      </span>
+      <span className="flex h-6 items-end gap-[2.5px] pr-1">
+        {[0.5, 0.9, 0.6, 1, 0.7, 0.85, 0.45].map((h, i) => (
+          <span key={i} className="wavebar w-[3px] rounded-full bg-gold" style={{ height: `${h * 22}px`, animationDelay: `${i * 0.12}s` }} />
+        ))}
+      </span>
+    </button>
+  );
+}
+
+// ── did-you-know toast — honest capability facts, competitor-style corner ──
+
+const KNOW_FACTS = [
+  "🔮 Kapu can book a real horoscope reading for auspicious timing",
+  "🧺 “Avurudu hamper under Rs 8,000” — one box, one flat delivery",
+  "⏰ “Flowers for Amma every month-end” — runs itself, pays by your tap",
+  "📦 Delivery comes with photo proof — watch it arrive",
+  "👨‍👩‍👧 Add Kapu to the family Telegram group — one shared basket",
+];
+
+function KnowToast() {
+  const [i, setI] = useState(0);
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    const id = setInterval(() => setI((x) => (x + 1) % KNOW_FACTS.length), 5200);
+    return () => clearInterval(id);
+  }, []);
+  if (hidden) return null;
+  return (
+    <div className="rise fixed bottom-5 left-5 z-[56] hidden max-w-[300px] items-start gap-2.5 rounded-[16px] border border-line bg-card p-3.5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] md:flex">
+      <KapuMark size={26} radius={8} />
+      <div className="min-w-0 flex-1">
+        <p key={i} className="rise text-[11.5px] leading-snug text-ink-soft">{KNOW_FACTS[i]}</p>
+        <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-ink-faint">real capabilities · not simulated</p>
+      </div>
+      <button onClick={() => setHidden(true)} className="text-ink-faint hover:text-ink-soft" aria-label="Dismiss">
+        <IconClose size={11} />
+      </button>
+    </div>
+  );
+}
+
+// ── landing typewriter — capability lines under the hero headline ───────
+
+function LandingTicker({ language }: { language: Language }) {
+  const phrases = HERO_PHRASES[language];
+  const [idx, setIdx] = useState(0);
+  const [chars, setChars] = useState(0);
+  const phrase = phrases[idx % phrases.length].text;
+  useEffect(() => {
+    const full = [...phrase];
+    const delay = chars < full.length ? 30 : 2100;
+    const id = setTimeout(() => {
+      if (chars < full.length) setChars(chars + 1);
+      else {
+        setChars(0);
+        setIdx((i) => i + 1);
+      }
+    }, delay);
+    return () => clearTimeout(id);
+  }, [chars, phrase]);
+  return (
+    <p className="mt-4 min-h-[2.6rem] max-w-[430px] text-[14px] font-medium leading-snug text-leaf-bright">
+      {[...phrase].slice(0, chars).join("")}
+      <span className="ml-0.5 inline-block h-[1em] w-[2.5px] animate-pulse rounded bg-gold align-middle" />
+    </p>
+  );
+}
+
 // ── live wish demo — the auto-playing hero chat ─────────────────────────
 
 function LiveWishDemo() {
-  const [beat, setBeat] = useState(0);
+  const [beat, setBeat] = useState(1);
   useEffect(() => {
-    const id = setInterval(() => setBeat((b) => (b + 1) % 9), 1600);
+    const id = setInterval(() => setBeat((b) => (b % 8) + 1), 1700);
     return () => clearInterval(id);
   }, []);
   return (
@@ -3028,6 +3130,47 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
               <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{t(f.bb)}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── act 2.5: the voice agent ── */}
+      <section className="grid items-center gap-8 py-12 md:grid-cols-2">
+        <div>
+          <h2 className="font-display text-[26px] leading-tight text-ink sm:text-[32px]">{t("landVoiceTitle")}</h2>
+          <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landVoiceSub")}</p>
+          <ul className="mt-4 space-y-2 text-[12.5px] text-ink-soft">
+            <li>🎙 {t("landVoiceB1")}</li>
+            <li>⚡ {t("landVoiceB2")}</li>
+            <li>✋ {t("landVoiceB3")}</li>
+          </ul>
+          <button
+            onClick={onStart}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-[13px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+          >
+            <IconMic size={15} />
+            {t("landVoiceCta")}
+          </button>
+        </div>
+        <div
+          className="mx-auto flex w-full max-w-[380px] flex-col items-center gap-5 rounded-[28px] p-10 text-center text-white shadow-[0_30px_80px_rgba(64,41,112,0.35)]"
+          style={{ background: "radial-gradient(320px 240px at 50% 0%, #3A2868, #241740)" }}
+        >
+          <div className="relative">
+            <span className="voicering absolute inset-0 rounded-[30px] border-2 border-gold/50" />
+            <span className="voicering absolute inset-0 rounded-[30px] border-2 border-gold/30" style={{ animationDelay: "0.7s" }} />
+            <span className="relative flex h-24 w-24 items-center justify-center rounded-[30px] bg-white/[0.07]">
+              <KapuMark size={52} radius={16} />
+            </span>
+          </div>
+          <span className="flex h-8 items-end gap-[3px]">
+            {[0.4, 0.75, 0.55, 1, 0.65, 0.9, 0.5, 0.8, 0.45].map((h, i) => (
+              <span key={i} className="wavebar w-[3.5px] rounded-full bg-gold" style={{ height: `${h * 30}px`, animationDelay: `${i * 0.11}s` }} />
+            ))}
+          </span>
+          <p className="font-display text-[17px] italic leading-snug text-white/90">“ammata cake ekak yawanna one…”</p>
+          <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[10.5px] font-semibold text-gold">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" /> Listening — speak now!
+          </span>
         </div>
       </section>
 
