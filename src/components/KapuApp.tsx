@@ -2620,6 +2620,14 @@ export default function KapuApp() {
                   @{tgBot.username}
                 </a>
               )}
+              <a
+                href="https://youtu.be/zQyPcT_V1_A"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-soft px-3.5 py-2 text-[11.5px] font-bold text-gold-deep transition hover:-translate-y-0.5"
+              >
+                ▶ 75-sec film
+              </a>
               {[
                 { href: "#land-pwa", label: "📱 In your pocket" },
                 { href: "#land-pick", label: "🏅 Kapu's Pick" },
@@ -3512,7 +3520,10 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
           {t("landStart")}
           <IconArrowRight size={16} />
         </button>
-        <p className="mt-6 text-[11px] text-ink-faint">Kapu speaks සිංහල · தமிழ் · English · Tanglish — powered by the Kapruka MCP + Claude</p>
+        <a href="https://youtu.be/zQyPcT_V1_A" target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-[12px] font-semibold text-leaf transition hover:text-leaf-bright">
+          ▶ Watch the 75-second film
+        </a>
+        <p className="mt-4 text-[11px] text-ink-faint">Kapu speaks සිංහල · தமிழ் · English · Tanglish — powered by the Kapruka MCP + Claude</p>
       </section>
     </div>
   );
