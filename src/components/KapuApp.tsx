@@ -193,6 +193,7 @@ export default function KapuApp() {
   const [sessionReady, setSessionReady] = useState(false);
   const [authUser, setAuthUser] = useState<AuthProfile | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(-1); // -1 = closed
   const [tgBot, setTgBot] = useState<{ username: string; link: string } | null>(null);
   const [favs, setFavs] = useState<Record<string, ProductSummary>>({});
   const [favOpen, setFavOpen] = useState(false);
@@ -281,6 +282,7 @@ export default function KapuApp() {
     setDark(document.documentElement.classList.contains("dark"));
     // first visit → welcome gate (Google or guest); one tap, never again
     if (!localStorage.getItem("kapu_welcome")) setWelcomeOpen(true);
+    else if (!localStorage.getItem("kapu_tour")) setTimeout(() => setTourStep(0), 900);
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
@@ -957,6 +959,7 @@ export default function KapuApp() {
   // ── account (guest ↔ Google) ─────────────────────────────────────────
   const closeWelcome = useCallback(() => {
     localStorage.setItem("kapu_welcome", "1");
+    if (!localStorage.getItem("kapu_tour")) setTimeout(() => setTourStep(0), 700);
     setWelcomeOpen(false);
   }, []);
 
@@ -1127,7 +1130,7 @@ export default function KapuApp() {
   // ── shared bits ───────────────────────────────────────────────────────
 
   const langSegment = (size: "sm" | "md" = "md") => (
-    <div className={`flex rounded-[10px] bg-cream p-[3px] dark:bg-cream-deep ${size === "sm" ? "" : "flex-1"}`}>
+    <div data-tour="lang" className={`flex rounded-[10px] bg-cream p-[3px] dark:bg-cream-deep ${size === "sm" ? "" : "flex-1"}`}>
       {LANGS.map((l) => (
         <button
           key={l.code}
@@ -1165,6 +1168,7 @@ export default function KapuApp() {
     { cmd: "/en", hint: "Switch to English", run: () => { setInput(""); setLang("en"); } },
     { cmd: "/dark", hint: "Toggle dark mode 🌙", run: () => { setInput(""); toggleTheme(); } },
     { cmd: "/telegram", hint: tgBot ? `Open @${tgBot.username} on Telegram` : "Kapu on Telegram", run: () => { setInput(""); if (tgBot) window.open(tgBot.link, "_blank"); } },
+    { cmd: "/tour", hint: "Replay the welcome tour ✨", run: () => { setInput(""); setTourStep(0); } },
     { cmd: "/help", hint: "What can Kapu do? · Kapu ට මොනවද පුළුවන්?", run: () => void send("What can you do? Give me the quick tour with examples") },
   ];
   const slashActive = /^\/[a-z]*$/i.test(input);
@@ -1188,6 +1192,7 @@ export default function KapuApp() {
 
   const composer = (opts?: { hero?: boolean }) => (
     <form
+      {...(opts?.hero ? { "data-tour": "ask" } : {})}
       className={`relative flex items-center gap-2 rounded-[20px] border-[1.5px] border-edge bg-card p-2 pl-4 ${
         opts?.hero ? "mx-auto w-full max-w-[620px] shadow-[0_12px_40px_rgba(64,41,112,0.1)]" : "shadow-[0_2px_10px_rgba(64,41,112,0.05)]"
       }`}
@@ -1259,6 +1264,7 @@ export default function KapuApp() {
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border-[1.5px] border-cream-deep text-leaf transition active:scale-90 disabled:opacity-40"
         aria-label="Snap a shopping list or product"
         title="Snap a list — Kapu reads it and shops"
+        data-tour="scan"
       >
         <IconCamera size={18} />
       </button>
@@ -1269,6 +1275,7 @@ export default function KapuApp() {
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border-[1.5px] border-cream-deep text-leaf transition active:scale-90 disabled:opacity-40"
         aria-label="Talk to Kapu"
         title="Talk to Kapu"
+        data-tour="voice"
       >
         <IconMic size={18} />
       </button>
@@ -1706,7 +1713,7 @@ export default function KapuApp() {
 
                 <div className="mt-7 hidden sm:block">{composer({ hero: true })}</div>
 
-                <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+                <div data-tour="wishes" className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                   {DEMO_CHIPS.map((c) => (
                     <button
                       key={c.label}
@@ -1724,7 +1731,7 @@ export default function KapuApp() {
 
                 <div className="mt-7 flex flex-col items-center gap-2.5">
                   {tgBot && (
-                    <span className="group relative inline-block">
+                    <span className="group relative inline-block" data-tour="tg">
                       {/* hover/focus guide — how to start & what Kapu can do in Telegram */}
                       <span className="rise pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 hidden w-[340px] max-w-[86vw] -translate-x-1/2 rounded-[20px] p-4 text-left text-white shadow-[0_24px_70px_rgba(0,0,0,0.5)] group-hover:block group-focus-within:block"
                         style={{ background: "radial-gradient(340px 240px at 50% 0%, #3A2868, #241740)" }}
@@ -2442,6 +2449,17 @@ export default function KapuApp() {
       )}
 
       {/* ══ Welcome gate — first visit only: Google or guest, one tap ══ */}
+      {tourStep >= 0 && !welcomeOpen && (
+        <TourOverlay
+          step={tourStep}
+          onStep={setTourStep}
+          onClose={() => {
+            setTourStep(-1);
+            localStorage.setItem("kapu_tour", "1");
+          }}
+        />
+      )}
+
       {welcomeOpen && sessionReady && (
         <div className="fixed inset-0 z-[55] overflow-hidden bg-cream">
           <span
@@ -2841,6 +2859,109 @@ function TrackModal({
             </ul>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── first-run guided tour — spotlight + tooltip coach marks ─────────────
+
+const TOUR_STEPS: { key: string; selectors: string[]; t: StrKey; b: StrKey }[] = [
+  { key: "ask", selectors: ['[data-tour="ask"]'], t: "tourT1", b: "tourB1" },
+  { key: "scan", selectors: ['[data-tour="scan"]'], t: "tourT2", b: "tourB2" },
+  { key: "voice", selectors: ['[data-tour="voice"]'], t: "tourT3", b: "tourB3" },
+  { key: "wishes", selectors: ['[data-tour="wishes"]'], t: "tourT4", b: "tourB4" },
+  { key: "tg", selectors: ['[data-tour="tg"]'], t: "tourT5", b: "tourB5" },
+  { key: "lang", selectors: ['[data-tour="lang"]'], t: "tourT6", b: "tourB6" },
+];
+
+function TourOverlay({ step, onStep, onClose }: { step: number; onStep: (n: number) => void; onClose: () => void }) {
+  const t = useT();
+  const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  // resolve the current step's target — skip steps whose target isn't on screen
+  useEffect(() => {
+    let idx = step;
+    let el: Element | null = null;
+    while (idx < TOUR_STEPS.length) {
+      el = TOUR_STEPS[idx].selectors.map((sel) => document.querySelector(sel)).find((e) => e && (e as HTMLElement).offsetParent !== null) ?? null;
+      if (el) break;
+      idx++;
+    }
+    if (!el) {
+      onClose();
+      return;
+    }
+    if (idx !== step) {
+      onStep(idx);
+      return;
+    }
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const measure = () => {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    };
+    const t1 = setTimeout(measure, 260); // after smooth scroll settles
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      clearTimeout(t1);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [step, onStep, onClose]);
+
+  if (!rect) return null;
+  const last = step >= TOUR_STEPS.length - 1;
+  const pad = 8;
+  const below = rect.top + rect.height + 190 < window.innerHeight;
+  const cardTop = below ? rect.top + rect.height + pad + 10 : undefined;
+  const cardBottom = below ? undefined : window.innerHeight - rect.top + pad + 10;
+  const cardLeft = Math.min(Math.max(rect.left + rect.width / 2 - 150, 12), window.innerWidth - 312);
+
+  return (
+    <div className="fixed inset-0 z-[60]" onClick={onClose}>
+      {/* spotlight hole — one element, the shadow dims everything else */}
+      <div
+        className="absolute rounded-[18px] transition-all duration-300 ease-out"
+        style={{
+          top: rect.top - pad,
+          left: rect.left - pad,
+          width: rect.width + pad * 2,
+          height: rect.height + pad * 2,
+          boxShadow: "0 0 0 9999px rgba(21, 13, 40, 0.72), 0 0 0 3px rgba(255,184,0,0.9), 0 0 24px 4px rgba(255,184,0,0.35)",
+        }}
+      />
+      <div
+        className="rise absolute w-[300px] rounded-[18px] bg-card p-4 shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
+        style={{ top: cardTop, bottom: cardBottom, left: cardLeft }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2">
+          <KapuMark size={22} radius={7} />
+          <p className="font-display text-[16px] leading-tight">{t(TOUR_STEPS[step].t)}</p>
+          <span className="ml-auto text-[10px] font-semibold text-ink-faint">{t("tourOf", { a: step + 1, b: TOUR_STEPS.length })}</span>
+        </div>
+        <p className="mt-2 text-[12.5px] leading-relaxed text-ink-soft">{t(TOUR_STEPS[step].b)}</p>
+        <div className="mt-3.5 flex items-center gap-2">
+          <div className="flex flex-1 gap-1">
+            {TOUR_STEPS.map((x, i) => (
+              <span key={x.key} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-gold" : "bg-cream-deep"}`} />
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between">
+          <button onClick={onClose} className="text-[11.5px] font-medium text-ink-faint hover:text-ink-soft">
+            {t("tourSkip")}
+          </button>
+          <button
+            onClick={() => (last ? onClose() : onStep(step + 1))}
+            className="rounded-full bg-gold px-4 py-2 text-[12px] font-bold text-ink shadow-[0_4px_12px_rgba(255,184,0,0.4)] transition active:scale-95 dark:text-[#322b45]"
+          >
+            {last ? t("tourDone") : t("tourNext")}
+          </button>
+        </div>
       </div>
     </div>
   );
