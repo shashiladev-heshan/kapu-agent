@@ -115,7 +115,7 @@ async function callWithRetry(tool: string, params: Record<string, unknown>): Pro
     const msg = err instanceof Error ? err.message : String(err);
     if (!/rate.?limit|429|too many/i.test(msg)) throw err;
     const after = Number(/retry[_-\s]?after[^0-9]*(\d+)/i.exec(msg)?.[1] ?? 3);
-    if (after > 6) throw err;
+    if (after > 12) throw err;
     await new Promise((r) => setTimeout(r, (after + 0.5) * 1000));
     return rawCall(tool, params);
   }
