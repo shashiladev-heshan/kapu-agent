@@ -299,6 +299,9 @@ export async function runTurnSdk(
       permissionMode: "bypassPermissions",
       includePartialMessages: true,
       maxTurns: 16,
+      stderr: (data: string) => {
+        if (data.trim()) console.error("[sdk-cli]", data.trim().slice(0, 500));
+      },
       ...(session.sdkSessionId ? { resume: session.sdkSessionId } : {}),
     },
   });
