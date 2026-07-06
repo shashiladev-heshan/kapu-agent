@@ -62,10 +62,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        {/* Apply saved theme before first paint to avoid a light flash */}
+        {/* Apply theme before first paint — Kapu defaults to DARK; an explicit
+            light choice (toggle) wins. OS theme changes are followed live in
+            KapuApp until the user picks one. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("kapu_theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark");var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#151022")}}catch(e){}`,
+            __html: `(function(){var t=null;try{t=localStorage.getItem("kapu_theme")}catch(e){}if(t!=="light"){document.documentElement.classList.add("dark");var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#151022")}})()`,
           }}
         />
       </head>

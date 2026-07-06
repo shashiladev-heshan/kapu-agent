@@ -291,6 +291,15 @@ export default function KapuApp() {
       .then((d) => d?.orders && setRecentOrders(d.orders))
       .catch(() => {});
     setDark(document.documentElement.classList.contains("dark"));
+    // follow OS theme flips live — but only until the user explicitly picks one
+    const scheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const onScheme = (e: MediaQueryListEvent) => {
+      if (localStorage.getItem("kapu_theme")) return;
+      document.documentElement.classList.toggle("dark", e.matches);
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", e.matches ? "#151022" : "#f6f4fa");
+      setDark(e.matches);
+    };
+    scheme.addEventListener("change", onScheme);
     // first visit → welcome gate (Google or guest); one tap, never again
     if (!localStorage.getItem("kapu_welcome")) setWelcomeOpen(true);
     else if (!localStorage.getItem("kapu_tour")) setTimeout(() => setTourStep(0), 900);
@@ -366,6 +375,7 @@ export default function KapuApp() {
     return () => {
       window.removeEventListener("online", up);
       window.removeEventListener("offline", down);
+      scheme.removeEventListener("change", onScheme);
     };
   }, []);
 
@@ -2562,6 +2572,15 @@ export default function KapuApp() {
 
       {welcomeOpen && sessionReady && (
         <div className="fixed inset-0 z-[55] overflow-y-auto bg-cream">
+          <button
+            onClick={toggleTheme}
+            title={dark ? t("lightMode") : t("darkMode")}
+            aria-label={dark ? t("lightMode") : t("darkMode")}
+            className="fixed right-4 top-4 z-[2] flex h-10 w-10 items-center justify-center rounded-full border border-edge bg-card text-ink-soft shadow-sm transition hover:-translate-y-0.5 hover:text-leaf"
+            style={{ top: "max(1rem, env(safe-area-inset-top))" }}
+          >
+            {dark ? <IconSun size={16} /> : <IconMoon size={16} />}
+          </button>
           <span
             aria-hidden
             className="pointer-events-none absolute -right-10 -top-16 select-none text-[240px] font-semibold leading-none text-leaf/[0.05] sm:text-[340px]"
