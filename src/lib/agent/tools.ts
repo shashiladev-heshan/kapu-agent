@@ -63,7 +63,7 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
     name: "list_categories",
     description:
-      "List Kapruka categories incl. festival/occasion pages (thaipongle, diwali, christmas, valentine, mother, sympathies, pirikara…), utility rails (samedaydelivery, bestsellers, promotions) and cake bakery brands. Cached. Use to map vague requests to a category filter.",
+      "List Kapruka's full category tree (65 top-level incl. festival/occasion pages, utility rails, bakery brands) AND render a visual tappable category explorer for the user. Call when they ask 'what can I buy here?' / want to browse. Note: use children as plain search KEYWORDS — category facets often return 0.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -389,6 +389,22 @@ export async function executeTool(
               : {}),
           }))
         : res;
+      // Visual category explorer — tappable tiles + kapruka.com browse links.
+      // Chips trigger plain-q searches (category FACETS return 0, verified).
+      if (Array.isArray(res.categories)) {
+        emit({
+          type: "category_tree",
+          categories: (res.categories as Record<string, unknown>[])
+            .map((c) => ({
+              name: String(c.name ?? ""),
+              url: typeof c.url === "string" ? c.url : null,
+              children: Array.isArray(c.children)
+                ? (c.children as Record<string, unknown>[]).map((ch) => String(ch.name ?? "")).slice(0, 6)
+                : [],
+            }))
+            .filter((c) => c.name),
+        });
+      }
       return JSON.stringify({ categories: cats });
     }
 

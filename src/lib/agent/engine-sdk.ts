@@ -103,7 +103,12 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         { product_ids: z.array(z.string()).min(2).max(4) },
         run("compare_products")
       ),
-      tool("list_categories", "List Kapruka top-level categories (cached).", {}, run("list_categories")),
+      tool(
+        "list_categories",
+        "List Kapruka's full category tree AND render a visual tappable category explorer for the user. Call when they ask 'what can I buy here?' / want to browse. Use children as plain search KEYWORDS — category facets often return 0.",
+        {},
+        run("list_categories")
+      ),
       tool(
         "resolve_city",
         "Resolve a possibly misspelled/vernacular city name to canonical deliverable Kapruka cities. Use BEFORE check_delivery or create_order.",

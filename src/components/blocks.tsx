@@ -593,7 +593,7 @@ export function CompareGrid({ products, verdict, actions }: { products: ProductD
 
 // ── delivery card ──────────────────────────────────────────────────────
 
-export function DeliveryCard({ block }: { block: Extract<UiBlock, { type: "delivery_card" }> }) {
+export function DeliveryCard({ block, actions }: { block: Extract<UiBlock, { type: "delivery_card" }>; actions: BlockActions }) {
   const t = useT();
   return (
     <div className={`rise my-2 rounded-2xl p-4 ${CARD}`}>
@@ -619,11 +619,71 @@ export function DeliveryCard({ block }: { block: Extract<UiBlock, { type: "deliv
         </div>
         {block.available && <IconCheckCircle size={18} className="ml-auto shrink-0" />}
       </div>
+      {!block.available && block.next_available_date && (
+        <button
+          onClick={() => {
+            actions.onPreferDate(block.next_available_date!);
+            actions.onAction(`Deliver on ${block.next_available_date} instead — recheck and continue`);
+          }}
+          className="mt-2.5 flex items-center gap-1.5 rounded-full bg-gold px-3.5 py-2 text-[12px] font-bold text-ink shadow-[0_4px_12px_rgba(255,184,0,0.3)] transition active:scale-95 dark:text-[#322b45]"
+        >
+          <IconClock size={13} />
+          {t("useDateInstead", { d: block.next_available_date })}
+        </button>
+      )}
       {block.perishable_warning && (
         <p className="mt-2.5 rounded-[11px] bg-gold-soft px-3 py-2 text-[11.5px] leading-relaxed text-gold-deep">
           {block.perishable_warning}
         </p>
       )}
+    </div>
+  );
+}
+
+// ── category explorer — "what can I even buy here?" ─────────────────────
+
+export function CategoryTree({ block, actions }: { block: Extract<UiBlock, { type: "category_tree" }>; actions: BlockActions }) {
+  const t = useT();
+  return (
+    <div className={`rise my-2 rounded-2xl p-4 ${CARD}`}>
+      <p className="font-display mb-3 text-[16px]">{t("catExplorerT")}</p>
+      <div className="grid max-h-[420px] grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-2">
+        {block.categories.map((c) => (
+          <div key={c.name} className="rounded-[14px] border border-line bg-surface p-3">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => actions.onAction(`Show me the best of ${c.name} on Kapruka`)}
+                className="min-w-0 truncate text-left text-[13px] font-semibold text-ink transition hover:text-leaf"
+              >
+                {c.name}
+              </button>
+              {c.url && (
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 text-[10.5px] font-semibold text-ink-faint transition hover:text-leaf"
+                >
+                  {t("catBrowse")}
+                </a>
+              )}
+            </div>
+            {c.children.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {c.children.map((ch) => (
+                  <button
+                    key={ch}
+                    onClick={() => actions.onAction(`Show me ${ch} — best options on Kapruka`)}
+                    className="rounded-full bg-cream px-2 py-0.5 text-[10.5px] font-medium text-ink-soft transition hover:text-leaf dark:bg-cream-deep"
+                  >
+                    {ch}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1256,7 +1316,9 @@ export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; a
     case "compare_grid":
       return <CompareGrid products={block.products} verdict={block.verdict} actions={actions} />;
     case "delivery_card":
-      return <DeliveryCard block={block} />;
+      return <DeliveryCard block={block} actions={actions} />;
+    case "category_tree":
+      return <CategoryTree block={block} actions={actions} />;
     case "cart":
       return <CartView cart={block.cart} actions={actions} />;
     case "order_summary":

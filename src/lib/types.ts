@@ -75,6 +75,7 @@ export type UiBlock =
   | { type: "product_hero"; product: ProductDetail }
   | { type: "compare_grid"; products: ProductDetail[]; verdict?: string }
   | { type: "delivery_card"; city: string; date?: string; available: boolean; rate?: number; currency?: string; reason?: string; next_available_date?: string; perishable_warning?: string }
+  | { type: "category_tree"; categories: { name: string; url?: string | null; children: string[] }[] }
   | { type: "cart"; cart: Cart }
   | { type: "order_summary"; summary: OrderSummaryData }
   | { type: "pay_link"; order_ref: string; pay_url: string; total?: number; currency?: string; created_at?: number; expires_at?: string; breakdown?: { items_total: number | null; delivery_fee: number | null; addons_total: number | null } }

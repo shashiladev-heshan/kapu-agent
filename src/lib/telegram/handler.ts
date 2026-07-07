@@ -511,6 +511,11 @@ async function renderBlock(chatId: number, session: Awaited<ReturnType<typeof ge
       });
       break;
     }
+    case "category_tree": {
+      const names = block.categories.slice(0, 24).map((c) => c.name);
+      await sendMessage(chatId, `🗂 <b>Kapruka categories</b>\n${names.map((n) => esc(n)).join(" · ")}${block.categories.length > 24 ? " …" : ""}\nJust name one and I'll show you the best of it!`);
+      break;
+    }
     default:
       break;
   }

@@ -62,6 +62,17 @@ const blocks: UiBlock[] = [
   { type: "delivery_card", city: "Kandy", date: "2026-07-05", available: true, rate: 1075, currency: "LKR", perishable_warning: "Same-day or next-day delivery is recommended; freshness on 2026-07-06 is not guaranteed." },
   { type: "delivery_card", city: "Nuwara Eliya", available: false, next_available_date: "2026-07-08" },
   {
+    type: "category_tree",
+    categories: [
+      { name: "Chocolates", url: "https://www.kapruka.com/chocolates", children: ["Cadbury", "Anods Cocoa", "Chocolate Hampers", "5 Star Hotels"] },
+      { name: "Giftset", url: "https://www.kapruka.com/giftset", children: ["Gift Sets For Mom", "Gift Sets For Him", "Gift Sets For Kids"] },
+      { name: "Grocery", url: "https://www.kapruka.com/grocery", children: ["Bagged Food", "Beverages", "Frozen Food", "Seafood"] },
+      { name: "pirikara", url: "https://www.kapruka.com/pirikara", children: ["Worship Items", "Religious Gifts And Offerings"] },
+      { name: "Giftcert", url: "https://www.kapruka.com/giftcert", children: ["Hotels and Restaurants", "Jewellery", "Apparel Shops"] },
+      { name: "Fruits", url: "https://www.kapruka.com/fruits", children: ["Fruit Basket", "Seasonal"] },
+    ],
+  },
+  {
     type: "cart",
     cart: {
       currency: "LKR",
