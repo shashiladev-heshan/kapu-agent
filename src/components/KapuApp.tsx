@@ -77,6 +77,14 @@ interface WishMeta {
   at: number;
 }
 
+/** product-page extras the MCP doesn't carry — parsed live from kapruka.com */
+interface ProductExtras {
+  rating: { value: number; count: number } | null;
+  installments: { provider: string | null; monthly: number; months: number }[];
+  partner: string | null;
+  qa: { q: string; a: string }[];
+}
+
 /** a tracking number the user has looked up (assistant or Track sheet) */
 interface TrackedOrder {
   no: string;
@@ -229,6 +237,7 @@ export default function KapuApp() {
   const [favOpen, setFavOpen] = useState(false);
   const [productOpen, setProductOpen] = useState<ProductSummary | null>(null);
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
+  const [productExtras, setProductExtras] = useState<ProductExtras | null>(null);
   const [trackOpen, setTrackOpen] = useState(false);
   const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
   /** hero discovery: live trending/budget/deals rails (site-parity with kapruka.com) */
@@ -867,13 +876,21 @@ export default function KapuApp() {
     (p: ProductSummary) => {
       setProductOpen(p);
       setProductDetail(null);
-      // detail can 500 upstream (EF_PC_ELEC* family) — degrade to the summary
+      setProductExtras(null);
+      // detail can 500 upstream (EF_PC_* family) — degrade to the summary
       // we already hold instead of a forever-skeleton
       const fallback: ProductDetail = { ...p, description: null, images: p.image ? [p.image] : [], variants: [], attributes: {} };
       void fetch(`/api/product?id=${encodeURIComponent(p.id)}&currency=${currency}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setProductDetail(d?.product ?? fallback))
         .catch(() => setProductDetail(fallback));
+      // page extras (rating · instalments · partner · Q&A) — hydrate when ready
+      if (p.url) {
+        void fetch(`/api/extras?id=${encodeURIComponent(p.id)}&url=${encodeURIComponent(p.url)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => d && !d.error && setProductExtras(d as ProductExtras))
+          .catch(() => {});
+      }
     },
     [currency]
   );
@@ -2612,6 +2629,55 @@ export default function KapuApp() {
               <ProductHero product={productDetail} deliverTo={deliverTo || undefined} actions={actions} />
             ) : (
               <div className="skeleton my-2 h-72 rounded-2xl" />
+            )}
+            {productExtras && (productExtras.rating || productExtras.installments.length > 0 || productExtras.qa.length > 0) && (
+              <div className="mt-1 rounded-2xl border border-line bg-card p-3.5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  {productExtras.rating && (
+                    <span className="flex items-center gap-1 text-[13.5px] font-semibold text-ink">
+                      <span className="text-gold">★</span> {productExtras.rating.value.toFixed(1)}
+                      {productExtras.rating.count > 0 && (
+                        <span className="font-normal text-ink-faint">· {t("reviewsN", { n: productExtras.rating.count })}</span>
+                      )}
+                    </span>
+                  )}
+                  {productExtras.partner && (
+                    <span className="text-[11.5px] text-ink-soft">
+                      🤝 Kapruka Partner: <b>{productExtras.partner}</b>
+                    </span>
+                  )}
+                  <span className="ml-auto text-[9px] uppercase tracking-[0.1em] text-ink-faint">{t("extrasSrc")}</span>
+                </div>
+                {productExtras.installments.length > 0 && (
+                  <>
+                    <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{t("extrasPay")}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {productExtras.installments.map((ins, ii) => (
+                        <span key={ii} className="rounded-[11px] border border-line bg-surface px-2.5 py-1.5 text-[11px]">
+                          <b className="price-serif text-[13.5px]">{fmt(ins.monthly, "LKR")}</b>
+                          <span className="text-ink-soft">/mo × {ins.months}</span>
+                          {ins.provider && <span className="ml-1.5 text-[9.5px] font-bold uppercase text-leaf">{ins.provider}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {productExtras.qa.length > 0 && (
+                  <details className="mt-2.5">
+                    <summary className="cursor-pointer text-[11.5px] font-semibold text-leaf">
+                      {t("extrasQA")} ({productExtras.qa.length})
+                    </summary>
+                    <div className="mt-1.5 space-y-1.5">
+                      {productExtras.qa.map((x) => (
+                        <div key={x.q} className="rounded-[10px] bg-surface p-2.5">
+                          <p className="text-[11.5px] font-semibold leading-snug">{x.q}</p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">{x.a}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
             )}
             <button
               onClick={() => void send(`Tell me more about "${productOpen.name}" (${productOpen.id}) — is it a good pick?`)}
