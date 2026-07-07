@@ -26,6 +26,8 @@ export async function GET(req: Request): Promise<Response> {
         repeaters: html.split("catalogueV2Repeater").length - 1,
         hasHeading: html.includes("catalogueV2heading"),
         title: html.match(/<title>([^<]*)</)?.[1] ?? null,
+        priceSample: html.match(/CatalogueV2price[\s\S]{0,200}/)?.[0]?.replace(/\s+/g, " ").slice(0, 200) ?? null,
+        mktSample: html.match(/mktprice[\s\S]{0,120}/)?.[0]?.replace(/\s+/g, " ").slice(0, 140) ?? null,
       });
     } catch (err) {
       return Response.json({ error: err instanceof Error ? err.message : String(err) });
