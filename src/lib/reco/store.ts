@@ -240,6 +240,12 @@ export async function queryMatchScores(query: string, products: ProductSummary[]
   }
 }
 
+/** Last-known search summary for a product — lets compare_products degrade
+ *  gracefully when get_product 500s (EF_PC_ELEC* family does, verified). */
+export function catalogSummary(productId: string): ProductSummary | null {
+  return (catalog.get(productId) ?? catalog.get(productId.toLowerCase()))?.summary ?? null;
+}
+
 /** Diagnostics for /api/recs (& honest "not enough signal" tool replies). */
 export function recoStats(keys: (string | undefined)[]): { catalog: number; events: number } {
   let n = 0;

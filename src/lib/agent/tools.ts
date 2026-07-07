@@ -9,7 +9,7 @@ import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normaliz
 import { listOrders, recordOrder } from "@/lib/db/mongo";
 import { forgetRecipient, listPeople, rememberOccasion, rememberRecipient, upcomingOccasions } from "@/lib/agent/memory";
 import { cancelSchedule, createSchedule, listSchedules } from "@/lib/schedules/store";
-import { queryMatchScores, recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
+import { catalogSummary, queryMatchScores, recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
 import type { CartItem, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
 
@@ -66,6 +66,16 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
     description:
       "List Kapruka's full category tree (65 top-level incl. festival/occasion pages, utility rails, bakery brands) AND render a visual tappable category explorer for the user. Call when they ask 'what can I buy here?' / want to browse. Note: use children as plain search KEYWORDS — category facets often return 0.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "crown_pick",
+    description:
+      "Move the on-screen KAPU'S PICK badge to the product YOUR verdict recommends. Call this whenever your final recommendation differs from the pick:true item in the last search results — the badge and your words must agree.",
+    input_schema: {
+      type: "object",
+      properties: { product_id: { type: "string", description: "The product your verdict recommends" } },
+      required: ["product_id"],
+    },
   },
   {
     name: "get_recommendations",
@@ -416,10 +426,22 @@ export async function executeTool(
           return toDetail((res.product ?? res) as Record<string, unknown>, currency);
         })
       );
-      const details = settled
-        .filter((s): s is PromiseFulfilledResult<ProductDetail> => s.status === "fulfilled" && Boolean(s.value.id))
-        .map((s) => s.value);
-      const failed = ids.length - details.length;
+      const details: ProductDetail[] = [];
+      let recovered = 0;
+      settled.forEach((s, i) => {
+        if (s.status === "fulfilled" && s.value.id) {
+          details.push(s.value);
+          return;
+        }
+        // detail fetch died — degrade to the search summary we already showed
+        // (kept in the taste-engine catalog), so the duel still renders
+        const known = catalogSummary(ids[i]);
+        if (known) {
+          details.push({ ...known, description: null, images: known.image ? [known.image] : [], variants: [], attributes: {} });
+          recovered++;
+        }
+      });
+      const missing = ids.length - details.length;
       if (details.length >= 2) {
         emit({
           type: "compare_grid",
@@ -428,11 +450,12 @@ export async function executeTool(
         });
         return JSON.stringify({
           compared: details.map(modelView),
-          ...(failed > 0 ? { note: `${failed} product(s) failed to load (Kapruka API 500s on some electronics) — cover those from search-result data in prose.` } : {}),
+          ...(recovered > 0 ? { note: `${recovered} product(s) shown from search data only (full detail API 500s on some electronics) — specs beyond name/price may be unknown; say so honestly.` } : {}),
+          ...(missing > 0 ? { dropped: missing } : {}),
         });
       }
       return JSON.stringify({
-        error: `Only ${details.length} of ${ids.length} products loaded (Kapruka API 500s on some electronics IDs) — compare from the search-result data you already have instead.`,
+        error: `Only ${details.length} of ${ids.length} products loaded (Kapruka API 500s on some electronics IDs) — compare in flowing prose from the search results you already have. NEVER a markdown table.`,
       });
     }
 
@@ -464,6 +487,13 @@ export async function executeTool(
         });
       }
       return JSON.stringify({ categories: cats });
+    }
+
+    case "crown_pick": {
+      const pid = String(input.product_id ?? "").trim();
+      if (!pid) return JSON.stringify({ error: "product_id required" });
+      emit({ type: "pick_update", product_id: pid });
+      return JSON.stringify({ crowned: pid });
     }
 
     case "get_recommendations": {

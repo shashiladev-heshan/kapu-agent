@@ -28,6 +28,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_product: "Checking the details…",
   compare_products: "Comparing options…",
   get_recommendations: "Curating picks for you…",
+  crown_pick: "Moving my badge…",
   list_categories: "Browsing categories…",
   resolve_city: "Finding your city…",
   check_delivery: "Checking delivery…",

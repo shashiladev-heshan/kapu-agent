@@ -648,6 +648,34 @@ export default function KapuApp() {
                 spokenOverride = event.block.text;
                 break;
               }
+              if (event.block.type === "pick_update") {
+                // crown_pick: the model's verdict moves the KAPU'S PICK badge
+                // on the already-rendered grid — badge and words never disagree
+                const pid = event.block.product_id.toLowerCase();
+                const crown = (ps: ProductSummary[]) =>
+                  ps.map((p) => ({ ...p, pick: p.id.toLowerCase() === pid, value: p.id.toLowerCase() === pid ? false : p.value }));
+                patchAssistant((a) => {
+                  for (let i = a.parts.length - 1; i >= 0; i--) {
+                    const part = a.parts[i];
+                    if (
+                      part.kind === "block" &&
+                      part.block.type === "product_grid" &&
+                      part.block.products.some((p) => p.id.toLowerCase() === pid)
+                    ) {
+                      a.parts[i] = { kind: "block", block: { ...part.block, products: crown(part.block.products) } };
+                      break;
+                    }
+                  }
+                });
+                setVoiceBlocks((prev) =>
+                  prev.map((b) =>
+                    b.type === "product_grid" && b.products.some((p) => p.id.toLowerCase() === pid)
+                      ? { ...b, products: crown(b.products) }
+                      : b
+                  )
+                );
+                break;
+              }
               if (event.block.type === "cart") setCart(event.block.cart);
               if (event.block.type === "order_timeline") rememberTracked(event.block);
               patchAssistant((a) => a.parts.push({ kind: "block", block: event.block }));
@@ -839,10 +867,13 @@ export default function KapuApp() {
     (p: ProductSummary) => {
       setProductOpen(p);
       setProductDetail(null);
+      // detail can 500 upstream (EF_PC_ELEC* family) — degrade to the summary
+      // we already hold instead of a forever-skeleton
+      const fallback: ProductDetail = { ...p, description: null, images: p.image ? [p.image] : [], variants: [], attributes: {} };
       void fetch(`/api/product?id=${encodeURIComponent(p.id)}&currency=${currency}`)
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => d?.product && setProductDetail(d.product))
-        .catch(() => {});
+        .then((d) => setProductDetail(d?.product ?? fallback))
+        .catch(() => setProductDetail(fallback));
     },
     [currency]
   );

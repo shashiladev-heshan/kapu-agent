@@ -18,6 +18,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_product: "Checking the details…",
   compare_products: "Comparing options…",
   get_recommendations: "Curating picks for you…",
+  crown_pick: "Moving my badge…",
   list_categories: "Browsing categories…",
   resolve_city: "Finding your city…",
   check_delivery: "Checking delivery…",
@@ -103,6 +104,12 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         "Side-by-side comparison of 2-4 products — renders a visual comparison grid. ALWAYS use when the user is choosing between options.",
         { product_ids: z.array(z.string()).min(2).max(4) },
         run("compare_products")
+      ),
+      tool(
+        "crown_pick",
+        "Move the on-screen KAPU'S PICK badge to the product YOUR verdict recommends. Call whenever your final recommendation differs from the pick:true item in the last search results.",
+        { product_id: z.string() },
+        run("crown_pick")
       ),
       tool(
         "get_recommendations",
@@ -276,6 +283,7 @@ const KAPU_TOOL_NAMES = [
   "get_product",
   "compare_products",
   "get_recommendations",
+  "crown_pick",
   "list_categories",
   "resolve_city",
   "check_delivery",
