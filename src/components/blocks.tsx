@@ -800,13 +800,29 @@ export function CartView({
   cart,
   actions,
   compact,
+  deliverTo,
 }: {
   cart: Cart;
   actions: BlockActions;
   /** true inside the persistent desktop panel (tighter chrome) */
   compact?: boolean;
+  deliverTo?: string;
 }) {
   const subtotal = cart.items.reduce((s, i) => s + (i.price ?? 0) * i.quantity, 0);
+  // live flat-rate quote for the chosen city — same source as the hero pill
+  const [ship, setShip] = useState<{ rate: number | null; currency: string } | null>(null);
+  useEffect(() => {
+    setShip(null);
+    if (!deliverTo || cart.items.length === 0) return;
+    let alive = true;
+    fetch(`/api/delivery?city=${encodeURIComponent(deliverTo)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && d?.available && typeof d.rate === "number" && setShip({ rate: d.rate, currency: d.currency || "LKR" }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [deliverTo, cart.items.length]);
   const t = useT();
   const [editingIcing, setEditingIcing] = useState<string | null>(null);
   const [icingDraft, setIcingDraft] = useState("");
@@ -892,15 +908,44 @@ export function CartView({
         ))}
       </ul>
 
-      <div className="mx-3 mt-2.5 flex items-start gap-2.5 rounded-[13px] bg-leaf-soft px-3 py-2.5">
-        <IconTruck size={15} className="mt-0.5 shrink-0 text-leaf" />
-        <p className="text-[11.5px] leading-snug text-leaf">{t("flatNote")}</p>
-      </div>
+      {deliverTo && ship ? (
+        <div className="mx-3 mt-2.5 flex items-center gap-2.5 rounded-[13px] border border-leaf/25 bg-leaf-soft px-3 py-2.5">
+          <IconTruck size={15} className="shrink-0 text-leaf" />
+          <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-leaf">
+            {t("shipTo", { city: deliverTo, date: "" }).replace(/·\s*$/, "")}
+          </p>
+          <span className="price-serif shrink-0 text-[15px] text-leaf">{fmt(ship.rate, ship.currency)}</span>
+        </div>
+      ) : (
+        <div className="mx-3 mt-2.5 rounded-[13px] bg-leaf-soft px-3 py-2.5">
+          <div className="flex items-start gap-2.5">
+            <IconTruck size={15} className="mt-0.5 shrink-0 text-leaf" />
+            <p className="text-[11.5px] leading-snug text-leaf">{t("flatNote")}</p>
+          </div>
+          {cart.items.length > 0 && !deliverTo && (
+            <div className="mt-2">
+              <InlineCityQuote onPick={actions.onDeliverTo} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
         <p className="text-[12.5px] text-ink-soft">{t("subtotal")}</p>
         <p className="price-serif text-[20px]">{fmt(subtotal, cart.currency)}</p>
       </div>
+      {deliverTo && ship?.rate != null && (
+        <div className="-mt-1 flex items-baseline justify-between px-4 pb-1">
+          <p className="text-[11px] text-ink-faint">+ {t("deliveryTo", { city: deliverTo })}</p>
+          <p className="text-[12px] text-ink-soft">{fmt(ship.rate, ship.currency)}</p>
+        </div>
+      )}
+      {deliverTo && ship?.rate != null && (
+        <div className="flex items-baseline justify-between border-t border-line px-4 pb-1 pt-2">
+          <p className="text-[12.5px] font-semibold">{t("totalWithDelivery")}</p>
+          <p className="price-serif text-[21px] text-leaf">{fmt(subtotal + ship.rate, cart.currency)}</p>
+        </div>
+      )}
       <div className="p-3 pt-1.5">
         <button
           onClick={() => actions.onAction("Let's checkout — show me the order summary")}
@@ -1426,7 +1471,7 @@ export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; a
     case "category_tree":
       return <CategoryTree block={block} actions={actions} />;
     case "cart":
-      return <CartView cart={block.cart} actions={actions} />;
+      return <CartView cart={block.cart} actions={actions} deliverTo={deliverTo} />;
     case "order_summary":
       return <OrderSummaryCard summary={block.summary} actions={actions} />;
     case "pay_link":

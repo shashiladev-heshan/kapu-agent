@@ -2461,7 +2461,7 @@ export default function KapuApp() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto pb-3">
-            <CartView cart={cart} actions={actions} compact />
+            <CartView cart={cart} actions={actions} compact deliverTo={deliverTo || undefined} />
             {cartCount > 0 && (
               <div className="mt-1 flex flex-wrap gap-2 px-3">
                 <button
@@ -2601,7 +2601,7 @@ export default function KapuApp() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto pb-4">
-              <CartView cart={cart} actions={actions} compact />
+              <CartView cart={cart} actions={actions} compact deliverTo={deliverTo || undefined} />
               {cartCount > 0 && (
                 <div className="mt-1 flex flex-wrap gap-2 px-3">
                   <button
@@ -2628,7 +2628,7 @@ export default function KapuApp() {
               )}
             </div>
             <div className="flex-1 overflow-y-auto pb-2">
-              <CartView cart={cart} actions={actions} compact />
+              <CartView cart={cart} actions={actions} compact deliverTo={deliverTo || undefined} />
             </div>
           </div>
         </div>

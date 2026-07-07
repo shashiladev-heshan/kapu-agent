@@ -286,6 +286,8 @@ const STR = {
   trackBtn: { en: "Track", si: "බලන්න", ta: "பார்" },
   shipsIntl: { en: "Ships worldwide from Kapruka", si: "ලෝකේ කොහේ හිටියත් Kapruka එකෙන් එවනවා", ta: "உலகம் எங்கும் Kapruka அனுப்பும்" },
   shipPick: { en: "Delivery cost? Type your city…", si: "ගෙන්නන ගාන? ඔයාගේ city එක ලියන්න…", ta: "டெலிவரி கட்டணம்? நகரம் எழுதுங்கள்…" },
+  deliveryTo: { en: "delivery to {city}", si: "{city}ට delivery", ta: "{city}க்கு டெலிவரி" },
+  totalWithDelivery: { en: "Total incl. delivery", si: "Delivery එක්ක මුළු ගාන", ta: "டெலிவரியுடன் மொத்தம்" },
   shipTo: { en: "flat to {city} · whole basket, one fee · {date}", si: "{city}ට flat — මුළු basket එකටම එක ගානයි · {date}", ta: "{city}க்கு flat — முழு கூடைக்கும் ஒரே கட்டணம் · {date}" },
   changeCity: { en: "change", si: "වෙනස්", ta: "மாற்று" },
   collapseSide: { en: "Collapse sidebar", si: "Sidebar එක හකුළන්න", ta: "பக்கப்பட்டியை சுருக்கு" },
