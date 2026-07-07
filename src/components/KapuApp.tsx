@@ -574,6 +574,18 @@ export default function KapuApp() {
     return () => io.disconnect();
   }, [hotDeals.length, dealsShown]);
 
+  // friendly time-of-day greeting for the hero header (SL time, user's language)
+  const heroGreeting = useMemo(() => {
+    const h = Number(new Date().toLocaleString("en-US", { timeZone: "Asia/Colombo", hour: "numeric", hour12: false })) % 24;
+    const slot = h < 5 ? 2 : h < 12 ? 0 : h < 17 ? 1 : 2;
+    const G: Record<Language, string[]> = {
+      en: ["good morning ☀️", "good afternoon 🌤️", "good evening 🌙"],
+      si: ["සුබ උදෑසනක් ☀️", "සුබ දහවලක් 🌤️", "සුබ සැන්දෑවක් 🌙"],
+      ta: ["காலை வணக்கம் ☀️", "மதிய வணக்கம் 🌤️", "மாலை வணக்கம் 🌙"],
+    };
+    return G[language][slot];
+  }, [language]);
+
   const toggleTheme = useCallback(() => {
     setDark((d) => {
       const next = !d;
@@ -1021,6 +1033,11 @@ export default function KapuApp() {
           quantity: 1,
           ...(opts?.icing ? { icing_text: opts.icing } : {}),
           known: { name: p.name, price: p.price, currency: p.currency, image: p.image ?? null, category: p.category ?? null },
+        }).then(() => {
+          // visible feedback: slide the basket open with the fresh item in it
+          setPanelClosed(false);
+          localStorage.setItem("kapu_panel_closed", "0");
+          setCartOpen(true);
         }),
       onCartQty: (id, qty) => void cartOp({ action: "set_qty", product_id: id, quantity: qty }),
       onCartIcing: (id, icing) => void cartOp({ action: "set_icing", product_id: id, icing_text: icing }),
@@ -1877,7 +1894,15 @@ export default function KapuApp() {
                 </p>
               </>
             ) : (
-              <p className="font-display text-[17px] text-leaf">Kapu</p>
+              <>
+                <p className="font-display text-[17px] leading-tight">
+                  <span className="text-leaf">Kapu</span>{" "}
+                  <span className="italic text-ink-soft">— {heroGreeting}</span>
+                </p>
+                <p className="text-[11px] text-ink-soft">
+                  {todayLabel} · {LANG_LABEL[language]}
+                </p>
+              </>
             )}
           </div>
 
@@ -2005,6 +2030,25 @@ export default function KapuApp() {
               )}
             </div>
 
+            <button
+              onClick={() => {
+                setPanelClosed(false);
+                localStorage.setItem("kapu_panel_closed", "0");
+                setCartOpen((v) => !v);
+              }}
+              className={`relative flex h-10 w-10 items-center justify-center rounded-full border border-cream-deep bg-card text-ink-soft transition hover:bg-cream hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90 ${
+                cartPulse ? "scale-110 border-gold text-gold" : ""
+              }`}
+              aria-label={t("yourBasket")}
+              title={t("yourBasket")}
+            >
+              <IconBasket size={17} />
+              {cartCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[9px] font-bold text-[#322b45]">
+                  {cartCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setTrackOpen(true)}
               className="relative flex h-10 w-10 items-center justify-center rounded-full border border-cream-deep bg-card text-ink-soft transition hover:bg-cream hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90 hidden sm:flex"
@@ -2200,9 +2244,9 @@ export default function KapuApp() {
                       </span>
                       <span className="ml-auto text-[10.5px] text-ink-faint">{hotDeals.length} {t("dealsCount")}</span>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(175px,1fr))]">
                       {hotDeals.slice(0, dealsShown).map((p) => (
-                        <ProductCard key={p.id} p={p} actions={actions} />
+                        <ProductCard key={p.id} p={p} actions={actions} fluid />
                       ))}
                     </div>
                     {dealsShown < hotDeals.length && (

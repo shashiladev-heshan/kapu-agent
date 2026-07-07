@@ -146,12 +146,15 @@ export function ProductImage({
 
 // ── product rail ───────────────────────────────────────────────────────
 
-export function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockActions }) {
+export function ProductCard({ p, actions, fluid }: { p: ProductSummary; actions: BlockActions; fluid?: boolean }) {
   const save = savePercent(p);
   const fav = actions.isFav(p.id);
+  const t = useT();
   return (
     <div
-      className={`group rise relative flex w-44 shrink-0 flex-col overflow-hidden rounded-2xl ${CARD} transition-all duration-300 hover:-translate-y-1.5 hover:border-leaf/40 hover:shadow-[0_18px_44px_rgba(64,41,112,0.22)] sm:w-52`}
+      className={`group rise relative flex shrink-0 flex-col overflow-hidden rounded-2xl ${CARD} transition-all duration-300 hover:-translate-y-1.5 hover:border-leaf/40 hover:shadow-[0_18px_44px_rgba(64,41,112,0.22)] ${
+        fluid ? "w-full" : "w-44 sm:w-52"
+      }`}
     >
       {p.pick && <PickBadge />}
       {!p.pick && p.value && <ValueBadge />}
@@ -167,7 +170,12 @@ export function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockA
       >
         <IconHeart size={15} filled={fav} />
       </button>
-      <button onClick={() => actions.onOpenProduct(p)} className="overflow-hidden text-left" aria-label={`View ${p.name}`}>
+      <button onClick={() => actions.onOpenProduct(p)} className="relative overflow-hidden text-left" aria-label={`View ${p.name}`}>
+        {save != null && (
+          <span className="absolute bottom-2 left-2 z-[1] rounded-[7px] bg-gold px-1.5 py-0.5 text-[10px] font-bold text-ink shadow-[0_2px_8px_rgba(0,0,0,0.25)] dark:text-[#322b45]">
+            {t("savePct", { n: save })}
+          </span>
+        )}
         <ProductImage
           src={p.image}
           alt={p.name}
@@ -820,7 +828,7 @@ export function CartView({
         </p>
       )}
       {cart.items.map((i) => (
-          <li key={i.product_id} className="rounded-[14px] border border-line bg-surface p-2.5">
+          <li key={i.product_id} className="rise rounded-[14px] border border-line bg-surface p-2.5">
             <div className="flex items-start gap-2.5">
               <ProductImage src={i.image} alt={i.name} category={i.category} className="h-11 w-11 shrink-0 rounded-[10px]" width={120} iconSize={18} />
               <div className="min-w-0 flex-1">
