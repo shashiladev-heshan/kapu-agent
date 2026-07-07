@@ -25,9 +25,11 @@ import {
   IconChevronDown,
   IconClock,
   IconClose,
+  IconFacebook,
   IconGift,
   IconGlobe,
   IconHeart,
+  IconInstagram,
   IconKeyboard,
   IconList,
   IconMic,
@@ -4124,6 +4126,26 @@ function LandingShowcase({
         <a href="https://youtu.be/zQyPcT_V1_A" target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-[12px] font-semibold text-leaf transition hover:text-leaf-bright">
           ▶ Watch the 75-second film
         </a>
+        <div className="mt-5 flex items-center justify-center gap-2.5">
+          <a
+            href="https://www.facebook.com/people/Kapuwashop/61591846257452/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Kapu on Facebook"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-card text-ink-soft transition hover:-translate-y-0.5 hover:text-leaf"
+          >
+            <IconFacebook size={16} />
+          </a>
+          <a
+            href="https://www.instagram.com/kapuwashop"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Kapu on Instagram"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-card text-ink-soft transition hover:-translate-y-0.5 hover:text-leaf"
+          >
+            <IconInstagram size={16} />
+          </a>
+        </div>
         <p className="mt-4 text-[11px] text-ink-faint">Kapu speaks සිංහල · தமிழ் · English · Tanglish — powered by the Kapruka MCP + Claude</p>
       </section>
     </div>

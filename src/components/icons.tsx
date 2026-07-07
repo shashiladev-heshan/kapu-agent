@@ -301,6 +301,26 @@ export const IconReceipt = (p: P) => (
   </svg>
 );
 
+export const IconFacebook = (p: P) => (
+  <svg {...base(p)}>
+    <path
+      d="M13.5 20v-6.5h2.2l.4-2.8h-2.6V8.9c0-.8.3-1.4 1.5-1.4h1.2V5a17 17 0 0 0-1.9-.1c-2.1 0-3.6 1.3-3.6 3.7v2.1H8.5v2.8h2.2V20"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export const IconInstagram = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="12" cy="12" r="3.8" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="16.8" cy="7.2" r="1.1" fill="currentColor" />
+  </svg>
+);
+
 export const IconTelegram = (p: P) => (
   <svg {...base(p)}>
     <path
