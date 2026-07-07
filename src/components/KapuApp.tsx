@@ -2088,14 +2088,6 @@ export default function KapuApp() {
 
                 <div className="mt-7 hidden sm:block">{composer({ hero: true })}</div>
 
-                <div className="mt-5 hidden flex-wrap items-center justify-center gap-2 sm:flex">
-                  {["🛠 25 agent tools", "🇱🇰 islandwide delivery", "🎙 voice in සිංහල", "💜 taste engine", "📦 live tracking", "🔒 human-paid checkout"].map((x) => (
-                    <span key={x} className="rounded-full border border-line bg-card/70 px-3 py-1.5 text-[10.5px] font-semibold text-ink-soft">
-                      {x}
-                    </span>
-                  ))}
-                </div>
-
                 <div data-tour="wishes" className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                   {DEMO_CHIPS.map((c) => (
                     <button
