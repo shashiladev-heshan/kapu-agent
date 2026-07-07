@@ -288,6 +288,8 @@ const STR = {
   shipPick: { en: "Delivery cost? Type your city…", si: "ගෙන්නන ගාන? ඔයාගේ city එක ලියන්න…", ta: "டெலிவரி கட்டணம்? நகரம் எழுதுங்கள்…" },
   shipTo: { en: "flat to {city} · whole basket, one fee · {date}", si: "{city}ට flat — මුළු basket එකටම එක ගානයි · {date}", ta: "{city}க்கு flat — முழு கூடைக்கும் ஒரே கட்டணம் · {date}" },
   changeCity: { en: "change", si: "වෙනස්", ta: "மாற்று" },
+  collapseSide: { en: "Collapse sidebar", si: "Sidebar එක හකුළන්න", ta: "பக்கப்பட்டியை சுருக்கு" },
+  expandSide: { en: "Expand sidebar", si: "Sidebar එක දිග හරින්න", ta: "பக்கப்பட்டியை விரி" },
   extrasPay: { en: "Pay in instalments at checkout", si: "Checkout එකේදී instalments වලින් ගෙවන්න පුළුවන්", ta: "தவணையில் செலுத்தலாம்" },
   extrasQA: { en: "Questions & answers", si: "ප්‍රශ්න & උත්තර", ta: "கேள்வி பதில்கள்" },
   extrasSrc: { en: "live from kapruka.com", si: "kapruka.com එකෙන් live", ta: "kapruka.com நேரலை" },

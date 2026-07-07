@@ -221,6 +221,8 @@ export default function KapuApp() {
   const [recents, setRecents] = useState<WishMeta[]>([]);
   const [wishesOpen, setWishesOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  /** manual sidebar collapse (hero state) → icon rail; persisted per device */
+  const [sideCollapsed, setSideCollapsed] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [deliverTo, setDeliverTo] = useState("");
@@ -364,6 +366,7 @@ export default function KapuApp() {
       /* fresh */
     }
     setDark(document.documentElement.classList.contains("dark"));
+    setSideCollapsed(localStorage.getItem("kapu_side_collapsed") === "1");
     // follow OS theme flips live — but only until the user explicitly picks one
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
     const onScheme = (e: MediaQueryListEvent) => {
@@ -1627,15 +1630,26 @@ export default function KapuApp() {
   return (
     <LangProvider value={language}>
     <div className="flex h-dvh overflow-hidden">
-      {/* ══ Desktop sidebar (first run) ══ */}
-      {empty && (
+      {/* ══ Desktop sidebar (first run, collapsible) ══ */}
+      {empty && !sideCollapsed && (
         <aside className="hidden w-[264px] shrink-0 flex-col border-r border-cream-deep bg-surface lg:flex">
           <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
             <KapuMark size={38} radius={12} />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-display text-[21px] leading-none text-leaf">Kapu</p>
               <p className="mt-1 text-[10.5px] tracking-[0.02em] text-ink-soft">කපූ · {t("yourWishTree")}</p>
             </div>
+            <button
+              onClick={() => {
+                setSideCollapsed(true);
+                localStorage.setItem("kapu_side_collapsed", "1");
+              }}
+              title={t("collapseSide")}
+              aria-label={t("collapseSide")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-ink-faint transition hover:bg-cream hover:text-leaf"
+            >
+              <IconChevronDown size={9} className="rotate-90" />
+            </button>
           </div>
           <div className="px-4">
             <button
@@ -1695,12 +1709,25 @@ export default function KapuApp() {
         </aside>
       )}
 
-      {/* ══ Desktop icon rail (in conversation) ══ */}
-      {!empty && (
+      {/* ══ Desktop icon rail (in conversation, or manually collapsed) ══ */}
+      {(!empty || sideCollapsed) && (
         <aside className="hidden w-[68px] shrink-0 flex-col items-center gap-2 border-r border-cream-deep bg-surface py-4 lg:flex">
           <button onClick={newWish} aria-label="Home" className="mb-1">
             <KapuMark size={38} radius={12} />
           </button>
+          {empty && (
+            <button
+              onClick={() => {
+                setSideCollapsed(false);
+                localStorage.setItem("kapu_side_collapsed", "0");
+              }}
+              title={t("expandSide")}
+              aria-label={t("expandSide")}
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] text-ink-faint transition hover:bg-cream hover:text-leaf active:scale-90"
+            >
+              <IconChevronDown size={9} className="-rotate-90" />
+            </button>
+          )}
           <button
             onClick={newWish}
             title="New wish"
@@ -1735,6 +1762,32 @@ export default function KapuApp() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setFavOpen(true)}
+            title={t("favorites")}
+            className="relative flex h-[42px] w-[42px] items-center justify-center rounded-[13px] text-ink-soft transition hover:bg-cream active:scale-90"
+          >
+            <IconHeart size={17} className="text-clay" filled={Object.keys(favs).length > 0} />
+            {Object.keys(favs).length > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[9px] font-bold text-white">
+                {Object.keys(favs).length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTrackOpen(true)}
+            title={t("trackOrder")}
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] text-ink-soft transition hover:bg-cream active:scale-90"
+          >
+            <IconPackage size={17} />
+          </button>
+          <button
+            onClick={() => setSchedOpen(true)}
+            title={t("schedules")}
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] text-ink-soft transition hover:bg-cream active:scale-90"
+          >
+            <IconClock size={17} />
+          </button>
           <div className="flex-1" />
           <button
             onClick={() => setLangOpen(true)}
@@ -1754,7 +1807,7 @@ export default function KapuApp() {
       )}
 
       {/* wishes flyout (rail) */}
-      {wishesOpen && !empty && (
+      {wishesOpen && (!empty || sideCollapsed) && (
         <div className="hidden w-[250px] shrink-0 flex-col border-r border-cream-deep bg-surface py-4 lg:flex">
           <div className="mb-2 flex items-center justify-between px-4">
             <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("recentWishes")}</p>
