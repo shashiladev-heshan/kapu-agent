@@ -4,6 +4,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
+import { getHotDeals } from "@/lib/kapruka/promos";
 import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
 import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normalize";
 import { listOrders, recordOrder } from "@/lib/db/mongo";
@@ -76,6 +77,12 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
       properties: { product_id: { type: "string", description: "The product your verdict recommends" } },
       required: ["product_id"],
     },
+  },
+  {
+    name: "get_hot_deals",
+    description:
+      "Today's REAL discounts from kapruka.com's live promotions page (true strikethrough prices). Renders a product grid with SAVE % badges. Call whenever the user asks for offers/deals/discounts/promotions/sale ('mokakda offers thiyenne?'). If it returns none, say so honestly and offer trending picks instead.",
+    input_schema: { type: "object", properties: {} },
   },
   {
     name: "get_recommendations",
@@ -494,6 +501,25 @@ export async function executeTool(
       if (!pid) return JSON.stringify({ error: "product_id required" });
       emit({ type: "pick_update", product_id: pid });
       return JSON.stringify({ crowned: pid });
+    }
+
+    case "get_hot_deals": {
+      const deals = await getHotDeals();
+      if (deals.length === 0) {
+        return JSON.stringify({
+          none: true,
+          note: "No live promotions reachable right now (the promos page is geo-limited) — offer trending picks or a discounted search instead.",
+        });
+      }
+      const shown = deals.slice(0, 10).map((p, i) => ({ ...p, pick: i === 0 }));
+      emit({ type: "product_grid", title: "🏷️ Hot deals — live promotions", products: shown });
+      return JSON.stringify({
+        count: shown.length,
+        deals: shown.map((p) => ({
+          ...modelView(p),
+          save_pct: p.price && p.compare_at_price ? Math.round((1 - p.price / p.compare_at_price) * 100) : null,
+        })),
+      });
     }
 
     case "get_recommendations": {

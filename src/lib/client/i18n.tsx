@@ -565,6 +565,7 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "🎁 Unlike your friends, I actually remember birthdays.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
     { text: "⏰ I can send flowers every month-end — all on my own.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
     { text: "📦 I show your order's WHOLE journey — warehouse to doorstep, live.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
+    { text: "🏷️ Show me today's offers — real deals, real discounts.", kind: "msg", msg: "Show me today's hot deals and offers" },
   ],
   si: [
     { text: "🎂 අම්මට නුවරට කේක් එකක් — අදම යවන්න පුළුවන්.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
@@ -577,6 +578,7 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "🎁 යාළුවො වගේ නෙමෙයි — මට birthdays මතකයි.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
     { text: "⏰ හැම මාසෙම මල් — මම තනියම යවන්නම්.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
     { text: "📦 Order එකේ මුළු ගමනම live පෙන්නනවා — දොරකඩ වෙනකම්.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
+    { text: "🏷️ අදම තියෙන offers බලන්න — ඇත්තම වට්ටම්.", kind: "msg", msg: "Show me today's hot deals and offers" },
   ],
   ta: [
     { text: "🎂 கண்டியில் அம்மாவுக்கு கேக் — இன்றே அனுப்பலாம்.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
@@ -589,6 +591,7 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "🎁 நண்பர்களை போல் அல்ல — பிறந்தநாட்கள் நினைவில்.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
     { text: "⏰ மாத இறுதியில் பூக்கள் — நானே அனுப்புவேன்.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
     { text: "📦 ஆர்டரின் முழு பயணமும் நேரலை — வீடு வரை.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
+    { text: "🏷️ இன்றைய சலுகைகள் — உண்மையான தள்ளுபடிகள்.", kind: "msg", msg: "Show me today's hot deals and offers" },
   ],
 };
 

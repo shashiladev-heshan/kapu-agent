@@ -3181,7 +3181,7 @@ export default function KapuApp() {
               ))}
             </div>
             <p className="mt-5 text-[11px] font-semibold tracking-wide text-ink-faint">
-              25 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
+              26 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
               {tgBot && (
@@ -4321,7 +4321,7 @@ function LandingShowcase({
       {/* ── act 4: stats + CTA ── */}
       <section className="py-10 text-center">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
-          {["25 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
+          {["26 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
             </span>

@@ -18,6 +18,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_product: "Checking the details…",
   compare_products: "Comparing options…",
   get_recommendations: "Curating picks for you…",
+  get_hot_deals: "Hunting today's deals…",
   crown_pick: "Moving my badge…",
   list_categories: "Browsing categories…",
   resolve_city: "Finding your city…",
@@ -110,6 +111,12 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         "Move the on-screen KAPU'S PICK badge to the product YOUR verdict recommends. Call whenever your final recommendation differs from the pick:true item in the last search results.",
         { product_id: z.string() },
         run("crown_pick")
+      ),
+      tool(
+        "get_hot_deals",
+        "Today's REAL discounts from kapruka.com's live promotions page. Renders a product grid with SAVE % badges. Call whenever the user asks for offers/deals/discounts/promotions/sale.",
+        {},
+        run("get_hot_deals")
       ),
       tool(
         "get_recommendations",
@@ -283,6 +290,7 @@ const KAPU_TOOL_NAMES = [
   "get_product",
   "compare_products",
   "get_recommendations",
+  "get_hot_deals",
   "crown_pick",
   "list_categories",
   "resolve_city",
