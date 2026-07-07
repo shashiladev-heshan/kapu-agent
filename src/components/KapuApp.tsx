@@ -242,6 +242,7 @@ export default function KapuApp() {
   const [productOpen, setProductOpen] = useState<ProductSummary | null>(null);
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [productExtras, setProductExtras] = useState<ProductExtras | null>(null);
+  const [productSimilar, setProductSimilar] = useState<ProductSummary[]>([]);
   const [trackOpen, setTrackOpen] = useState(false);
   const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
   /** hero discovery: live trending/budget/deals rails (site-parity with kapruka.com) */
@@ -896,6 +897,14 @@ export default function KapuApp() {
           .then((d) => d && !d.error && setProductExtras(d as ProductExtras))
           .catch(() => {});
       }
+      // "more like this" — vector neighbors + distilled keyword search
+      setProductSimilar([]);
+      void fetch(
+        `/api/similar?id=${encodeURIComponent(p.id)}&name=${encodeURIComponent(p.name)}${p.category ? `&category=${encodeURIComponent(p.category)}` : ""}`
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => Array.isArray(d?.products) && d.products.length >= 3 && setProductSimilar(d.products))
+        .catch(() => {});
     },
     [currency]
   );
@@ -2754,6 +2763,11 @@ export default function KapuApp() {
                     </div>
                   </details>
                 )}
+              </div>
+            )}
+            {productSimilar.length >= 3 && (
+              <div className="mt-2">
+                <ProductGrid title={`✨ ${t("moreLikeThis")}`} products={productSimilar} actions={actions} />
               </div>
             )}
             <button

@@ -7,6 +7,7 @@
 
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
+import { recoSeen } from "@/lib/reco/store";
 import type { ProductSummary } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -28,6 +29,47 @@ async function pool(q: string, sort: string, priceBand?: { min: number; max: num
       })
     );
     return (Array.isArray(res.results) ? (res.results as Record<string, unknown>[]) : []).map((r) => toSummary(r, "LKR"));
+  } catch {
+    return [];
+  }
+}
+
+/** Real promotions from kapruka.com/online/promotions — server-rendered
+ *  catalogueV2 tiles with strikethrough market prices (actual discounts the
+ *  MCP search never surfaces). Best-effort: empty array on any failure. */
+async function promoDeals(): Promise<ProductSummary[]> {
+  try {
+    const res = await fetch("https://www.kapruka.com/online/promotions", {
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) KapuAgent/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const out: ProductSummary[] = [];
+    for (const raw of html.split("catalogueV2Repeater").slice(1, 40)) {
+      // every tile carries an "<!-- Out of Stock or Other Status -->" comment —
+      // strip comments before testing for the real sold-out marker
+      const chunk = raw.replace(/<!--[\s\S]*?-->/g, "");
+      if (/out of stock/i.test(chunk)) continue;
+      const link = chunk.match(/href="(https:\/\/www\.kapruka\.com\/buyonline\/[^"]+\/kid\/([^"]+))"/i);
+      const name = chunk.match(/catalogueV2heading">\s*([^<]+)/i);
+      const price = chunk.match(/catalogueV2converted">\s*RS\.?\s*([\d,]+)/i);
+      const compare = chunk.match(/mktprice'>\s*<del>\s*Rs&nbsp;([\d,]+)/i);
+      const img = chunk.match(/src="(https:\/\/static2\.kapruka\.com[^"]+)"/i);
+      if (!link || !name || !price) continue;
+      out.push({
+        id: link[2],
+        name: name[1].replace(/\s+/g, " ").trim(),
+        price: Number(price[1].replace(/,/g, "")),
+        compare_at_price: compare ? Number(compare[1].replace(/,/g, "")) : null,
+        currency: "LKR",
+        image: img ? img[1] : null,
+        in_stock: true,
+        url: link[1],
+      });
+      if (out.length >= 12) break;
+    }
+    return out;
   } catch {
     return [];
   }
@@ -60,19 +102,23 @@ export async function GET(): Promise<Response> {
   // rotate seeds by day-of-year so the rails change without config
   const day = Math.floor(Date.now() / 86400000);
   const [s1, s2] = [SEEDS[day % SEEDS.length], SEEDS[(day + 3) % SEEDS.length]];
-  const [b1, b2, u1, u2] = await Promise.all([
+  const [b1, b2, u1, u2, promos] = await Promise.all([
     pool(s1, "bestseller"),
     pool(s2, "bestseller"),
     pool(s1, "price_asc", { min: 400, max: 2500 }),
     pool(s2, "price_asc", { min: 400, max: 2500 }),
+    promoDeals(),
   ]);
   const trending = dedupe([b1, b2], 8);
   const budget = dedupe([u1, u2], 8);
+  // deals = the live promotions page first, topped up with any discounted
+  // items from the search pools
   const discounted = [...b1, ...b2, ...u1, ...u2].filter(
     (p) => p.price != null && p.compare_at_price != null && p.compare_at_price > p.price
   );
-  const deals = dedupe([discounted.sort((a, b) => (b.compare_at_price! - b.price!) / b.compare_at_price! - (a.compare_at_price! - a.price!) / a.compare_at_price!)], 8);
+  const deals = dedupe([promos, discounted.sort((a, b) => (b.compare_at_price! - b.price!) / b.compare_at_price! - (a.compare_at_price! - a.price!) / a.compare_at_price!)], 8);
   const body = { trending, budget, deals };
   if (trending.length + budget.length > 0) cache = { at: Date.now(), body };
+  void recoSeen([...trending, ...budget, ...deals]).catch(() => {});
   return Response.json(body);
 }
