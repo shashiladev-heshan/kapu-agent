@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { BlockRenderer, CartView, OrderTimeline, ProductGrid, ProductHero, ProductImage, fmt, type BlockActions } from "@/components/blocks";
+import { BlockRenderer, CartView, OrderTimeline, ProductCard, ProductGrid, ProductHero, ProductImage, fmt, type BlockActions } from "@/components/blocks";
 import {
   IconArrowRight,
   IconBasket,
@@ -246,8 +246,12 @@ export default function KapuApp() {
   const [trackOpen, setTrackOpen] = useState(false);
   const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
   /** hero discovery: live trending/budget/deals rails (site-parity with kapruka.com) */
-  const [discover, setDiscover] = useState<{ trending: ProductSummary[]; budget: ProductSummary[]; deals: ProductSummary[] } | null>(null);
-  const [discTab, setDiscTab] = useState<"trending" | "budget" | "deals">("trending");
+  const [discover, setDiscover] = useState<{ trending: ProductSummary[]; budget: ProductSummary[] } | null>(null);
+  const [discTab, setDiscTab] = useState<"trending" | "budget">("trending");
+  /** standalone Hot-deals section — full promotions list, chunk-revealed on scroll */
+  const [hotDeals, setHotDeals] = useState<ProductSummary[]>([]);
+  const [dealsShown, setDealsShown] = useState(8);
+  const dealsSentinelRef = useRef<HTMLDivElement>(null);
   /** taste-engine picks (vector recs over this device's wishes) */
   const [recs, setRecs] = useState<ProductSummary[]>([]);
   /** order numbers ever tracked here (localStorage) — re-track chips + change watch */
@@ -338,12 +342,16 @@ export default function KapuApp() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setSeasonal(d))
       .catch(() => {});
+    void fetch("/api/deals")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => Array.isArray(d?.products) && setHotDeals(d.products))
+      .catch(() => {});
     void fetch("/api/discover")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d || (!d.trending?.length && !d.budget?.length)) return;
         setDiscover(d);
-        if (!d.trending?.length) setDiscTab(d.budget?.length ? "budget" : "deals");
+        if (!d.trending?.length) setDiscTab("budget");
       })
       .catch(() => {});
     try {
@@ -551,6 +559,20 @@ export default function KapuApp() {
       clearTimeout(t0);
     };
   }, [rememberTracked, pushTrackAlert]);
+
+  // Hot-deals infinite reveal: +8 cards whenever the sentinel scrolls into view
+  useEffect(() => {
+    const el = dealsSentinelRef.current;
+    if (!el || dealsShown >= hotDeals.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setDealsShown((n) => Math.min(n + 8, hotDeals.length));
+      },
+      { rootMargin: "300px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hotDeals.length, dealsShown]);
 
   const toggleTheme = useCallback(() => {
     setDark((d) => {
@@ -1860,6 +1882,18 @@ export default function KapuApp() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {tgBot && (
+              <a
+                href={tgBot.link}
+                target="_blank"
+                rel="noreferrer"
+                title={`${t("onTelegram")} — @${tgBot.username}`}
+                className="flex h-10 items-center gap-1.5 rounded-full bg-gold px-3.5 text-[11.5px] font-bold text-ink shadow-[0_3px_10px_rgba(255,184,0,0.3)] transition hover:-translate-y-0.5 active:scale-95 dark:text-[#322b45]"
+              >
+                <IconTelegram size={14} />
+                <span className="hidden lg:inline">@{tgBot.username}</span>
+              </a>
+            )}
             {/* deliver-to chip (hidden on small screens until a chat starts) */}
             <div className={`relative ${empty ? "hidden sm:block" : ""}`}>
               <button
@@ -2135,7 +2169,6 @@ export default function KapuApp() {
                         [
                           ["trending", `🔥 ${t("discTrend")}`],
                           ["budget", `💸 ${t("discBudget")}`],
-                          ["deals", `🏷️ ${t("discDeals")}`],
                         ] as const
                       ).map(([k, label]) => (
                         <button
@@ -2151,6 +2184,36 @@ export default function KapuApp() {
                       ))}
                     </div>
                     {discover[discTab].length > 0 && <ProductGrid products={discover[discTab]} actions={actions} />}
+                  </div>
+                )}
+
+                {/* 🏷️ HOT DEALS — the live kapruka.com promotions page, given its own stage */}
+                {hotDeals.length >= 4 && (
+                  <div className="mx-auto mt-8 w-full max-w-[1020px] rounded-[26px] border border-gold/30 bg-gold-soft/[0.14] p-4 text-left sm:p-5">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-gold text-ink shadow-[0_4px_12px_rgba(255,184,0,0.35)] dark:text-[#322b45]">
+                        🏷️
+                      </span>
+                      <p className="font-display text-[19px] text-ink">{t("discDeals")}</p>
+                      <span className="flex items-center gap-1.5 rounded-full bg-good-soft px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.06em] text-good">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" /> {t("dealsLive")}
+                      </span>
+                      <span className="ml-auto text-[10.5px] text-ink-faint">{hotDeals.length} {t("dealsCount")}</span>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+                      {hotDeals.slice(0, dealsShown).map((p) => (
+                        <ProductCard key={p.id} p={p} actions={actions} />
+                      ))}
+                    </div>
+                    {dealsShown < hotDeals.length && (
+                      <div ref={dealsSentinelRef} className="flex justify-center py-4">
+                        <span className="flex gap-1">
+                          <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
+                          <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
+                          <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-7 flex flex-col items-center gap-2.5">

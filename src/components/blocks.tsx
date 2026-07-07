@@ -146,7 +146,7 @@ export function ProductImage({
 
 // ── product rail ───────────────────────────────────────────────────────
 
-function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockActions }) {
+export function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockActions }) {
   const save = savePercent(p);
   const fav = actions.isFav(p.id);
   return (

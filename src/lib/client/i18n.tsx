@@ -300,6 +300,8 @@ const STR = {
   discTrend: { en: "Trending now", si: "දැන් trending", ta: "இப்போது டிரெண்டிங்" },
   discBudget: { en: "Under Rs 2,500", si: "රු. 2,500ට යටින්", ta: "ரூ. 2,500க்குள்" },
   discDeals: { en: "Hot deals", si: "වට්ටම්", ta: "தள்ளுபடிகள்" },
+  dealsLive: { en: "live promotions", si: "live promotions", ta: "நேரலை சலுகைகள்" },
+  dealsCount: { en: "deals right now", si: "deals දැන් තියෙනවා", ta: "சலுகைகள்" },
   catBrowse: { en: "Browse ↗", si: "බලන්න ↗", ta: "பார்வையிட ↗" },
   useDateInstead: { en: "Use {d} instead →", si: "{d} වෙනිදට කරමු →", ta: "{d} அன்று வைப்போம் →" },
   trackedT: { en: "Tracked orders", si: "Track කරපු orders", ta: "கண்காணித்த ஆர்டர்கள்" },
