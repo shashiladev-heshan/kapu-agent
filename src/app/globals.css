@@ -232,3 +232,19 @@ label[for] {
   background: var(--color-cream);
   font-weight: 700;
 }
+
+/* Hero composer halo — a slow-breathing gradient ring around the ask bar */
+@keyframes kapu-halo {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.composer-halo {
+  background: linear-gradient(120deg, rgba(167, 139, 250, 0.4), rgba(255, 184, 0, 0.3), rgba(167, 139, 250, 0.4));
+  animation: kapu-halo 4.5s ease-in-out infinite;
+  box-shadow: 0 18px 55px rgba(64, 41, 112, 0.28);
+}
+.composer-halo:focus-within {
+  animation: none;
+  opacity: 1;
+  box-shadow: 0 18px 60px rgba(255, 184, 0, 0.16), 0 18px 55px rgba(64, 41, 112, 0.3);
+}

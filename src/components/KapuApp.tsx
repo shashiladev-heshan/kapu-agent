@@ -2106,6 +2106,9 @@ export default function KapuApp() {
                 කපූ
               </span>
               <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-[380px] w-[380px] rounded-full border-[1.5px] border-leaf/[0.07]" />
+              <span aria-hidden className="pointer-events-none absolute left-1/2 top-6 h-[300px] w-[620px] -translate-x-1/2 rounded-full bg-leaf/[0.09] blur-[100px]" />
+              <span aria-hidden className="floaty pointer-events-none absolute left-[8%] top-[40%] h-40 w-40 rounded-full bg-gold/[0.05] blur-[60px]" style={{ "--tilt": "0deg", animationDuration: "9s" } as React.CSSProperties} />
+              <span aria-hidden className="floaty pointer-events-none absolute right-[10%] top-[18%] h-52 w-52 rounded-full bg-leaf/[0.08] blur-[70px]" style={{ "--tilt": "0deg", animationDuration: "11s", animationDelay: "1.4s" } as React.CSSProperties} />
 
               <div className="relative w-full max-w-[880px] text-center">
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -2164,10 +2167,12 @@ export default function KapuApp() {
                   }}
                 />
 
-                <div className="mt-7 hidden sm:block">{composer({ hero: true })}</div>
+                <div className="mt-7 hidden sm:block">
+                  <div className="composer-halo mx-auto max-w-[640px] rounded-[23px] p-[1.5px]">{composer({ hero: true })}</div>
+                </div>
 
                 <div data-tour="wishes" className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-                  {DEMO_CHIPS.map((c) => (
+                  {DEMO_CHIPS.map((c, i) => (
                     <button
                       key={c.label}
                       onClick={() => void send(c.msg)}
@@ -2179,7 +2184,11 @@ export default function KapuApp() {
                       <span className="absolute right-3 top-3.5 translate-x-2 text-leaf opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
                         <IconArrowRight size={14} />
                       </span>
-                      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-leaf-soft text-leaf transition-transform duration-300 group-hover:scale-110">
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-[11px] transition-transform duration-300 group-hover:scale-110 ${
+                          ["bg-leaf-soft text-leaf", "bg-gold-soft text-gold-deep", "bg-clay-soft text-clay"][i % 3]
+                        }`}
+                      >
                         <c.Icon size={18} />
                       </span>
                       <p className="mt-2.5 text-[12.5px] font-semibold leading-snug transition-colors group-hover:text-leaf">{t(c.label)}</p>
