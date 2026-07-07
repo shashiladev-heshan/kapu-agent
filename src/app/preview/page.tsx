@@ -11,6 +11,7 @@ import type { Language, UiBlock } from "@/lib/types";
 
 const actions: BlockActions = {
   onAction: (t) => console.log("action:", t),
+  onDeliverTo: (city) => console.log("deliver-to:", city),
   onCartAdd: (p) => console.log("add:", p.id),
   onCartQty: (id, q) => console.log("qty:", id, q),
   onCartIcing: (id, t) => console.log("icing:", id, t),

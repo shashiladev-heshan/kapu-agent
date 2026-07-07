@@ -976,6 +976,12 @@ export default function KapuApp() {
       },
       onFocusComposer: () => inputRef.current?.focus(),
       onOpenProduct: (p) => openProduct(p),
+      onDeliverTo: (city) => {
+        const v = city.trim().slice(0, 40);
+        if (!v) return;
+        setDeliverTo(v);
+        localStorage.setItem("kapu_deliver_to", v);
+      },
       onToggleFav: (p) => toggleFav(p),
       isFav: (id) => Boolean(favs[id]),
     }),

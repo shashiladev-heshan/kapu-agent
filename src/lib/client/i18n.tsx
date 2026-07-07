@@ -285,6 +285,7 @@ const STR = {
   trackPlaceholder: { en: "Order number… VIMP34456CB2", si: "Order number එක…", ta: "ஆர்டர் எண்…" },
   trackBtn: { en: "Track", si: "බලන්න", ta: "பார்" },
   shipsIntl: { en: "Ships worldwide from Kapruka", si: "ලෝකේ කොහේ හිටියත් Kapruka එකෙන් එවනවා", ta: "உலகம் எங்கும் Kapruka அனுப்பும்" },
+  shipPick: { en: "Delivery cost? Type your city…", si: "ගෙන්නන ගාන? ඔයාගේ city එක ලියන්න…", ta: "டெலிவரி கட்டணம்? நகரம் எழுதுங்கள்…" },
   catExplorerT: { en: "Everything Kapruka sells", si: "Kapruka එකේ තියෙන හැමදේම", ta: "Kapruka-வில் விற்கும் அனைத்தும்" },
   forYouT: { en: "Picked for you", si: "ඔයාටම තෝරපු", ta: "உங்களுக்காக தேர்ந்தவை" },
   discTrend: { en: "Trending now", si: "දැන් trending", ta: "இப்போது டிரெண்டிங்" },

@@ -45,6 +45,8 @@ export interface BlockActions {
   onFocusComposer: () => void;
   /** open the full-detail product modal */
   onOpenProduct: (p: ProductSummary) => void;
+  /** set the global deliver-to city (hero inline shipping quote) */
+  onDeliverTo: (city: string) => void;
   /** favorites (♥) */
   onToggleFav: (p: ProductSummary) => void;
   isFav: (id: string) => boolean;
@@ -229,6 +231,57 @@ function nextDays(lang: string, tomorrow: string): { date: string; top: string; 
   return out;
 }
 
+/** Inline "what's delivery to my door?" picker for heroes with no city set —
+ *  typeahead over the real deliverable-cities list; picking one sets the
+ *  GLOBAL deliver-to, so the quote appears here and everywhere else. */
+function InlineCityQuote({ onPick }: { onPick: (city: string) => void }) {
+  const t = useT();
+  const [q, setQ] = useState("");
+  const [opts, setOpts] = useState<{ name: string; hint?: string }[]>([]);
+  useEffect(() => {
+    const query = q.trim();
+    if (query.length < 2) {
+      setOpts([]);
+      return;
+    }
+    const id = setTimeout(() => {
+      fetch(`/api/cities?q=${encodeURIComponent(query)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setOpts(Array.isArray(d?.cities) ? d.cities.slice(0, 4) : []))
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(id);
+  }, [q]);
+  return (
+    <div>
+      <div className="flex items-center gap-1.5">
+        <IconTruck size={13} className="text-leaf" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && opts[0] && onPick(opts[0].name)}
+          placeholder={t("shipPick")}
+          className="w-full max-w-[240px] rounded-[9px] border border-edge bg-card px-2.5 py-1.5 text-[11.5px] outline-none placeholder:text-ink-faint focus:border-leaf"
+        />
+      </div>
+      {opts.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {opts.map((c) => (
+            <button
+              key={c.name}
+              onClick={() => onPick(c.name)}
+              className="rounded-full border border-edge bg-card px-2.5 py-1 text-[10.5px] font-semibold text-leaf transition active:scale-95"
+            >
+              {c.name}
+              {c.hint && <span className="font-normal text-ink-faint"> · {c.hint}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProductHero({ product, deliverTo, actions }: { product: ProductDetail; deliverTo?: string; actions: BlockActions }) {
   const imgs = product.images?.length ? product.images : product.image ? [product.image] : [];
   const [imgIdx, setImgIdx] = useState(0);
@@ -361,6 +414,7 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
               )}
             </p>
           )}
+          {!deliverTo && <InlineCityQuote onPick={actions.onDeliverTo} />}
 
           {product.summary && !isCake && <p className="text-[12.5px] leading-relaxed text-ink-soft">{product.summary}</p>}
 
