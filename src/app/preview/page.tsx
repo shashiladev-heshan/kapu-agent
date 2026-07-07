@@ -41,6 +41,7 @@ const blocks: UiBlock[] = [
       name: "Ribbon Chocolate Cake — 1kg",
       price: 4850,
       compare_at_price: 5400,
+      ships_intl: true,
       currency: "LKR",
       image: IMG,
       images: [IMG, IMG, IMG],

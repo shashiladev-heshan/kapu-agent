@@ -65,6 +65,11 @@ export function toSummary(p: Record<string, unknown>, currency: string): Product
     category: categoryName(p.category),
     url: typeof p.url === "string" ? p.url : null,
     summary: typeof p.summary === "string" ? p.summary.slice(0, 160) : null,
+    // search carries ships_internationally at top level; detail nests it
+    // under shipping{} — Kapruka's diaspora buyers care about this
+    ships_intl:
+      p.ships_internationally === true ||
+      (p.shipping as { ships_internationally?: unknown } | undefined)?.ships_internationally === true,
   };
 }
 

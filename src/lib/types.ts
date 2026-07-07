@@ -15,6 +15,8 @@ export interface ProductSummary {
   category?: string | null;
   url?: string | null;
   summary?: string | null;
+  /** kapruka.com can ship this abroad (diaspora self-orders) — hero badge */
+  ships_intl?: boolean;
   /** top relevance/bestseller hit — rendered as the "KAPU'S PICK" badge */
   pick?: boolean;
   /** cheapest in this grid (when distinct from the pick) — "BEST VALUE" badge */

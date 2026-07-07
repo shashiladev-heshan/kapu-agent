@@ -19,6 +19,7 @@ import {
   IconCheckCircle,
   IconClock,
   IconExternal,
+  IconGlobe,
   IconHeart,
   IconLock,
   IconPencil,
@@ -334,6 +335,13 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
               </>
             )}
           </div>
+
+          {product.ships_intl && (
+            <p className="-mt-1 flex items-center gap-1.5 text-[11.5px] font-medium text-ink-soft">
+              <IconGlobe size={13} className="text-leaf" />
+              {t("shipsIntl")}
+            </p>
+          )}
 
           {deliverTo && ship && (
             <p className="flex items-center gap-1.5 text-[11.5px] font-medium">

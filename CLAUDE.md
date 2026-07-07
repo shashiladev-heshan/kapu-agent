@@ -65,6 +65,10 @@ Telegram channel (`src/lib/telegram/*`): tg_<chatId> sessions reuse the store/to
 - Search-result `category` is a constant `General` stub — real category only from `get_product`.
 - `image_url` is a resizable Cloudflare proxy (`width=330…` → rewrite via `resizeImage()`).
 - Server rate-limit headers (`ratelimit-remaining`) exist on every response — future shield improvement: header-driven backoff (bucket is shared per IP with strangers).
+- **`get_product` 500s consistently on `EF_PC_ELEC*` IDs** (marketplace/electronics family; probe 7 Jul, 2/2 products) — hero/compare must degrade to search-summary data; instant cart survives via the `known` payload.
+- Even with `response_format:"json"`, no-results and upstream errors arrive as PLAIN TEXT ("No products found…", "Error: Kapruka API server error (HTTP 500)") — keep `parseJson` defensive.
+- `list_categories depth:2` (probe 7 Jul): 65 top-level categories with rich children — live seasonal slugs (`thaipongle`/`teachersday`/`diwali`/`valentine`/`graduation`/`samedaydelivery`/`bestsellers`/`newadditions`), `Giftcert` (gift certificates by shop type), brand-level children (Cadbury…, per-college Schoolpride), and every category has a public kapruka.com `url`. Untapped: seasonal rails could use these slugs; gift-cert suggestions; category-tree browse block.
+- `ships_internationally` (search top-level; detail under `shipping{}`) → normalized as `ships_intl`, rendered as the hero's 🌍 badge (diaspora angle).
 
 ## Language system
 - The UI toggle (සිං/த/EN) is AUTHORITATIVE: `reply_language` in each turn's context. si → Sinhala script replies, ta → Tamil script, en → mirror user style (English/Tanglish). Explicit in-chat request overrides.
