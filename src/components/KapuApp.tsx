@@ -179,6 +179,8 @@ export default function KapuApp() {
   const [voiceInterim, setVoiceInterim] = useState("");
   const [voiceSpoken, setVoiceSpoken] = useState("");
   const [voiceTool, setVoiceTool] = useState<string | null>(null);
+  /** UiBlocks of the current voice turn — rendered as animated cards on the canvas */
+  const [voiceBlocks, setVoiceBlocks] = useState<UiBlock[]>([]);
   const [micModal, setMicModal] = useState(false);
   const [recents, setRecents] = useState<WishMeta[]>([]);
   const [wishesOpen, setWishesOpen] = useState(false);
@@ -231,6 +233,7 @@ export default function KapuApp() {
   const recognizerRef = useRef<{ abort: () => void } | null>(null);
   const recorderRef = useRef<VoiceRecorder | null>(null);
   const startListeningRef = useRef<() => void>(() => {});
+  const finishRecordingRef = useRef<() => Promise<void>>(async () => {});
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const busyPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const authUserRef = useRef<AuthProfile | null>(null);
@@ -436,6 +439,7 @@ export default function KapuApp() {
       if (voiceOnRef.current) {
         setVoice("thinking");
         setVoiceTool(null);
+        setVoiceBlocks([]); // fresh canvas — this turn's cards replace the last
         // instant spoken ack while the agent works (prefetched at mic tap)
         const acks = ackCacheRef.current[languageRef.current];
         if (acks?.length) void playerRef.current?.playAck(acks[Math.floor(acks.length * ((Date.now() % 97) / 97))]);
@@ -514,6 +518,10 @@ export default function KapuApp() {
               }
               if (event.block.type === "cart") setCart(event.block.cart);
               patchAssistant((a) => a.parts.push({ kind: "block", block: event.block }));
+              if (voiceOnRef.current) {
+                const b = event.block;
+                setVoiceBlocks((prev) => [...prev, b]);
+              }
               break;
             case "cart":
               setCart(event.cart);
@@ -812,7 +820,9 @@ export default function KapuApp() {
       recorderRef.current?.cancel();
       recorderRef.current ??= new VoiceRecorder();
       recorderRef.current
-        .start()
+        // VAD endpointing: the pause after a sentence auto-sends — hands-free
+        // on iOS too, where ✓ Done is only the manual backup.
+        .start({ onAutoStop: () => void finishRecordingRef.current() })
         .then(() => setVoice("listening"))
         .catch(() => {
           voiceOnRef.current = false;
@@ -847,7 +857,7 @@ export default function KapuApp() {
           setMicModal(true);
           return;
         }
-        if (e === "network" || e === "service-not-allowed" || e === "audio-capture" || e === "language-not-supported") {
+        if (e === "network" || e === "service-not-allowed" || e === "audio-capture" || e === "language-not-supported" || e === "hung") {
           // recognition backend unavailable (Brave & friends) — switch to
           // the Whisper recorder and keep the conversation going
           cancelled = true;
@@ -903,6 +913,7 @@ export default function KapuApp() {
     setVoiceInterim("");
     setVoiceSpoken("");
     setVoiceTool(null);
+    setVoiceBlocks([]);
   }, [setVoice]);
 
   const beginVoice = useCallback(() => {
@@ -956,7 +967,8 @@ export default function KapuApp() {
     beginVoice();
   }, [beginVoice, stopVoice]);
 
-  // Recorder mode (Whisper): user taps "Done" to send what they said.
+  // Recorder mode (Whisper): VAD auto-fires this on the pause after speech;
+  // the "✓ Done" button is the manual backup.
   const finishRecording = useCallback(async () => {
     if (!recorderRef.current || voiceStateRef.current !== "listening") return;
     setVoice("thinking");
@@ -965,6 +977,10 @@ export default function KapuApp() {
     if (text) void sendRef.current(text);
     else startListeningRef.current(); // heard nothing — listen again
   }, [setVoice]);
+
+  useEffect(() => {
+    finishRecordingRef.current = finishRecording;
+  }, [finishRecording]);
 
   const interruptSpeech = useCallback(() => {
     // Barge-in: stop playback; the voice loop continues to listening.
@@ -2760,6 +2776,9 @@ export default function KapuApp() {
           interim={voiceInterim}
           spoken={voiceSpoken}
           toolLabel={voiceTool}
+          blocks={voiceBlocks}
+          actions={actions}
+          deliverTo={deliverTo || undefined}
           recorderMode={recorderMode}
           onEnd={stopVoice}
           onInterrupt={interruptSpeech}
@@ -3923,6 +3942,9 @@ function VoiceOverlay({
   interim,
   spoken,
   toolLabel,
+  blocks,
+  actions,
+  deliverTo,
   recorderMode,
   onEnd,
   onInterrupt,
@@ -3935,6 +3957,9 @@ function VoiceOverlay({
   interim: string;
   spoken: string;
   toolLabel: string | null;
+  blocks: UiBlock[];
+  actions: BlockActions;
+  deliverTo?: string;
   recorderMode: boolean;
   onEnd: () => void;
   onInterrupt: () => void;
@@ -3945,6 +3970,7 @@ function VoiceOverlay({
   const listening = state === "listening";
   const thinking = state === "thinking";
   const speaking = state === "speaking";
+  const hasBlocks = blocks.length > 0;
   const t = makeT(language);
 
   const [quip, setQuip] = useState(0);
@@ -3955,14 +3981,20 @@ function VoiceOverlay({
     return () => clearInterval(id);
   }, [thinking]);
 
+  // keep the newest card in view as results stream in
+  const blocksRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    blocksRef.current?.scrollTo({ top: blocksRef.current.scrollHeight, behavior: "smooth" });
+  }, [blocks.length]);
+
   const caption = listening
     ? interim ||
       (recorderMode
         ? language === "si"
-          ? "කතා කරන්න — ඉවර වුණාම ✓ Done ඔබන්න"
+          ? "කතා කරන්න — නැවතුනාම මං යවන්නම්"
           : language === "ta"
-            ? "பேசுங்கள் — முடிந்ததும் ✓ Done"
-            : "Speak your wish — then tap ✓ Done"
+            ? "பேசுங்கள் — நிறுத்தியதும் அனுப்புகிறேன்"
+            : "Speak — I'll send it when you pause"
         : language === "si"
           ? "අහගෙන ඉන්නවා…"
           : language === "ta"
@@ -4025,13 +4057,20 @@ function VoiceOverlay({
         </button>
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-        {/* orb */}
-        <div className="relative">
+      <div
+        className={`flex min-h-0 flex-1 flex-col items-center px-4 text-center sm:px-6 ${
+          hasBlocks ? "justify-start gap-3 pt-1" : "justify-center gap-6"
+        }`}
+      >
+        {/* orb — compact once cards arrive */}
+        <div className="relative shrink-0">
           {(listening || speaking) && (
             <>
-              <span className="voicering absolute inset-0 rounded-[28px] border border-gold/40" />
-              <span className="voicering absolute inset-0 rounded-[28px] border border-gold/25" style={{ animationDelay: "1.1s" }} />
+              <span className={`voicering absolute inset-0 border border-gold/40 ${hasBlocks ? "rounded-[16px]" : "rounded-[28px]"}`} />
+              <span
+                className={`voicering absolute inset-0 border border-gold/25 ${hasBlocks ? "rounded-[16px]" : "rounded-[28px]"}`}
+                style={{ animationDelay: "1.1s" }}
+              />
             </>
           )}
           {thinking && (
@@ -4041,19 +4080,19 @@ function VoiceOverlay({
               <span className="spark absolute -top-5 right-2 h-1 w-1 rounded-full bg-gold" style={{ animationDelay: "0.9s" }} />
             </>
           )}
-          <span className="block rounded-[28px] shadow-[0_18px_50px_rgba(0,0,0,0.4)]">
-            <KapuMark size={88} radius={24} />
+          <span className={`block shadow-[0_18px_50px_rgba(0,0,0,0.4)] ${hasBlocks ? "rounded-[16px]" : "rounded-[28px]"}`}>
+            <KapuMark size={hasBlocks ? 52 : 88} radius={hasBlocks ? 15 : 24} />
           </span>
         </div>
 
         {/* waveform */}
-        <div className="flex h-9 items-center gap-[3px]">
+        <div className={`flex shrink-0 items-center gap-[3px] ${hasBlocks ? "h-5" : "h-9"}`}>
           {VOICE_BARS.map((h, i) => (
             <span
               key={i}
               className={`wavebar w-[3.5px] rounded-full ${listening ? "bg-gold" : speaking ? "bg-[#A78BFA]" : "bg-white/25"}`}
               style={{
-                height: `${h * 34}px`,
+                height: `${h * (hasBlocks ? 18 : 34)}px`,
                 animationDelay: `${i * 0.08}s`,
                 animationPlayState: thinking ? "paused" : "running",
               }}
@@ -4063,14 +4102,29 @@ function VoiceOverlay({
 
         {/* live caption */}
         <p
-          className={`font-display max-w-[640px] text-[24px] leading-snug sm:text-[30px] ${thinking ? "italic text-white/75" : ""}`}
+          className={`font-display max-w-[640px] shrink-0 leading-snug ${
+            hasBlocks ? "line-clamp-2 text-[16px] sm:text-[19px]" : "text-[24px] sm:text-[30px]"
+          } ${thinking ? "italic text-white/75" : ""}`}
           style={{ overflowWrap: "anywhere" }}
         >
           {caption}
           {listening && <span className="ml-1 inline-block h-6 w-[3px] animate-pulse rounded bg-gold align-middle" />}
         </p>
 
-        {statusPill}
+        <span className="shrink-0">{statusPill}</span>
+
+        {/* this turn's cards — stream in as the agent works */}
+        {hasBlocks && (
+          <div ref={blocksRef} className="min-h-0 w-full max-w-2xl flex-1 overflow-y-auto overscroll-contain text-left">
+            <div className="flex flex-col gap-3 pb-3">
+              {blocks.map((b, i) => (
+                <div key={i} className="voiceblock" style={{ animationDelay: `${Math.min(i, 4) * 80}ms` }}>
+                  <BlockRenderer block={b} actions={actions} deliverTo={deliverTo} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <footer

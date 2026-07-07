@@ -70,7 +70,8 @@ Telegram channel (`src/lib/telegram/*`): tg_<chatId> sessions reuse the store/to
 - Voice mode (`mode: voice` in context): visible reply stays in script; model ALSO calls the `say` tool with a speech-optimized version — for Sinhala that's **romanized colloquial Sinhala**, because TTS engines read Latin-script Sinhala far more naturally than Sinhala orthography.
 
 ## Voice loop (hands-free)
-- Input: Web Speech API (free; Chrome supports `si-LK`), fallback MediaRecorder → `/api/stt` (Whisper) with a "✓ Done" button.
+- Input: Web Speech API (free; Chrome supports `si-LK`), fallback MediaRecorder → `/api/stt` (Whisper). iOS/iPadOS WebKit + Brave are routed STRAIGHT to the recorder (`webSpeechLikelyBroken()`) — iOS exposes `webkitSpeechRecognition` but it hangs (no result/end/error, verified on-device). The recorder is hands-free via VAD endpointing (AnalyserNode RMS; ~1.4s pause after speech auto-sends; "✓ Done" is the manual backup). A 12s hung-engine watchdog (`"hung"` onError) rescues mid-session hangs on other browsers.
+- Voice canvas renders the current turn's UiBlocks as animated cards (`voiceBlocks` in KapuApp → compact orb + scrollable card panel, `.voiceblock` entrance animation) — cards are interactive (➕ add works mid-conversation).
 - Output: `/api/tts` provider chain — si/ta: Azure → OpenAI; en: ElevenLabs → OpenAI → Azure; 204 → browser speechSynthesis. OpenAI uses `gpt-4o-mini-tts` + voice `coral` + per-language Sri Lankan delivery `instructions`.
 - Client state machine in KapuApp: listening → thinking → speaking → listening; barge-in stops playback; `speech` UiBlock (from `say`) overrides the spoken text and is never rendered.
 - Honest limit: truly natural Sinhala TTS exists only on Azure (`si-LK-ThiliniNeural`, free F0 tier) — owner declined Azure for now; romanized-speech trick is the current best.

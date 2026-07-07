@@ -55,12 +55,23 @@ export function speechRecognitionSupported(): boolean {
   return Boolean(w.SpeechRecognition || w.webkitSpeechRecognition);
 }
 
-/** Some Chromium forks (Brave notably) expose the Web Speech API but block
- *  the recognition backend — it "listens" forever and never returns a word.
- *  Detect them up front so the voice loop starts on the Whisper recorder
- *  path instead of silently failing. */
+/** iOS/iPadOS — every browser there is WebKit (Chrome iOS included), and
+ *  WebKit's SpeechRecognition regularly hangs: start() succeeds, then no
+ *  onresult, no onend, no onerror, ever. The `Macintosh` + touch check
+ *  catches iPads masquerading as macOS. */
+function isIosWebKit(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+/** Some browsers expose the Web Speech API but its backend never returns a
+ *  word — Brave blocks it outright; iOS WebKit hangs mid-session (verified
+ *  on-device: stuck at "listening" forever). Detect them up front so the
+ *  voice loop starts on the Whisper recorder path instead. */
 export async function webSpeechLikelyBroken(): Promise<boolean> {
   if (typeof navigator === "undefined") return false;
+  if (isIosWebKit()) return true;
   try {
     const brave = (navigator as unknown as { brave?: { isBrave?: () => Promise<boolean> } }).brave;
     if (brave?.isBrave && (await brave.isBrave())) return true;
@@ -104,6 +115,28 @@ export function createRecognizer(language: Language, handlers: RecognizerHandler
       }
     }, 1200);
   };
+  // Hung-engine watchdog. A healthy engine ALWAYS fires something within
+  // seconds (Chrome ends a silent run at ~8s), so 12s of total silence from
+  // the API = dead backend. Report "hung" so the caller switches to Whisper.
+  let watchdog: ReturnType<typeof setTimeout> | null = null;
+  const clearWatch = () => {
+    if (watchdog) clearTimeout(watchdog);
+    watchdog = null;
+  };
+  const armWatch = (ms: number) => {
+    clearWatch();
+    watchdog = setTimeout(() => {
+      aborted = true;
+      clearStall();
+      try {
+        origAbort();
+      } catch {
+        /* already dead */
+      }
+      handlers.onError("hung");
+      handlers.onEnd();
+    }, ms);
+  };
   r.onresult = (event) => {
     let interim = "";
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -114,13 +147,16 @@ export function createRecognizer(language: Language, handlers: RecognizerHandler
     lastHeard = (finalText + interim).trim();
     handlers.onInterim(finalText + interim);
     if (lastHeard) armStall();
+    armWatch(10000); // engine is alive — keep expecting progress
   };
   r.onerror = (event) => {
     clearStall();
+    clearWatch();
     handlers.onError(event.error);
   };
   r.onend = () => {
     clearStall();
+    clearWatch();
     // isFinal results when the engine provides them; the last interim
     // transcript when it doesn't (iOS). Never send after an abort.
     const text = (finalText.trim() || lastHeard).trim();
@@ -133,7 +169,13 @@ export function createRecognizer(language: Language, handlers: RecognizerHandler
   r.abort = () => {
     aborted = true;
     clearStall();
+    clearWatch();
     origAbort();
+  };
+  const origStart = r.start.bind(r);
+  r.start = () => {
+    armWatch(12000);
+    origStart();
   };
   return r;
 }
@@ -144,19 +186,75 @@ export class VoiceRecorder {
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private stream: MediaStream | null = null;
+  private vadCtx: AudioContext | null = null;
+  private vadTimer: ReturnType<typeof setInterval> | null = null;
 
-  async start(): Promise<void> {
+  async start(opts?: { onAutoStop?: () => void }): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.chunks = [];
     this.recorder = new MediaRecorder(this.stream);
     this.recorder.ondataavailable = (e) => {
       if (e.data.size) this.chunks.push(e.data);
     };
-    this.recorder.start();
+    this.recorder.start(250);
+    if (opts?.onAutoStop) this.watchSilence(opts.onAutoStop);
+  }
+
+  /** Hands-free endpointing for the Whisper path (it has none natively):
+   *  watch mic energy; once the user has spoken and then stays quiet for
+   *  ~1.4s, fire onAutoStop. Best-effort — if the AudioContext can't run
+   *  (locked-down WebKit), the ✓ Done button still works. */
+  private watchSilence(onAutoStop: () => void): void {
+    try {
+      const w = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
+      const Ctx = w.AudioContext ?? w.webkitAudioContext;
+      if (!Ctx || !this.stream) return;
+      const ctx = new Ctx();
+      this.vadCtx = ctx;
+      void ctx.resume().catch(() => {});
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(this.stream).connect(analyser);
+      const buf = new Float32Array(analyser.fftSize);
+      const TICK = 100;
+      let voicedMs = 0;
+      let silentMs = 0;
+      let totalMs = 0;
+      this.vadTimer = setInterval(() => {
+        analyser.getFloatTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        const rms = Math.sqrt(sum / buf.length);
+        totalMs += TICK;
+        if (rms > 0.015) {
+          voicedMs += TICK;
+          silentMs = 0;
+        } else if (voicedMs > 0) {
+          silentMs += TICK;
+        }
+        const spoke = voicedMs >= 250; // ignore sub-word noise blips
+        if ((spoke && silentMs >= 1400) || (spoke && totalMs >= 30000)) {
+          this.stopVad();
+          onAutoStop();
+        }
+      }, TICK);
+    } catch {
+      /* no VAD — manual ✓ Done still works */
+    }
+  }
+
+  private stopVad(): void {
+    if (this.vadTimer) clearInterval(this.vadTimer);
+    this.vadTimer = null;
+    if (this.vadCtx) {
+      void this.vadCtx.close().catch(() => {});
+      this.vadCtx = null;
+    }
   }
 
   /** Stop recording and transcribe via /api/stt (OpenAI Whisper). */
   stopAndTranscribe(language: Language): Promise<string> {
+    this.stopVad();
     return new Promise((resolve) => {
       const rec = this.recorder;
       if (!rec || rec.state === "inactive") return resolve("");
@@ -185,6 +283,7 @@ export class VoiceRecorder {
   }
 
   cancel(): void {
+    this.stopVad();
     try {
       if (this.recorder && this.recorder.state !== "inactive") {
         this.recorder.onstop = null;
