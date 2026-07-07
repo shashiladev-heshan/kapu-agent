@@ -2186,7 +2186,8 @@ export default function KapuApp() {
                       </span>
                       <span
                         className={`flex h-9 w-9 items-center justify-center rounded-[11px] transition-transform duration-300 group-hover:scale-110 ${
-                          ["bg-leaf-soft text-leaf", "bg-gold-soft text-gold-deep", "bg-clay-soft text-clay"][i % 3]
+                          // diagonal tint pattern — (row+col)%3 so no column ends up monochrome
+                          ["bg-leaf-soft text-leaf", "bg-gold-soft text-gold-deep", "bg-clay-soft text-clay"][(i + Math.floor(i / 3)) % 3]
                         }`}
                       >
                         <c.Icon size={18} />
