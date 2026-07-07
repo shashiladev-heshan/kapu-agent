@@ -1986,7 +1986,9 @@ export default function KapuApp() {
                     </button>
                   )}
                 </div>
-                <h1 className="font-display mt-5 text-[34px] leading-[1.08] text-ink sm:text-[56px]">
+                {/* pt + looser leading: Sinhala ascenders overflow the em box
+                    and the scroll container clips them at leading-[1.08] */}
+                <h1 className="font-display mt-4 pt-2 text-[34px] leading-[1.18] text-ink sm:text-[56px]">
                   <span className="font-semibold text-leaf" style={{ fontFamily: "var(--font-sinhala-var), 'Noto Sans Sinhala'" }}>
                     ආයුබෝවන්
                   </span>
@@ -2127,6 +2129,26 @@ export default function KapuApp() {
                     <strong className="font-semibold text-ink-soft">සිංහල · தமிழ் · English · Tanglish</strong>{" "}
                     {t("poweredBy")}
                   </p>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="https://www.facebook.com/people/Kapuwashop/61591846257452/"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Kapu on Facebook"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-faint transition hover:-translate-y-0.5 hover:text-leaf"
+                    >
+                      <IconFacebook size={14} />
+                    </a>
+                    <a
+                      href="https://www.instagram.com/kapuwashop"
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Kapu on Instagram"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-faint transition hover:-translate-y-0.5 hover:text-leaf"
+                    >
+                      <IconInstagram size={14} />
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
