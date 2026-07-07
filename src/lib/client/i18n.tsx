@@ -401,7 +401,38 @@ const STR = {
   landVoiceB1: { en: "Understands SPOKEN Sinhala — rare even in big-tech assistants", si: "කතා කරන සිංහල තේරෙනවා — ලොකු assistants ලටත් අමාරු දෙයක්", ta: "பேசும் சிங்களம்/தமிழ் புரியும்" },
   landVoiceB2: { en: "Instant spoken acknowledgments — no dead air while it works", si: "වැඩ කරන ගමන් කටින්ම කියනවා — නිශ්ශබ්දතාවක් නෑ", ta: "வேலை செய்யும்போதே பேசும் — அமைதி இல்லை" },
   landVoiceB3: { en: "Barge-in: interrupt it mid-sentence, like a real conversation", si: "කතාව මැදින් cut කරන්න පුළුවන් — ඇත්ත conversation එකක් වගේ", ta: "இடைமறிக்கலாம் — உண்மையான உரையாடல் போல" },
+  landVoiceB4: {
+    en: "Results stream in as live cards while you talk — hands-free on iPhone too",
+    si: "කතා කරන ගමන් cards විදිහට results එනවා — iPhone එකෙත් අත් නොගා",
+    ta: "பேசும்போதே கார்டுகளாக முடிவுகள் — iPhone-லும் கை தொடாமல்",
+  },
   landVoiceCta: { en: "Try voice mode", si: "Voice mode try කරන්න", ta: "குரல் முறையை முயற்சிக்கவும்" },
+  landTrackTitle: {
+    en: "Every step, live — warehouse to doorstep",
+    si: "හැම step එකක්ම live — warehouse එකේ ඉඳන් දොරකඩටම",
+    ta: "ஒவ்வொரு படியும் நேரலை — கிடங்கிலிருந்து வீடு வரை",
+  },
+  landTrackSub: {
+    en: "Paste the order number Kapruka emails you. Kapu shows the whole journey as it happens, remembers your orders for one-tap re-checks, and pings you the moment anything moves.",
+    si: "Kapruka email කරන order number එක දාන්න. මුළු ගමනම පෙන්නනවා, orders මතක තියාගන්නවා, මොකක් හරි move වුණ ගමන් කියනවා.",
+    ta: "Kapruka அனுப்பும் ஆர்டர் எண்ணை இடுங்கள். முழு பயணமும் நேரலையில், நகர்ந்தவுடன் அறிவிப்பு.",
+  },
+  landTrackB1: {
+    en: "The full journey — every warehouse & courier step, timestamped",
+    si: "මුළු ගමනම — warehouse + courier හැම step එකක්ම, වෙලාවත් එක්ක",
+    ta: "முழு பயணம் — ஒவ்வொரு படியும், நேரத்துடன்",
+  },
+  landTrackB2: {
+    en: "Movement alerts — on this device or straight to Telegram",
+    si: "Move වුණ ගමන් alerts — device එකට හරි Telegram එකට හරි",
+    ta: "நகர்வு அறிவிப்புகள் — சாதனத்திலோ Telegram-லோ",
+  },
+  landTrackB3: {
+    en: "Ends with photo proof at the door",
+    si: "අන්තිමට දොරකඩ photo proof එකත් එනවා",
+    ta: "இறுதியில் வாசலில் புகைப்பட சான்று",
+  },
+  landTrackCta: { en: "Watch a real order's journey", si: "ඇත්තම order එකක ගමන බලන්න", ta: "உண்மையான ஆர்டரின் பயணத்தை பாருங்கள்" },
   landStart: { en: "Start wishing — it's free", si: "පතන්න පටන් ගන්න — නොමිලේ", ta: "விரும்பத் தொடங்குங்கள் — இலவசம்" },
   landF1t: { en: "Speaks your language", si: "ඔයාගේ භාෂාව", ta: "உங்கள் மொழி" },
   landF1b: { en: "සිංහල · தமிழ் · English · Tanglish — script-perfect replies, spoken Sinhala included.", si: "සිංහල · தமிழ் · English · Tanglish — කතාවත් තේරෙනවා.", ta: "நான்கு மொழிகள் — பேச்சும் புரியும்." },
@@ -488,6 +519,7 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "🔮 I can book a real horoscope reading for auspicious timing.", kind: "msg", msg: "Show me Kapruka's astrology and horoscope reading services" },
     { text: "🎁 Unlike your friends, I actually remember birthdays.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
     { text: "⏰ I can send flowers every month-end — all on my own.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
+    { text: "📦 I show your order's WHOLE journey — warehouse to doorstep, live.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
   ],
   si: [
     { text: "🎂 අම්මට නුවරට කේක් එකක් — අදම යවන්න පුළුවන්.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
@@ -499,6 +531,7 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "🔮 නැකතට — ඇත්තම horoscope reading එකක් book කරන්න පුළුවන්.", kind: "msg", msg: "Show me Kapruka's astrology and horoscope reading services" },
     { text: "🎁 යාළුවො වගේ නෙමෙයි — මට birthdays මතකයි.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
     { text: "⏰ හැම මාසෙම මල් — මම තනියම යවන්නම්.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
+    { text: "📦 Order එකේ මුළු ගමනම live පෙන්නනවා — දොරකඩ වෙනකම්.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
   ],
   ta: [
     { text: "🎂 கண்டியில் அம்மாவுக்கு கேக் — இன்றே அனுப்பலாம்.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
@@ -510,6 +543,7 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "🔮 நேரம் பார்க்க — உண்மையான ஜாதக சேவை புக் செய்யலாம்.", kind: "msg", msg: "Show me Kapruka's astrology and horoscope reading services" },
     { text: "🎁 நண்பர்களை போல் அல்ல — பிறந்தநாட்கள் நினைவில்.", kind: "msg", msg: "Can you remember my people's birthdays and help me plan gifts? How does it work?" },
     { text: "⏰ மாத இறுதியில் பூக்கள் — நானே அனுப்புவேன்.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
+    { text: "📦 ஆர்டரின் முழு பயணமும் நேரலை — வீடு வரை.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
   ],
 };
 

@@ -1165,6 +1165,15 @@ export default function KapuApp() {
     setWelcomeOpen(false);
   }, []);
 
+  /** landing CTA: enter the app straight into a real order's live journey
+   *  (tour stays unconsumed — it plays on the next visit) */
+  const openTrackDemo = useCallback(() => {
+    localStorage.setItem("kapu_welcome", "1");
+    setWelcomeOpen(false);
+    setTrackPrefill("VIMP34456CB2");
+    setTrackOpen(true);
+  }, []);
+
   const handleGoogleCredential = useCallback(
     async (credential: string) => {
       try {
@@ -2792,7 +2801,7 @@ export default function KapuApp() {
               {t("guestKeep")}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start">
-              {["🎙 voice", "📸 snap-a-list", "⚖️ compare", "🔒 confirm gate", "📦 photo proof", "⏰ schedules"].map((c) => (
+              {["🎙 voice", "📸 snap-a-list", "⚖️ compare", "🔒 confirm gate", "📦 live tracking", "🔔 order alerts", "⏰ schedules"].map((c) => (
                 <span key={c} className="rounded-full border border-edge bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
                   {c}
                 </span>
@@ -2824,6 +2833,7 @@ export default function KapuApp() {
                 { href: "#land-pick", label: "🏅 Kapu's Pick" },
                 { href: "#land-seasonal", label: "🎉 Seasonal" },
                 { href: "#land-voice", label: "🎙 Voice agent" },
+                { href: "#land-track", label: "📦 Live tracking" },
                 { href: "#land-tg", label: "✈️ Telegram bot" },
                 { href: "#land-tech", label: "🏗 Stack" },
               ].map((n) => (
@@ -2848,7 +2858,7 @@ export default function KapuApp() {
             </div>
             </div>
           </div>
-          <LandingShowcase onStart={closeWelcome} tgBot={tgBot} />
+          <LandingShowcase onStart={closeWelcome} onTrack={openTrackDemo} tgBot={tgBot} />
           <KnowToast />
         </div>
       )}
@@ -3510,7 +3520,15 @@ function PickDuel() {
 
 // ── landing showcase — the welcome gate's below-the-fold marketing ──────
 
-function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { username: string; link: string } | null }) {
+function LandingShowcase({
+  onStart,
+  onTrack,
+  tgBot,
+}: {
+  onStart: () => void;
+  onTrack: () => void;
+  tgBot: { username: string; link: string } | null;
+}) {
   const t = useT();
 
   const FEATURES: { Icon: typeof IconGlobe; tt: StrKey; bb: StrKey }[] = [
@@ -3717,6 +3735,7 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
             <li>🎙 {t("landVoiceB1")}</li>
             <li>⚡ {t("landVoiceB2")}</li>
             <li>✋ {t("landVoiceB3")}</li>
+            <li>🃏 {t("landVoiceB4")}</li>
           </ul>
           <button
             onClick={onStart}
@@ -3746,6 +3765,65 @@ function LandingShowcase({ onStart, tgBot }: { onStart: () => void; tgBot: { use
           <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[10.5px] font-semibold text-gold">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" /> Listening — speak now!
           </span>
+        </div>
+      </section>
+
+      {/* ── live order tracking — the whole journey, not four vague dots ── */}
+      <section id="land-track" className="grid items-center gap-8 py-12 md:grid-cols-2">
+        <div className="order-2 mx-auto w-full max-w-[380px] rounded-[26px] border border-line bg-card p-5 shadow-[0_30px_80px_rgba(64,41,112,0.2)] md:order-1">
+          <div className="mb-4 flex items-center justify-between gap-2 border-b border-line pb-3">
+            <p className="font-display text-[14px]">
+              Order <span className="text-leaf">#VIMP34456CB2</span>
+            </p>
+            <span className="flex items-center gap-1.5 rounded-full bg-good-soft px-2 py-0.5 text-[9.5px] font-bold uppercase text-good">
+              <span className="h-1.5 w-1.5 rounded-full bg-good" /> Delivered
+            </span>
+          </div>
+          <ol>
+            {(
+              [
+                ["Order Received", "May 22, 10:19 AM"],
+                ["Kapruka Warehouse, Order Prepared", "May 22, 7:07 PM"],
+                ["Received by our delivery agent", "May 23, 8:43 AM"],
+                ["Order has been out for delivery", "May 23, 8:43 AM"],
+                ["Order has been delivered 📸", "May 23, 1:17 PM"],
+              ] as const
+            ).map(([step, ts], i, arr) => {
+              const finale = i === arr.length - 1;
+              return (
+                <li key={step} className="relative flex gap-3 pb-3.5 last:pb-0">
+                  {!finale && <span className="absolute left-[11px] top-6 h-[calc(100%-1.5rem)] w-0.5 rounded bg-leaf" />}
+                  <span
+                    className={`z-[1] flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white ${
+                      finale ? "bg-good shadow-[0_0_0_4px_rgba(46,158,91,0.18)]" : "bg-leaf dark:bg-[#402970]"
+                    }`}
+                  >
+                    <IconCheck size={10} />
+                  </span>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-[12px] font-semibold leading-snug">{step}</p>
+                    <p className="text-[10.5px] text-ink-soft">{ts}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+        <div className="order-1 md:order-2">
+          <h2 className="font-display text-[26px] leading-tight text-ink sm:text-[32px]">{t("landTrackTitle")}</h2>
+          <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landTrackSub")}</p>
+          <ul className="mt-4 space-y-2 text-[12.5px] text-ink-soft">
+            <li>📦 {t("landTrackB1")}</li>
+            <li>🔔 {t("landTrackB2")}</li>
+            <li>📸 {t("landTrackB3")}</li>
+          </ul>
+          <button
+            onClick={onTrack}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-[13px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+          >
+            <IconPackage size={15} />
+            {t("landTrackCta")}
+          </button>
         </div>
       </section>
 
