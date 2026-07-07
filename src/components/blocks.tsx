@@ -113,9 +113,12 @@ export function ProductImage({
   width?: number;
   iconSize?: number;
 }) {
-  const [broken, setBroken] = useState(false);
+  // CDN blips happen (static2 resize endpoint can fail while the original
+  // serves) — try resized → original → placeholder before giving up.
+  const [stage, setStage] = useState<0 | 1 | 2>(0);
   const resized = resizeImage(src, width);
-  if (!resized || broken) {
+  const url = stage === 0 ? resized : stage === 1 ? (src ?? null) : null;
+  if (!url) {
     const tint = productTint(category);
     const Icon = tint.kind === "cake" ? IconCake : tint.kind === "grocery" ? IconTrolley : tint.kind === "phone" ? IconPhone : IconBasket;
     return (
@@ -132,10 +135,10 @@ export function ProductImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={resized}
+      src={url}
       alt={alt}
       loading="lazy"
-      onError={() => setBroken(true)}
+      onError={() => setStage((s) => (s === 0 && src && src !== resized ? 1 : 2))}
       className={`${className} bg-cream-deep object-cover text-[0px]`}
     />
   );
@@ -234,7 +237,7 @@ function nextDays(lang: string, tomorrow: string): { date: string; top: string; 
 /** Inline "what's delivery to my door?" picker for heroes with no city set —
  *  typeahead over the real deliverable-cities list; picking one sets the
  *  GLOBAL deliver-to, so the quote appears here and everywhere else. */
-function InlineCityQuote({ onPick }: { onPick: (city: string) => void }) {
+function InlineCityQuote({ onPick, autoFocus }: { onPick: (city: string) => void; autoFocus?: boolean }) {
   const t = useT();
   const [q, setQ] = useState("");
   const [opts, setOpts] = useState<{ name: string; hint?: string }[]>([]);
@@ -258,6 +261,7 @@ function InlineCityQuote({ onPick }: { onPick: (city: string) => void }) {
         <IconTruck size={13} className="text-leaf" />
         <input
           value={q}
+          autoFocus={autoFocus}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && opts[0] && onPick(opts[0].name)}
           placeholder={t("shipPick")}
@@ -287,6 +291,7 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
   const [imgIdx, setImgIdx] = useState(0);
   const isCake = /cake/i.test(product.category ?? "") || /^cake/i.test(product.id);
   const [icing, setIcing] = useState("");
+  const [editCity, setEditCity] = useState(false);
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const t = useT();
   const lang = useLang();
@@ -429,7 +434,22 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
               ) : (
                 <span className="text-[12px] font-semibold leading-snug">{t("shipNext", { city: deliverTo, date: ship.next ?? "—" })}</span>
               )}
+              <button
+                onClick={() => setEditCity((v) => !v)}
+                className="ml-auto flex shrink-0 items-center gap-0.5 rounded-full border border-line bg-card px-2 py-1 text-[10px] font-semibold text-ink-soft transition active:scale-95"
+              >
+                {t("changeCity")} ▾
+              </button>
             </div>
+          )}
+          {deliverTo && editCity && (
+            <InlineCityQuote
+              autoFocus
+              onPick={(c) => {
+                actions.onDeliverTo(c);
+                setEditCity(false);
+              }}
+            />
           )}
           {!deliverTo && <InlineCityQuote onPick={actions.onDeliverTo} />}
 
