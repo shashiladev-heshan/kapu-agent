@@ -7,6 +7,29 @@ import { getHotDeals } from "@/lib/kapruka/promos";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export async function GET(req: Request): Promise<Response> {
+  if (new URL(req.url).searchParams.get("debug") === "1") {
+    // temporary diagnostic: what does kapruka.com serve THIS egress?
+    try {
+      const res = await fetch("https://www.kapruka.com/online/promotions", {
+        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) KapuAgent/1.0" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(8000),
+      });
+      const html = res.status >= 200 && res.status < 300 ? await res.text() : "";
+      return Response.json({
+        status: res.status,
+        location: res.headers.get("location"),
+        server: res.headers.get("server"),
+        cfRay: res.headers.get("cf-ray"),
+        htmlLength: html.length,
+        repeaters: html.split("catalogueV2Repeater").length - 1,
+        hasHeading: html.includes("catalogueV2heading"),
+        title: html.match(/<title>([^<]*)</)?.[1] ?? null,
+      });
+    } catch (err) {
+      return Response.json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  }
   return Response.json({ products: await getHotDeals() });
 }
