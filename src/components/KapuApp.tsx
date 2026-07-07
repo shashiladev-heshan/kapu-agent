@@ -2858,7 +2858,7 @@ export default function KapuApp() {
               {t("guestKeep")}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start">
-              {["🎙 voice", "📸 snap-a-list", "⚖️ compare", "🔒 confirm gate", "📦 live tracking", "🔔 order alerts", "⏰ schedules"].map((c) => (
+              {["🎙 voice", "📸 snap-a-list", "💜 taste recs", "⚖️ compare", "🔒 confirm gate", "📦 live tracking", "🔔 order alerts", "⏰ schedules"].map((c) => (
                 <span key={c} className="rounded-full border border-edge bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
                   {c}
                 </span>
@@ -2888,6 +2888,7 @@ export default function KapuApp() {
               {[
                 { href: "#land-pwa", label: "📱 In your pocket" },
                 { href: "#land-pick", label: "🏅 Kapu's Pick" },
+                { href: "#land-taste", label: "💜 Picked for you" },
                 { href: "#land-seasonal", label: "🎉 Seasonal" },
                 { href: "#land-voice", label: "🎙 Voice agent" },
                 { href: "#land-track", label: "📦 Live tracking" },
@@ -3711,6 +3712,48 @@ function LandingShowcase({
           <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landPickSub")}</p>
           <p className="mt-3 max-w-[420px] rounded-[13px] border border-dashed border-edge px-3.5 py-2.5 text-[12px] italic text-ink-soft">
             🤝 {t("landPickHonest")}
+          </p>
+        </div>
+      </section>
+
+      {/* ── act 1.7: taste engine — vector recs + discover rails ── */}
+      <section id="land-taste" className="grid items-center gap-8 py-12 md:grid-cols-2">
+        <div>
+          <span className="rounded-full bg-leaf px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-gold dark:bg-[#402970]">💜 taste engine</span>
+          <h2 className="font-display mt-3 text-[26px] leading-tight text-ink sm:text-[32px]">{t("landTasteTitle")}</h2>
+          <p className="mt-3 max-w-[420px] text-[13.5px] leading-relaxed text-ink-soft">{t("landTasteSub")}</p>
+          <ul className="mt-4 space-y-2 text-[12.5px] text-ink-soft">
+            <li>💜 {t("landTasteB1")}</li>
+            <li>🎁 {t("landTasteB2")}</li>
+            <li>📈 {t("landTasteB3")}</li>
+          </ul>
+        </div>
+        <div className="mx-auto w-full max-w-[380px] rounded-[26px] border border-line bg-card p-5 shadow-[0_30px_80px_rgba(64,41,112,0.2)]">
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <span className="rounded-full bg-leaf px-3 py-1.5 text-[10.5px] font-semibold text-white dark:bg-[#402970]">🔥 {t("discTrend")}</span>
+            <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-[10.5px] font-semibold text-ink-soft">💸 {t("discBudget")}</span>
+            <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-[10.5px] font-semibold text-ink-soft">🏷️ {t("discDeals")}</span>
+          </div>
+          <p className="font-display mb-2 text-[14px]">💜 {t("forYouT")}</p>
+          {(
+            [
+              ["Ultimate Chocolate Indulgence Gift Box", "Rs 6,950", true],
+              ["Red Heart Arrangement With Chocolates", "Rs 8,400", false],
+              ["Royal Chocolate Drizzle Tower Cake", "Rs 5,200", false],
+            ] as const
+          ).map(([name, price, pick]) => (
+            <div key={name} className="mb-1.5 flex items-center gap-2.5 rounded-[13px] border border-line bg-surface px-3 py-2.5">
+              {pick ? (
+                <span className="shrink-0 rounded-full bg-leaf px-2 py-0.5 text-[7.5px] font-bold uppercase text-gold dark:bg-[#402970]">Kapu's pick</span>
+              ) : (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-leaf/40" />
+              )}
+              <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium">{name}</span>
+              <span className="price-serif shrink-0 text-[12px] text-leaf">{price}</span>
+            </div>
+          ))}
+          <p className="mt-2.5 text-center text-[9.5px] uppercase tracking-[0.1em] text-ink-faint">
+            vector embeddings · cosine · your device's wishes only
           </p>
         </div>
       </section>

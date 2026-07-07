@@ -375,14 +375,39 @@ const STR = {
   seasonalIn: { en: "{glyph} {greet} — {d} days to go", si: "{glyph} {greet} — තව දින {d}", ta: "{glyph} {greet} — இன்னும் {d} நாட்கள்" },
   landPickTitle: { en: "It doesn't list. It recommends.", si: "List කරනවා විතරක් නෙමෙයි — recommend කරනවා.", ta: "பட்டியல் அல்ல — பரிந்துரை." },
   landPickSub: {
-    en: "Every search is ranked and the best gets the KAPU'S PICK badge. Ask to compare and you get a side-by-side duel — per-row winners and a one-line verdict that tells you WHY, in your language.",
-    si: "හැම search එකක්ම rank වෙනවා — හොඳම එකට KAPU'S PICK badge එක. Compare කරන්න කිව්වම per-row winners + ඇයි කියලා verdict එකක්, ඔයාගේ භාෂාවෙන්.",
-    ta: "ஒவ்வொரு தேடலும் தரவரிசை — சிறந்ததற்கு KAPU'S PICK. ஒப்பிடுங்கள் — வரிசை வெற்றியாளர்கள் + ஏன் என்ற தீர்ப்பு.",
+    en: "The KAPU'S PICK badge is semantic — vector embeddings match what you MEANT, so asking for a phone can't crown a phone charger. Ask to compare and you get a side-by-side duel — per-row winners and a one-line verdict that tells you WHY, in your language.",
+    si: "KAPU'S PICK badge එක semantic — ඔයා ඇත්තටම ඉල්ලපු දේට AI embeddings match වෙනවා; phone එකක් ඉල්ලුවම charger එකකට badge එක යන්නේ නෑ. Compare කරන්න කිව්වම per-row winners + ඇයි කියලා verdict එකක්.",
+    ta: "KAPU'S PICK semantic ஆனது — நீங்கள் கேட்டதற்கு AI பொருந்துகிறது; phone கேட்டால் charger-க்கு badge போகாது. ஒப்பிடுங்கள் — வரிசை வெற்றியாளர்கள் + தீர்ப்பு.",
   },
   landPickHonest: {
     en: "And when nothing truly wins? Kapu says so. Honesty is a feature.",
     si: "මුකුත්ම හොඳ නැත්නම්? ඒකත් කියනවා. අවංකකම feature එකක්.",
     ta: "எதுவும் சிறந்ததாக இல்லை என்றால்? அதையும் சொல்லும்.",
+  },
+  landTasteTitle: {
+    en: "It learns your taste — and shops ahead of you",
+    si: "ඔයාගේ රුචිය ඉගෙන ගන්නවා — ඉස්සරහින්ම හොයලා තියනවා",
+    ta: "உங்கள் ரசனையை கற்று — முன்கூட்டியே தேடுகிறது",
+  },
+  landTasteSub: {
+    en: "Every search, tap and basket-add builds a private taste profile (vector embeddings, on our side — never sold). Kapu turns it into a 'Picked for you' rail, 'more like this' on any product, and live Trending / budget / deals rails from the real catalog.",
+    si: "හැම search එකක්ම, tap එකක්ම, basket add එකක්ම ඔයාගේ taste profile එක හදනවා (vector embeddings — අපේ පැත්තේ, කාටවත් විකුණන්නේ නෑ). ඒකෙන් 'ඔයාටම තෝරපු' rail එකක්, ඕනම product එකකට 'මේ වගේ තව', සහ live Trending / budget rails.",
+    ta: "ஒவ்வொரு தேடலும் உங்கள் ரசனை சுயவிவரத்தை உருவாக்குகிறது (vector embeddings — எங்களிடமே). அதிலிருந்து 'உங்களுக்காக' rail, 'இது போல் மேலும்', நேரடி Trending / budget rails.",
+  },
+  landTasteB1: {
+    en: "'Picked for you' — recommendations from YOUR wishes, not a generic list",
+    si: "'ඔයාටම තෝරපු' — ඔයාගේ wishes වලින්ම, generic list එකක් නෙමෙයි",
+    ta: "'உங்களுக்காக' — உங்கள் விருப்பங்களிலிருந்தே",
+  },
+  landTasteB2: {
+    en: "Say 'surprise me' in chat — the taste engine answers",
+    si: "'මාව surprise කරන්න' කියන්න — taste engine එක උත්තර දෙනවා",
+    ta: "'என்னை ஆச்சரியப்படுத்து' சொல்லுங்கள் — taste engine பதில்",
+  },
+  landTasteB3: {
+    en: "🔥 Trending · 💸 Under Rs 2,500 · 🏷️ Deals — live from the catalog, every day",
+    si: "🔥 Trending · 💸 රු. 2,500ට යටින් · 🏷️ Deals — දවස ගානේ live catalog එකෙන්",
+    ta: "🔥 Trending · 💸 ரூ. 2,500க்குள் · 🏷️ Deals — தினமும் நேரடி",
   },
   landTechTitle: { en: "Under the hood", si: "ඇතුළේ තියෙන්නේ", ta: "உள்ளே என்ன" },
   landTechSub: {
