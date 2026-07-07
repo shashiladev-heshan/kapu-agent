@@ -36,7 +36,7 @@
       <!-- core -->
       <rect x="210" y="155" width="500" height="96" rx="18" fill="#241740" stroke="#ffb800" stroke-width="2"/>
       <text x="460" y="188" fill="#fff" font-size="16" font-weight="700" text-anchor="middle">🌳 KAPU AGENT CORE</text>
-      <text x="460" y="210" fill="#c9c2dd" font-size="12" text-anchor="middle">Claude · 24 tools · trilingual persona · consent memory</text>
+      <text x="460" y="210" fill="#c9c2dd" font-size="12" text-anchor="middle">Claude · 25 tools · trilingual persona · consent memory</text>
       <text x="460" y="230" fill="#a79fc0" font-size="11" text-anchor="middle">Messages API loop (prompt-cached) / Agent SDK — one core, every channel</text>
 
       <!-- scheduler -->

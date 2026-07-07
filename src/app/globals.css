@@ -151,6 +151,15 @@ body {
 }
 .skeleton { animation: kapu-shimmer 1.4s ease-in-out infinite; background: var(--color-cream-deep); }
 
+/* Every interactive control gets the hand cursor (Tailwind's preflight
+   resets buttons to cursor:default) */
+button:not(:disabled),
+[role="button"],
+summary,
+label[for] {
+  cursor: pointer;
+}
+
 /* Bottom-sheet slide-up */
 @keyframes kapu-sheet {
   from { transform: translateY(24px); opacity: 0; }

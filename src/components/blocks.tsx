@@ -150,7 +150,9 @@ function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockActions 
   const save = savePercent(p);
   const fav = actions.isFav(p.id);
   return (
-    <div className={`rise relative flex w-44 shrink-0 flex-col overflow-hidden rounded-2xl ${CARD} sm:w-52`}>
+    <div
+      className={`group rise relative flex w-44 shrink-0 flex-col overflow-hidden rounded-2xl ${CARD} transition-all duration-300 hover:-translate-y-1.5 hover:border-leaf/40 hover:shadow-[0_18px_44px_rgba(64,41,112,0.22)] sm:w-52`}
+    >
       {p.pick && <PickBadge />}
       {!p.pick && p.value && <ValueBadge />}
       <button
@@ -165,12 +167,17 @@ function ProductCard({ p, actions }: { p: ProductSummary; actions: BlockActions 
       >
         <IconHeart size={15} filled={fav} />
       </button>
-      <button onClick={() => actions.onOpenProduct(p)} className="text-left" aria-label={`View ${p.name}`}>
-        <ProductImage src={p.image} alt={p.name} category={p.category} className="h-36 w-full sm:h-40" />
+      <button onClick={() => actions.onOpenProduct(p)} className="overflow-hidden text-left" aria-label={`View ${p.name}`}>
+        <ProductImage
+          src={p.image}
+          alt={p.name}
+          category={p.category}
+          className="h-36 w-full transition-transform duration-500 ease-out group-hover:scale-[1.07] sm:h-40"
+        />
       </button>
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         <button onClick={() => actions.onOpenProduct(p)} className="text-left">
-          <p className="line-clamp-2 text-[13px] font-semibold leading-snug">{p.name}</p>
+          <p className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors duration-300 group-hover:text-leaf">{p.name}</p>
         </button>
         <div className="mt-auto flex flex-wrap items-baseline gap-x-1.5">
           <span className="price-serif text-[17px] text-ink">{fmt(p.price, p.currency)}</span>

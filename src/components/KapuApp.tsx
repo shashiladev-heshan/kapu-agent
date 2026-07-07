@@ -2029,7 +2029,7 @@ export default function KapuApp() {
               </span>
               <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-[380px] w-[380px] rounded-full border-[1.5px] border-leaf/[0.07]" />
 
-              <div className="relative w-full max-w-[720px] text-center">
+              <div className="relative w-full max-w-[880px] text-center">
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full bg-leaf-soft px-3.5 py-1.5 text-[10.5px] font-semibold tracking-[0.04em] text-leaf">
                     <span className="h-1.5 w-1.5 rounded-full bg-good" />
@@ -2088,24 +2088,38 @@ export default function KapuApp() {
 
                 <div className="mt-7 hidden sm:block">{composer({ hero: true })}</div>
 
+                <div className="mt-5 hidden flex-wrap items-center justify-center gap-2 sm:flex">
+                  {["🛠 25 agent tools", "🇱🇰 islandwide delivery", "🎙 voice in සිංහල", "💜 taste engine", "📦 live tracking", "🔒 human-paid checkout"].map((x) => (
+                    <span key={x} className="rounded-full border border-line bg-card/70 px-3 py-1.5 text-[10.5px] font-semibold text-ink-soft">
+                      {x}
+                    </span>
+                  ))}
+                </div>
+
                 <div data-tour="wishes" className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                   {DEMO_CHIPS.map((c) => (
                     <button
                       key={c.label}
                       onClick={() => void send(c.msg)}
-                      className={`rise rounded-2xl border border-line bg-card p-3.5 text-left shadow-[0_2px_8px_rgba(64,41,112,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(64,41,112,0.09)] active:scale-95 sm:p-4 ${
+                      className={`group rise relative overflow-hidden rounded-2xl border border-line bg-card p-3.5 text-left shadow-[0_2px_8px_rgba(64,41,112,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-leaf/40 hover:shadow-[0_14px_36px_rgba(64,41,112,0.16)] active:scale-95 sm:p-4 ${
                         c.mobile ? "" : "hidden sm:block"
                       }`}
                     >
-                      <c.Icon size={20} className="text-leaf" />
-                      <p className="mt-2 text-[12.5px] font-semibold leading-snug">{t(c.label)}</p>
+                      <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-leaf-soft opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-70" />
+                      <span className="absolute right-3 top-3.5 translate-x-2 text-leaf opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
+                        <IconArrowRight size={14} />
+                      </span>
+                      <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-leaf-soft text-leaf transition-transform duration-300 group-hover:scale-110">
+                        <c.Icon size={18} />
+                      </span>
+                      <p className="mt-2.5 text-[12.5px] font-semibold leading-snug transition-colors group-hover:text-leaf">{t(c.label)}</p>
                       <p className="mt-0.5 hidden text-[10.5px] text-ink-faint sm:block">{t(c.sub)}</p>
                     </button>
                   ))}
                 </div>
 
                 {seasonal && seasonal.products.length > 0 && seasonal.festival && (
-                  <div className="mx-auto mt-8 w-full max-w-[860px] text-left">
+                  <div className="mx-auto mt-8 w-full max-w-[1020px] text-left">
                     <ProductGrid
                       title={`${seasonal.festival.glyphs.slice(0, 2)} ${t("seasonalPicks", { name: seasonal.festival.label })}`}
                       products={seasonal.products}
@@ -2116,14 +2130,14 @@ export default function KapuApp() {
 
                 {/* taste-engine picks — appears once this device has real signal */}
                 {recs.length >= 4 && (
-                  <div className="mx-auto mt-8 w-full max-w-[860px] text-left">
+                  <div className="mx-auto mt-8 w-full max-w-[1020px] text-left">
                     <ProductGrid title={`💜 ${t("forYouT")}`} products={recs} actions={actions} />
                   </div>
                 )}
 
                 {/* discover tabs — live bestseller/newest/deals, like kapruka.com's rails */}
                 {discover && (
-                  <div className="mx-auto mt-8 w-full max-w-[860px] text-left">
+                  <div className="mx-auto mt-8 w-full max-w-[1020px] text-left">
                     <div className="mb-2.5 flex flex-wrap gap-1.5">
                       {(
                         [
@@ -3059,7 +3073,7 @@ export default function KapuApp() {
               ))}
             </div>
             <p className="mt-5 text-[11px] font-semibold tracking-wide text-ink-faint">
-              24 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
+              25 agent tools · Web + PWA + Telegram · <span className="text-leaf">voice in සිංහල</span> · islandwide 🇱🇰
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
               {tgBot && (
@@ -4199,7 +4213,7 @@ function LandingShowcase({
       {/* ── act 4: stats + CTA ── */}
       <section className="py-10 text-center">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
-          {["24 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
+          {["25 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
             </span>
