@@ -77,6 +77,32 @@ interface WishMeta {
   at: number;
 }
 
+/** a tracking number the user has looked up (assistant or Track sheet) */
+interface TrackedOrder {
+  no: string;
+  status: string;
+  display?: string;
+  steps: number;
+  at: number;
+}
+
+interface TrackAlert {
+  key: string;
+  no: string;
+  text: string;
+  at: number;
+}
+
+const TRACK_FINAL = new Set(["delivered", "cancelled"]);
+
+/** minimal tracking payload both the SSE block and /api/track JSON satisfy */
+interface TrackSnapshot {
+  order_number: string;
+  status: string;
+  status_display?: string;
+  progress: { step: string; timestamp?: string | null }[];
+}
+
 const LANGS: { code: Language; label: string; name: string; sub: string }[] = [
   { code: "si", label: "සිං", name: "Sinhala · සිංහල", sub: "Replies in Sinhala script" },
   { code: "ta", label: "த", name: "Tamil · தமிழ்", sub: "Replies in Tamil script" },
@@ -204,6 +230,10 @@ export default function KapuApp() {
   const [productOpen, setProductOpen] = useState<ProductSummary | null>(null);
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [trackOpen, setTrackOpen] = useState(false);
+  const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
+  /** order numbers ever tracked here (localStorage) — re-track chips + change watch */
+  const [tracked, setTracked] = useState<TrackedOrder[]>([]);
+  const [trackAlerts, setTrackAlerts] = useState<TrackAlert[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [occasions, setOccasions] = useState<(Occasion & { in_days: number })[]>([]);
   const [recentOrders, setRecentOrders] = useState<{ order_ref: string; pay_url: string; recipient: string | null; city: string | null; date: string | null; items: string[] }[]>([]);
@@ -293,6 +323,12 @@ export default function KapuApp() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.orders && setRecentOrders(d.orders))
       .catch(() => {});
+    try {
+      setTracked(JSON.parse(localStorage.getItem("kapu_tracked") ?? "[]") as TrackedOrder[]);
+      setTrackAlerts(JSON.parse(localStorage.getItem("kapu_track_alerts") ?? "[]") as TrackAlert[]);
+    } catch {
+      /* fresh */
+    }
     setDark(document.documentElement.classList.contains("dark"));
     // follow OS theme flips live — but only until the user explicitly picks one
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -404,6 +440,79 @@ export default function KapuApp() {
     },
     [recents, persistRecents]
   );
+
+  /** remember every order number the user tracks — chips + change watch */
+  const rememberTracked = useCallback((snap: TrackSnapshot) => {
+    if (!snap.order_number) return;
+    setTracked((prev) => {
+      const entry: TrackedOrder = {
+        no: snap.order_number,
+        status: snap.status.toLowerCase(),
+        display: snap.status_display,
+        steps: snap.progress.length,
+        at: Date.now(),
+      };
+      const next = [entry, ...prev.filter((x) => x.no !== entry.no)].slice(0, 8);
+      localStorage.setItem("kapu_tracked", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const pushTrackAlert = useCallback((no: string, text: string) => {
+    setTrackAlerts((prev) => {
+      const next = [{ key: `trk-${no}-${Date.now()}`, no, text, at: Date.now() }, ...prev].slice(0, 10);
+      localStorage.setItem("kapu_track_alerts", JSON.stringify(next));
+      return next;
+    });
+    // native notification when the user opted in (button in the Track sheet)
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try {
+        new Notification("Kapu — order update", { body: text, icon: "/icons/icon-192.png" });
+      } catch {
+        /* some browsers require a service-worker notification — panel still shows it */
+      }
+    }
+  }, []);
+
+  // Watch tracked in-flight orders while the app is open: poll /api/track
+  // (LLM-free) every 5 min, surface status/step changes in the notification
+  // panel + native notification. Telegram watch (watch_order schedule) covers
+  // the app-closed case.
+  useEffect(() => {
+    const tick = async () => {
+      if (document.visibilityState !== "visible" || !navigator.onLine) return;
+      let list: TrackedOrder[] = [];
+      try {
+        list = (JSON.parse(localStorage.getItem("kapu_tracked") ?? "[]") as TrackedOrder[]).filter(
+          (o) => !TRACK_FINAL.has(o.status)
+        );
+      } catch {
+        return;
+      }
+      for (const o of list.slice(0, 5)) {
+        try {
+          const res = await fetch(`/api/track?order=${encodeURIComponent(o.no)}`);
+          if (!res.ok) continue;
+          const d = (await res.json()) as TrackSnapshot;
+          const ns = String(d.status ?? "").toLowerCase();
+          const nSteps = Array.isArray(d.progress) ? d.progress.length : 0;
+          if (ns !== o.status || nSteps > o.steps) {
+            rememberTracked(d);
+            const latest = nSteps > 0 ? d.progress[nSteps - 1]?.step : null;
+            pushTrackAlert(o.no, `#${o.no} — ${d.status_display || ns}${latest ? ` · ${latest}` : ""}`);
+          }
+        } catch {
+          /* offline / shield busy — next tick */
+        }
+      }
+    };
+    const id = setInterval(() => void tick(), 5 * 60_000);
+    const t0 = setTimeout(() => void tick(), 8_000); // catch changes since last visit
+    return () => {
+      clearInterval(id);
+      clearTimeout(t0);
+    };
+  }, [rememberTracked, pushTrackAlert]);
 
   const toggleTheme = useCallback(() => {
     setDark((d) => {
@@ -517,6 +626,7 @@ export default function KapuApp() {
                 break;
               }
               if (event.block.type === "cart") setCart(event.block.cart);
+              if (event.block.type === "order_timeline") rememberTracked(event.block);
               patchAssistant((a) => a.parts.push({ kind: "block", block: event.block }));
               if (voiceOnRef.current) {
                 const b = event.block;
@@ -588,7 +698,7 @@ export default function KapuApp() {
       }
       if (voiceOnRef.current) startListeningRef.current();
     },
-    [busy, currency, deliverTo, favs, rules, setVoice, upsertRecent]
+    [busy, currency, deliverTo, favs, rules, setVoice, upsertRecent, rememberTracked]
   );
 
   useEffect(() => {
@@ -716,6 +826,19 @@ export default function KapuApp() {
 
   const notifItems = useMemo(() => {
     const items: { key: string; icon: "cake" | "gift" | "package"; text: string; actionLabel: string; run: () => void }[] = [];
+    // order-movement alerts first — the most timely thing we know
+    for (const a of trackAlerts.slice(0, 3)) {
+      items.push({
+        key: a.key,
+        icon: "package",
+        text: `📦 ${a.text}`,
+        actionLabel: t("trackBtn"),
+        run: () => {
+          setTrackPrefill(a.no);
+          setTrackOpen(true);
+        },
+      });
+    }
     for (const o of occasions.slice(0, 4)) {
       items.push({
         key: `occ-${o.id}`,
@@ -763,7 +886,7 @@ export default function KapuApp() {
       });
     }
     return items;
-  }, [occasions, festival, recentOrders, schedFeed, t]);
+  }, [occasions, festival, recentOrders, schedFeed, trackAlerts, t]);
 
   const notifUnread = Math.max(0, notifItems.length - notifSeen);
   const openNotifs = useCallback(() => {
@@ -2449,7 +2572,19 @@ export default function KapuApp() {
       )}
 
       {/* ══ Track order modal ══ */}
-      {trackOpen && <TrackModal onClose={() => setTrackOpen(false)} actions={actions} recentOrders={recentOrders} />}
+      {trackOpen && (
+        <TrackModal
+          onClose={() => {
+            setTrackOpen(false);
+            setTrackPrefill(null);
+          }}
+          actions={actions}
+          recentOrders={recentOrders}
+          tracked={tracked}
+          onTracked={rememberTracked}
+          initial={trackPrefill}
+        />
+      )}
 
       {/* ══ Schedules — standing wishes (auth-gated) ══ */}
       {schedOpen && (
@@ -2968,19 +3103,28 @@ function TrackModal({
   onClose,
   actions,
   recentOrders,
+  tracked,
+  onTracked,
+  initial,
 }: {
   onClose: () => void;
   actions: BlockActions;
   recentOrders: { order_ref: string; pay_url: string; recipient: string | null; city: string | null; date: string | null; items: string[] }[];
+  tracked: TrackedOrder[];
+  onTracked: (snap: TrackSnapshot) => void;
+  initial?: string | null;
 }) {
   const t = useT();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initial ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Extract<UiBlock, { type: "order_timeline" }> | null>(null);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(() =>
+    typeof Notification !== "undefined" ? Notification.permission : "denied"
+  );
 
-  const track = async () => {
-    const order = value.trim();
+  const track = async (orderArg?: string) => {
+    const order = (orderArg ?? value).trim();
     if (order.length < 4 || loading) return;
     setLoading(true);
     setError(null);
@@ -2989,13 +3133,22 @@ function TrackModal({
       const res = await fetch(`/api/track?order=${encodeURIComponent(order)}`);
       const data = await res.json();
       if (!res.ok) setError(data.error ?? "Not found");
-      else setResult({ type: "order_timeline", ...data });
+      else {
+        setResult({ type: "order_timeline", ...data });
+        onTracked(data as TrackSnapshot); // persist for chips + change watch
+      }
     } catch {
       setError("Tracking is unavailable right now — try again shortly.");
     } finally {
       setLoading(false);
     }
   };
+
+  // opened from a notification — track that order straight away
+  useEffect(() => {
+    if (initial) void track(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={onClose}>
@@ -3026,16 +3179,53 @@ function TrackModal({
           </button>
         </div>
         <p className="mt-2 text-[10.5px] leading-snug text-ink-faint">{t("trackHint")}</p>
+        {tracked.length > 0 && !result && !loading && (
+          <>
+            <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{t("trackedT")}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {tracked.map((o) => (
+                <button
+                  key={o.no}
+                  onClick={() => {
+                    setValue(o.no);
+                    void track(o.no);
+                  }}
+                  className="flex items-center gap-1.5 rounded-full border border-edge bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-soft transition active:scale-95"
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      o.status === "delivered" ? "bg-good" : o.status === "cancelled" ? "bg-clay" : "bg-gold"
+                    }`}
+                  />
+                  {o.no}
+                  {o.display && <span className="font-normal text-ink-faint">· {o.display}</span>}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         {error && <p className="mt-3 rounded-[12px] bg-clay-soft px-3 py-2 text-[12px] text-clay">{error}</p>}
         {result && <OrderTimeline block={result} actions={actions} />}
-        {result && result.status.toLowerCase() !== "delivered" && (
-          <button
-            onClick={() => actions.onAction(`Watch order ${result.order_number} and send me status updates on Telegram until it's delivered`)}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-[13px] bg-leaf py-2.5 text-[12.5px] font-semibold text-white transition active:scale-[0.99] dark:bg-[#402970]"
-          >
-            <IconBell size={14} />
-            {t("watchOrder")}
-          </button>
+        {result && !TRACK_FINAL.has(result.status.toLowerCase()) && (
+          <>
+            <button
+              onClick={() => actions.onAction(`Watch order ${result.order_number} and send me status updates on Telegram until it's delivered`)}
+              className="mt-1 flex w-full items-center justify-center gap-2 rounded-[13px] bg-leaf py-2.5 text-[12.5px] font-semibold text-white transition active:scale-[0.99] dark:bg-[#402970]"
+            >
+              <IconBell size={14} />
+              {t("watchOrder")}
+            </button>
+            {typeof Notification !== "undefined" && notifPerm !== "denied" && (
+              <button
+                disabled={notifPerm === "granted"}
+                onClick={() => void Notification.requestPermission().then(setNotifPerm)}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-[13px] border border-edge bg-card py-2.5 text-[12.5px] font-semibold text-ink-soft transition active:scale-[0.99] disabled:opacity-80"
+              >
+                <IconBell size={14} className="text-leaf" />
+                {notifPerm === "granted" ? t("notifDeviceOn") : t("notifDevice")}
+              </button>
+            )}
+          </>
         )}
         {recentOrders.length > 0 && (
           <>

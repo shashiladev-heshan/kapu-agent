@@ -937,14 +937,30 @@ function fmtStamp(ts?: string | null): string | null {
   });
 }
 
+/** Kapruka progress timestamps are pre-formatted SL wall-clock strings in
+ *  shouting mixed case ("MAY 22, 2026 9:28 AM"). Don't Date-parse them — no
+ *  timezone marker, so parsing shifts them in a foreign browser. Just tame
+ *  the case. */
+function cleanStamp(ts?: string | null): string | null {
+  const s = ts?.replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  return s.replace(/[A-Za-z]{2,}/g, (w) => (/^[ap]m$/i.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()));
+}
+
 export function OrderTimeline({ block, actions }: { block: Extract<UiBlock, { type: "order_timeline" }>; actions: BlockActions }) {
   const t = useT();
   const status = block.status?.toLowerCase();
-  const doneIdx = (STEP_ORDER as readonly string[]).indexOf(status);
+  // live status enum also includes out-for-delivery — map it onto the skeleton
+  const canonStatus = /out.?for.?delivery/.test(status) ? "shipped" : status;
+  const doneIdx = (STEP_ORDER as readonly string[]).indexOf(canonStatus);
   const cancelled = status === "cancelled";
   const stamps = new Map(block.progress.map((p) => [p.step.toLowerCase(), p.timestamp]));
   const delivered = status === "delivered";
   const hasProof = block.has_delivery_photo || block.has_delivery_video;
+  // The MCP's progress[] is the real journey — free-text warehouse/courier
+  // steps (8+ on a delivered order, verified live). Render EVERY one; the
+  // 4-step canonical skeleton is only the fallback for sparse responses.
+  const real = block.progress.filter((p) => p.step?.trim());
 
   return (
     <div className={`rise my-2 overflow-hidden rounded-2xl ${CARD}`}>
@@ -963,43 +979,85 @@ export function OrderTimeline({ block, actions }: { block: Extract<UiBlock, { ty
       </div>
 
       <div className="flex flex-col gap-4 p-4 sm:flex-row">
-        {/* vertical timeline */}
+        {/* vertical timeline — every real step from the MCP, or the canonical
+            skeleton when the response has no progress history yet */}
         <ol className="flex-1">
-          {STEP_ORDER.map((step, i) => {
-            const done = i <= doneIdx && !cancelled;
-            // the in-flight step glows gold; a delivered order ends on a green check
-            const current = i === doneIdx && !cancelled && !delivered;
-            const finale = delivered && i === doneIdx;
-            const stamp = fmtStamp(stamps.get(step));
-            return (
-              <li key={step} className="relative flex gap-3 pb-4 last:pb-0">
-                {i < STEP_ORDER.length - 1 && (
-                  <span
-                    className={`absolute left-[13px] top-7 h-[calc(100%-1.75rem)] w-0.5 rounded ${done && i < doneIdx ? "bg-leaf" : "bg-cream-deep"}`}
-                  />
-                )}
-                <span
-                  className={`z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                    finale
-                      ? "bg-good text-white shadow-[0_0_0_5px_rgba(46,158,91,0.18)]"
-                      : current
-                        ? "bg-gold text-ink shadow-[0_0_0_5px_rgba(255,184,0,0.2)] dark:text-[#322b45]"
-                        : done
-                          ? "bg-leaf text-white dark:bg-[#402970]"
-                          : "border-2 border-dashed border-cream-deep text-transparent"
-                  }`}
-                >
-                  {current ? <IconTruck size={13} /> : done ? <IconCheck size={11} /> : null}
-                </span>
-                <div className="min-w-0 pt-0.5">
-                  <p className={`text-[12.5px] font-semibold ${done ? "" : "text-ink-faint"}`}>{t(STEP_KEYS[step])}</p>
-                  <p className="text-[11px] text-ink-soft">
-                    {stamp ?? (done ? "" : step === "delivered" ? t("proofAppear") : "")}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
+          {real.length > 0
+            ? real.map((p, i) => {
+                const last = i === real.length - 1;
+                const finale = last && delivered;
+                const current = last && !delivered && !cancelled;
+                const pending = !delivered && !cancelled;
+                return (
+                  <li key={`${p.step}-${i}`} className="relative flex gap-3 pb-4 last:pb-0">
+                    {(!last || pending) && (
+                      <span
+                        className={`absolute left-[13px] top-7 h-[calc(100%-1.75rem)] w-0.5 rounded ${!last ? "bg-leaf" : "bg-cream-deep"}`}
+                      />
+                    )}
+                    <span
+                      className={`z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                        finale
+                          ? "bg-good text-white shadow-[0_0_0_5px_rgba(46,158,91,0.18)]"
+                          : current
+                            ? "bg-gold text-ink shadow-[0_0_0_5px_rgba(255,184,0,0.2)] dark:text-[#322b45]"
+                            : "bg-leaf text-white dark:bg-[#402970]"
+                      }`}
+                    >
+                      {current ? <IconTruck size={13} /> : <IconCheck size={11} />}
+                    </span>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-[12.5px] font-semibold">{p.step}</p>
+                      {cleanStamp(p.timestamp) && <p className="text-[11px] text-ink-soft">{cleanStamp(p.timestamp)}</p>}
+                    </div>
+                  </li>
+                );
+              })
+            : STEP_ORDER.map((step, i) => {
+                const done = i <= doneIdx && !cancelled;
+                // the in-flight step glows gold; a delivered order ends on a green check
+                const current = i === doneIdx && !cancelled && !delivered;
+                const finale = delivered && i === doneIdx;
+                const stamp = fmtStamp(stamps.get(step));
+                return (
+                  <li key={step} className="relative flex gap-3 pb-4 last:pb-0">
+                    {i < STEP_ORDER.length - 1 && (
+                      <span
+                        className={`absolute left-[13px] top-7 h-[calc(100%-1.75rem)] w-0.5 rounded ${done && i < doneIdx ? "bg-leaf" : "bg-cream-deep"}`}
+                      />
+                    )}
+                    <span
+                      className={`z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                        finale
+                          ? "bg-good text-white shadow-[0_0_0_5px_rgba(46,158,91,0.18)]"
+                          : current
+                            ? "bg-gold text-ink shadow-[0_0_0_5px_rgba(255,184,0,0.2)] dark:text-[#322b45]"
+                            : done
+                              ? "bg-leaf text-white dark:bg-[#402970]"
+                              : "border-2 border-dashed border-cream-deep text-transparent"
+                      }`}
+                    >
+                      {current ? <IconTruck size={13} /> : done ? <IconCheck size={11} /> : null}
+                    </span>
+                    <div className="min-w-0 pt-0.5">
+                      <p className={`text-[12.5px] font-semibold ${done ? "" : "text-ink-faint"}`}>{t(STEP_KEYS[step])}</p>
+                      <p className="text-[11px] text-ink-soft">
+                        {stamp ?? (done ? "" : step === "delivered" ? t("proofAppear") : "")}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+          {real.length > 0 && !delivered && !cancelled && (
+            // the journey isn't over — dangle the delivered step as the goal
+            <li className="relative flex gap-3">
+              <span className="z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-cream-deep text-transparent" />
+              <div className="min-w-0 pt-0.5">
+                <p className="text-[12.5px] font-semibold text-ink-faint">{t(STEP_KEYS.delivered)}</p>
+                <p className="text-[11px] text-ink-soft">{t("proofAppear")}</p>
+              </div>
+            </li>
+          )}
         </ol>
 
         {/* proof panel */}

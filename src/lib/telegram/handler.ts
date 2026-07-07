@@ -460,12 +460,26 @@ async function renderBlock(chatId: number, session: Awaited<ReturnType<typeof ge
       break;
     }
     case "order_timeline": {
-      const steps = ["received", "confirmed", "shipped", "delivered"];
-      const doneIdx = steps.indexOf(block.status?.toLowerCase());
-      const stamps = new Map(block.progress.map((p) => [p.step.toLowerCase(), p.timestamp]));
-      const lines = steps
-        .map((st, i) => `${i <= doneIdx ? "✅" : "◻️"} ${st}${stamps.get(st) ? ` — <i>${esc(String(stamps.get(st)))}</i>` : ""}`)
-        .join("\n");
+      const status = block.status?.toLowerCase() ?? "";
+      const delivered = status === "delivered";
+      const cancelled = status === "cancelled";
+      const real = block.progress.filter((p) => p.step?.trim());
+      let lines: string;
+      if (real.length > 0) {
+        // the MCP's progress[] is the full journey — show EVERY step
+        lines = real
+          .map((p, i) => {
+            const mark = i === real.length - 1 && !delivered && !cancelled ? "🚚" : "✅";
+            return `${mark} ${esc(p.step)}${p.timestamp ? ` — <i>${esc(p.timestamp)}</i>` : ""}`;
+          })
+          .join("\n");
+        if (!delivered && !cancelled) lines += "\n◻️ Delivered";
+      } else {
+        // sparse response — canonical skeleton (out-for-delivery ≈ shipped)
+        const steps = ["received", "confirmed", "shipped", "delivered"];
+        const doneIdx = steps.indexOf(/out.?for.?delivery/.test(status) ? "shipped" : status);
+        lines = steps.map((st, i) => `${i <= doneIdx && !cancelled ? "✅" : "◻️"} ${st}`).join("\n");
+      }
       const proof = block.has_delivery_photo || block.has_delivery_video ? "\n📸 Delivery proof available on your Kapruka order page!" : "";
       await sendMessage(chatId, `📦 <b>Order #${esc(block.order_number)}</b> — ${esc(block.status_display || block.status)}\n${lines}${proof}`);
       break;
