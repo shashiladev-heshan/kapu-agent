@@ -9,7 +9,7 @@ import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normaliz
 import { listOrders, recordOrder } from "@/lib/db/mongo";
 import { forgetRecipient, listPeople, rememberOccasion, rememberRecipient, upcomingOccasions } from "@/lib/agent/memory";
 import { cancelSchedule, createSchedule, listSchedules } from "@/lib/schedules/store";
-import { recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
+import { queryMatchScores, recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
 import type { CartItem, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
 
@@ -312,6 +312,17 @@ function modelView(p: ProductSummary | ProductDetail): Record<string, unknown> {
 
 const PERISHABLE_ID = /^(cake|flower|combo)/i;
 
+// Accessory nouns that hijack search rank (Kapruka lists car chargers above
+// actual phones for "phone"). A product whose NAME introduces one of these
+// terms that the USER never asked for can't win the KAPU'S PICK badge.
+const ACCESSORY_TERMS =
+  /\b(charger|charging|holder|mount|case|cover|stand|cable|adapter|protector|tempered glass|screen guard|speaker|strap|power ?bank|ear ?buds?|head ?phones?|air ?pods?|selfie|tripod|lens|sticker|skin)\b/gi;
+
+function isAccessoryNoise(name: string, queryLower: string): boolean {
+  const terms = name.toLowerCase().match(ACCESSORY_TERMS) ?? [];
+  return terms.some((t) => !queryLower.includes(t.replace(/\s+/g, " ").trim()));
+}
+
 function firstPerishableId(session: Session): string | undefined {
   const hit = session.cart.items.find(
     (i) => PERISHABLE_ID.test(i.product_id) || /cake|flower/i.test(i.category ?? "")
@@ -346,17 +357,33 @@ export async function executeTool(
       );
       const rawList = (res.products ?? res.results ?? res.items ?? []) as Record<string, unknown>[];
       const products = rawList.map((p) => toSummary(p, currency));
-      // Top relevance/bestseller hit gets the "KAPU'S PICK" badge.
+      // KAPU'S PICK = the result that semantically MATCHES the query, not
+      // blind rank 0 — Kapruka ranks accessories above the thing itself
+      // ("phone" → car chargers first). Cosine via the taste-engine
+      // embeddings, ≤900ms, falling back to rank order.
       const sort = String(input.sort ?? "relevance");
       if (products.length > 1 && (sort === "relevance" || sort === "bestseller")) {
-        products[0] = { ...products[0], pick: true };
-        // cheapest in the grid gets BEST VALUE (when it isn't also the pick)
+        // candidates = results that aren't accessory noise for this query;
+        // among them, the semantically closest to the query wins the badge
+        const qLower = query.toLowerCase();
+        const cand = products.map((_, i) => i).filter((i) => !isAccessoryNoise(products[i].name, qLower));
+        const eligible = cand.length > 0 ? cand : products.map((_, i) => i);
+        const scores = await queryMatchScores(query, products);
+        let pi = eligible[0];
+        if (scores) for (const i of eligible) if (scores[i] > scores[pi]) pi = i;
+        products[pi] = { ...products[pi], pick: true };
         if (products.length >= 3) {
-          let vi = 0;
-          for (let i = 1; i < products.length; i++) {
-            if ((products[i].price ?? Infinity) < (products[vi].price ?? Infinity)) vi = i;
+          // BEST VALUE = cheapest eligible item near the pick's relevance
+          // that undercuts the pick — not the cheapest accessory.
+          let vi = -1;
+          for (const i of eligible) {
+            if (i === pi || products[i].price == null) continue;
+            if (scores && scores[i] < scores[pi] - 0.12) continue;
+            if (vi === -1 || products[i].price! < products[vi].price!) vi = i;
           }
-          if (vi !== 0 && products[vi].price != null) products[vi] = { ...products[vi], value: true };
+          if (vi !== -1 && products[vi].price! < (products[pi].price ?? Infinity)) {
+            products[vi] = { ...products[vi], value: true };
+          }
         }
       }
       if (products.length > 0) {
@@ -381,18 +408,32 @@ export async function executeTool(
 
     case "compare_products": {
       const ids = (input.product_ids as string[]).slice(0, 4);
-      const details = await Promise.all(
+      // allSettled: get_product 500s on some families (EF_PC_ELEC* verified) —
+      // compare what loaded instead of dying entirely.
+      const settled = await Promise.allSettled(
         ids.map(async (id) => {
           const res = parseJson(await kapruka("kapruka_get_product", { product_id: id, currency }));
           return toDetail((res.product ?? res) as Record<string, unknown>, currency);
         })
       );
-      emit({
-        type: "compare_grid",
-        products: details,
-        verdict: typeof input.verdict === "string" ? input.verdict.slice(0, 220) : undefined,
+      const details = settled
+        .filter((s): s is PromiseFulfilledResult<ProductDetail> => s.status === "fulfilled" && Boolean(s.value.id))
+        .map((s) => s.value);
+      const failed = ids.length - details.length;
+      if (details.length >= 2) {
+        emit({
+          type: "compare_grid",
+          products: details,
+          verdict: typeof input.verdict === "string" ? input.verdict.slice(0, 220) : undefined,
+        });
+        return JSON.stringify({
+          compared: details.map(modelView),
+          ...(failed > 0 ? { note: `${failed} product(s) failed to load (Kapruka API 500s on some electronics) — cover those from search-result data in prose.` } : {}),
+        });
+      }
+      return JSON.stringify({
+        error: `Only ${details.length} of ${ids.length} products loaded (Kapruka API 500s on some electronics IDs) — compare from the search-result data you already have instead.`,
       });
-      return JSON.stringify(details.map(modelView));
     }
 
     case "list_categories": {

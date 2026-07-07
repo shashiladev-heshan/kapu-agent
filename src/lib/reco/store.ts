@@ -210,6 +210,36 @@ export function similarTo(productId: string, k = 6): ProductSummary[] {
   return neighbors(entry.vec, k, exclude, 0.3);
 }
 
+/** Semantic query→result scores — guards the KAPU'S PICK badge against
+ *  accessory noise (Kapruka ranks car chargers above actual phones for
+ *  "phone"). Returns cosine scores aligned with `products`, or null when
+ *  embeddings are off/slow — callers fall back to rank order. */
+export async function queryMatchScores(query: string, products: ProductSummary[], timeoutMs = 900): Promise<number[] | null> {
+  if (!enabled() || products.length < 2) return null;
+  const q = query.trim().toLowerCase().slice(0, 120);
+  if (q.length < 3) return null;
+  try {
+    const work = (async (): Promise<number[] | null> => {
+      await recoSeen(products);
+      let qv = queryVecs.get(q);
+      if (!qv) {
+        const got = await embed([q]);
+        if (!got) return null;
+        qv = got[0];
+        queryVecs.set(q, qv);
+        evictOldest(queryVecs, 500);
+      }
+      return products.map((p) => {
+        const entry = catalog.get(p.id);
+        return entry ? dot(qv, entry.vec) : -1;
+      });
+    })();
+    return await Promise.race([work, new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs))]);
+  } catch {
+    return null;
+  }
+}
+
 /** Diagnostics for /api/recs (& honest "not enough signal" tool replies). */
 export function recoStats(keys: (string | undefined)[]): { catalog: number; events: number } {
   let n = 0;
