@@ -397,22 +397,39 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
           )}
 
           {deliverTo && ship && (
-            <p className="flex items-center gap-1.5 text-[11.5px] font-medium">
-              <IconTruck size={13} className={ship.available === false ? "text-clay" : "text-leaf"} />
+            <div
+              className={`flex items-center gap-2.5 rounded-[13px] border px-3 py-2 ${
+                ship.loading
+                  ? "border-line bg-surface text-ink-faint"
+                  : ship.available
+                    ? "border-leaf/25 bg-leaf-soft text-leaf"
+                    : ship.next
+                      ? "border-gold/40 bg-gold-soft text-gold-deep"
+                      : "border-clay/30 bg-clay-soft text-clay"
+              }`}
+            >
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
+                  ship.loading ? "bg-cream text-ink-faint" : ship.available ? "bg-leaf text-white dark:bg-[#402970]" : ship.next ? "bg-gold text-ink dark:text-[#322b45]" : "bg-clay text-white"
+                }`}
+              >
+                <IconTruck size={15} />
+              </span>
               {ship.loading ? (
-                <span className="text-ink-faint">{t("shipCheck", { city: deliverTo })}</span>
+                <span className="text-[12px] font-medium">{t("shipCheck", { city: deliverTo })}</span>
               ) : ship.available ? (
-                <span className="text-leaf">
-                  {t("shipLine", { rate: fmt(ship.rate ?? null, ship.currency || "LKR"), city: deliverTo, date: ship.date ?? "" })}
+                <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+                  <span className="price-serif text-[17px] leading-none">{fmt(ship.rate ?? null, ship.currency || "LKR")}</span>
+                  <span className="text-[11.5px] font-semibold leading-snug">{t("shipTo", { city: deliverTo, date: ship.date ?? "" })}</span>
                 </span>
               ) : ship.next && ship.rate != null ? (
-                <span className="text-leaf">
+                <span className="text-[12px] font-semibold leading-snug">
                   {t("shipFrom", { rate: fmt(ship.rate, ship.currency || "LKR"), city: deliverTo, date: ship.next })}
                 </span>
               ) : (
-                <span className="text-clay">{t("shipNext", { city: deliverTo, date: ship.next ?? "—" })}</span>
+                <span className="text-[12px] font-semibold leading-snug">{t("shipNext", { city: deliverTo, date: ship.next ?? "—" })}</span>
               )}
-            </p>
+            </div>
           )}
           {!deliverTo && <InlineCityQuote onPick={actions.onDeliverTo} />}
 
