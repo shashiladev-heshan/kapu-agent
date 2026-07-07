@@ -231,6 +231,11 @@ export default function KapuApp() {
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [trackOpen, setTrackOpen] = useState(false);
   const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
+  /** hero discovery: live trending/budget/deals rails (site-parity with kapruka.com) */
+  const [discover, setDiscover] = useState<{ trending: ProductSummary[]; budget: ProductSummary[]; deals: ProductSummary[] } | null>(null);
+  const [discTab, setDiscTab] = useState<"trending" | "budget" | "deals">("trending");
+  /** taste-engine picks (vector recs over this device's wishes) */
+  const [recs, setRecs] = useState<ProductSummary[]>([]);
   /** order numbers ever tracked here (localStorage) — re-track chips + change watch */
   const [tracked, setTracked] = useState<TrackedOrder[]>([]);
   const [trackAlerts, setTrackAlerts] = useState<TrackAlert[]>([]);
@@ -319,6 +324,24 @@ export default function KapuApp() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setSeasonal(d))
       .catch(() => {});
+    void fetch("/api/discover")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || (!d.trending?.length && !d.budget?.length)) return;
+        setDiscover(d);
+        if (!d.trending?.length) setDiscTab(d.budget?.length ? "budget" : "deals");
+      })
+      .catch(() => {});
+    try {
+      const wishIds = (JSON.parse(localStorage.getItem("kapu_wishes") ?? "[]") as WishMeta[]).map((w) => w.id);
+      const ids = [sid, ...wishIds].slice(0, 12);
+      void fetch(`/api/recs?sessions=${encodeURIComponent(ids.join(","))}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => Array.isArray(d?.products) && d.products.length >= 4 && setRecs(d.products))
+        .catch(() => {});
+    } catch {
+      /* fresh device */
+    }
     void fetch(`/api/orders?sessionId=${encodeURIComponent(sid)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.orders && setRecentOrders(d.orders))
@@ -1968,6 +1991,40 @@ export default function KapuApp() {
                       products={seasonal.products}
                       actions={actions}
                     />
+                  </div>
+                )}
+
+                {/* taste-engine picks — appears once this device has real signal */}
+                {recs.length >= 4 && (
+                  <div className="mx-auto mt-8 w-full max-w-[860px] text-left">
+                    <ProductGrid title={`💜 ${t("forYouT")}`} products={recs} actions={actions} />
+                  </div>
+                )}
+
+                {/* discover tabs — live bestseller/newest/deals, like kapruka.com's rails */}
+                {discover && (
+                  <div className="mx-auto mt-8 w-full max-w-[860px] text-left">
+                    <div className="mb-2.5 flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          ["trending", `🔥 ${t("discTrend")}`],
+                          ["budget", `💸 ${t("discBudget")}`],
+                          ["deals", `🏷️ ${t("discDeals")}`],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <button
+                          key={k}
+                          onClick={() => setDiscTab(k)}
+                          disabled={discover[k].length === 0}
+                          className={`rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold transition active:scale-95 disabled:hidden ${
+                            discTab === k ? "bg-leaf text-white dark:bg-[#402970]" : "border border-line bg-card text-ink-soft"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {discover[discTab].length > 0 && <ProductGrid products={discover[discTab]} actions={actions} />}
                   </div>
                 )}
                 <div className="mt-7 flex flex-col items-center gap-2.5">

@@ -27,6 +27,7 @@ const TOOL_LABELS: Record<string, string> = {
   search_products: "Searching Kapruka…",
   get_product: "Checking the details…",
   compare_products: "Comparing options…",
+  get_recommendations: "Curating picks for you…",
   list_categories: "Browsing categories…",
   resolve_city: "Finding your city…",
   check_delivery: "Checking delivery…",

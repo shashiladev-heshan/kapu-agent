@@ -9,6 +9,7 @@ import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normaliz
 import { listOrders, recordOrder } from "@/lib/db/mongo";
 import { forgetRecipient, listPeople, rememberOccasion, rememberRecipient, upcomingOccasions } from "@/lib/agent/memory";
 import { cancelSchedule, createSchedule, listSchedules } from "@/lib/schedules/store";
+import { recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
 import type { CartItem, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
 
@@ -65,6 +66,18 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
     description:
       "List Kapruka's full category tree (65 top-level incl. festival/occasion pages, utility rails, bakery brands) AND render a visual tappable category explorer for the user. Call when they ask 'what can I buy here?' / want to browse. Note: use children as plain search KEYWORDS — category facets often return 0.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_recommendations",
+    description:
+      "Personalized 'picked for you' products from THIS user's taste profile (vector similarity over everything they searched/opened/carted). Pass product_id for 'more like this' instead. Renders a product grid automatically. Use when they ask for suggestions/'surprise me'/'what else', or to enrich a thin answer. If it returns too_little_signal, search normally instead.",
+    input_schema: {
+      type: "object",
+      properties: {
+        product_id: { type: "string", description: "Optional — recommend items similar to this product instead of the user's overall taste" },
+        title: { type: "string", description: "Grid heading in the user's language (default 'Picked for you')" },
+      },
+    },
   },
   {
     name: "resolve_city",
@@ -351,6 +364,9 @@ export async function executeTool(
       } else {
         emit({ type: "no_results", query });
       }
+      // taste engine: index what was shown; the query itself is intent
+      void recoSeen(products).catch(() => {});
+      void recoQueryEvent([session.userSub, session.id], query).catch(() => {});
       return JSON.stringify({ count: products.length, products: products.map(modelView) });
     }
 
@@ -359,6 +375,7 @@ export async function executeTool(
       const raw = (res.product ?? res) as Record<string, unknown>;
       const product = toDetail(raw, currency);
       if (product.id) emit({ type: "product_hero", product });
+      void recoProductEvent([session.userSub, session.id], product, 2).catch(() => {});
       return JSON.stringify(modelView(product));
     }
 
@@ -406,6 +423,24 @@ export async function executeTool(
         });
       }
       return JSON.stringify({ categories: cats });
+    }
+
+    case "get_recommendations": {
+      const pid = typeof input.product_id === "string" ? input.product_id : null;
+      const recs = pid ? similarTo(pid, 6) : recommendFor([session.userSub, session.id], 8);
+      if (recs.length < 3) {
+        const stats = recoStats([session.userSub, session.id]);
+        return JSON.stringify({
+          too_little_signal: true,
+          note: `Only ${stats.events} interactions this session — search normally and the taste profile will build up.`,
+        });
+      }
+      emit({
+        type: "product_grid",
+        title: typeof input.title === "string" ? input.title : "Picked for you 💜",
+        products: recs,
+      });
+      return JSON.stringify({ count: recs.length, based_on: pid ? `similar to ${pid}` : "taste profile", products: recs.map(modelView) });
     }
 
     case "resolve_city": {

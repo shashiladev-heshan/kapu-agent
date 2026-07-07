@@ -4,6 +4,7 @@
 
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
+import { recoProductEvent } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
 import type { CartItem } from "@/lib/types";
 
@@ -71,6 +72,12 @@ export async function applyCartUpdate(
       item.icing_text = input.icing_text.slice(0, 120).trim();
     }
     session.cart.items.push(item);
+    // taste engine: a cart add is the strongest signal we get
+    void recoProductEvent(
+      [session.userSub, session.id],
+      { id: item.product_id, name: item.name, price: item.price, currency: item.currency, image: item.image, category: item.category },
+      3
+    ).catch(() => {});
   }
   session.cart.currency = session.currency;
   return {};

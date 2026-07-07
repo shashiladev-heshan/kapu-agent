@@ -17,6 +17,7 @@ const TOOL_LABELS: Record<string, string> = {
   search_products: "Searching Kapruka…",
   get_product: "Checking the details…",
   compare_products: "Comparing options…",
+  get_recommendations: "Curating picks for you…",
   list_categories: "Browsing categories…",
   resolve_city: "Finding your city…",
   check_delivery: "Checking delivery…",
@@ -102,6 +103,15 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         "Side-by-side comparison of 2-4 products — renders a visual comparison grid. ALWAYS use when the user is choosing between options.",
         { product_ids: z.array(z.string()).min(2).max(4) },
         run("compare_products")
+      ),
+      tool(
+        "get_recommendations",
+        "Personalized 'picked for you' products from THIS user's taste profile (vector similarity over what they searched/opened/carted). Pass product_id for 'more like this'. Renders a product grid automatically. If it returns too_little_signal, search normally instead.",
+        {
+          product_id: z.string().optional().describe("Optional — recommend items similar to this product"),
+          title: z.string().optional().describe("Grid heading in the user's language"),
+        },
+        run("get_recommendations")
       ),
       tool(
         "list_categories",
@@ -265,6 +275,7 @@ const KAPU_TOOL_NAMES = [
   "search_products",
   "get_product",
   "compare_products",
+  "get_recommendations",
   "list_categories",
   "resolve_city",
   "check_delivery",
