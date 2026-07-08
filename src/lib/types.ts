@@ -154,8 +154,11 @@ export interface Occasion {
 /** POST /api/cart request — instant basket ops (no LLM round-trip). */
 export interface CartRequest {
   sessionId: string;
-  action: "add" | "set_qty" | "remove" | "set_icing";
-  product_id: string;
+  action: "add" | "set_qty" | "remove" | "set_icing" | "import";
+  /** required for item ops; ignored for "import" */
+  product_id?: string;
+  /** "import" only — source session whose basket follows the user */
+  from?: string;
   quantity?: number;
   icing_text?: string;
   /** product details already known client-side (avoids an MCP fetch) */

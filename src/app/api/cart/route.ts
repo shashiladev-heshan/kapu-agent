@@ -4,7 +4,7 @@
 // live cart summary.
 
 import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
-import { getSession, saveSession } from "@/lib/session/store";
+import { getSession, peekSession, saveSession } from "@/lib/session/store";
 import type { CartRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -25,6 +25,21 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const sessionId = (body.sessionId ?? "").slice(0, 64);
+  // "import": the basket is GLOBAL from the user's perspective — when the UI
+  // switches wish-sessions it carries the basket along by copying the source
+  // session's cart (server-authoritative; no client-supplied items).
+  if (body.action === "import") {
+    const from = String(body.from ?? "").slice(0, 64);
+    if (!sessionId || !from) return Response.json({ error: "sessionId and from required" }, { status: 400 });
+    const target = await getSession(sessionId);
+    const source = await peekSession(from);
+    if (source && source.id !== target.id) {
+      target.cart.items = source.cart.items.map((i) => ({ ...i }));
+      target.cart.currency = source.cart.currency;
+      saveSession(target);
+    }
+    return Response.json({ cart: target.cart, subtotal: cartSubtotal(target) });
+  }
   if (!sessionId || !body.product_id) {
     return Response.json({ error: "sessionId and product_id are required" }, { status: 400 });
   }

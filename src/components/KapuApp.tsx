@@ -251,6 +251,7 @@ export default function KapuApp() {
   /** standalone Hot-deals section — full promotions list, chunk-revealed on scroll */
   const [hotDeals, setHotDeals] = useState<ProductSummary[]>([]);
   const [dealsShown, setDealsShown] = useState(8);
+  const [dealsCat, setDealsCat] = useState<string>("all");
   const dealsSentinelRef = useRef<HTMLDivElement>(null);
   /** taste-engine picks (vector recs over this device's wishes) */
   const [recs, setRecs] = useState<ProductSummary[]>([]);
@@ -286,6 +287,7 @@ export default function KapuApp() {
   const recognizerRef = useRef<{ abort: () => void } | null>(null);
   const recorderRef = useRef<VoiceRecorder | null>(null);
   const startListeningRef = useRef<() => void>(() => {});
+  const refreshRecsRef = useRef<() => void>(() => {});
   const finishRecordingRef = useRef<() => Promise<void>>(async () => {});
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const busyPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -786,6 +788,8 @@ export default function KapuApp() {
         setBusy(false);
         setVoiceTool(null);
         if (!voiceOnRef.current) inputRef.current?.focus();
+        // taste signal just accrued — refresh the "Picked for you" rail
+        setTimeout(() => refreshRecsRef.current(), 1500);
       }
 
       // ── voice loop continuation: speak the reply, then listen again ──
@@ -1241,17 +1245,52 @@ export default function KapuApp() {
   }, []);
 
   // ── recent wishes / sessions ──────────────────────────────────────────
+  /** taste-engine rail refresh — mount-only fetching left the hero rail
+   *  permanently empty (signal accrues DURING the session) */
+  const refreshRecs = useCallback(() => {
+    try {
+      const wishIds = (JSON.parse(localStorage.getItem("kapu_wishes") ?? "[]") as WishMeta[]).map((w) => w.id);
+      const ids = [sessionIdRef.current, ...wishIds].slice(0, 12);
+      void fetch(`/api/recs?sessions=${encodeURIComponent(ids.join(","))}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => Array.isArray(d?.products) && d.products.length >= 3 && setRecs(d.products))
+        .catch(() => {});
+    } catch {
+      /* fresh device */
+    }
+  }, []);
+
+  /** the basket is GLOBAL — copy it (server-side) into the session we're entering */
+  const carryCart = useCallback((from: string) => {
+    void fetch("/api/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "import", from, sessionId: sessionIdRef.current }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.cart && setCart(d.cart))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshRecsRef.current = refreshRecs;
+  }, [refreshRecs]);
+
   const newWish = useCallback(() => {
     setNavOpen(false);
     stopVoice();
+    const prev = sessionIdRef.current;
     sessionIdRef.current = newSessionId();
     localStorage.setItem("kapu_session", sessionIdRef.current);
     preferredDateRef.current = null;
     setItems([]);
-    setCart({ items: [], currency });
     setCartOpen(false);
     setWishesOpen(false);
-  }, [currency, stopVoice]);
+    // basket follows the user into the fresh wish
+    if (cart.items.length > 0) carryCart(prev);
+    else setCart({ items: [], currency });
+    refreshRecs();
+  }, [currency, stopVoice, cart.items.length, carryCart, refreshRecs]);
 
   const openWish = useCallback(
     async (id: string) => {
@@ -1268,11 +1307,16 @@ export default function KapuApp() {
           persistRecents(recents.filter((w) => w.id !== id));
           return;
         }
+        const prev = sessionIdRef.current;
         sessionIdRef.current = id;
         localStorage.setItem("kapu_session", id);
         preferredDateRef.current = null;
         setItems(itemsFromUi(snap.ui));
-        setCart(snap.cart);
+        // global basket: a non-empty current basket follows into this wish;
+        // otherwise adopt whatever this wish had
+        if (cart.items.length > 0) carryCart(prev);
+        else setCart(snap.cart);
+        refreshRecs();
         setCartOpen(false);
         setWishesOpen(false);
         setNavOpen(false);
@@ -2254,20 +2298,51 @@ export default function KapuApp() {
                       </span>
                       <span className="ml-auto text-[10.5px] text-ink-faint">{hotDeals.length} {t("dealsCount")}</span>
                     </div>
-                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(175px,1fr))]">
-                      {hotDeals.slice(0, dealsShown).map((p) => (
-                        <ProductCard key={p.id} p={p} actions={actions} fluid />
-                      ))}
-                    </div>
-                    {dealsShown < hotDeals.length && (
-                      <div ref={dealsSentinelRef} className="flex justify-center py-4">
-                        <span className="flex gap-1">
-                          <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
-                          <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
-                          <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      const cats = [...new Set(hotDeals.map((p) => p.category ?? "More"))].sort();
+                      const filtered = dealsCat === "all" ? hotDeals : hotDeals.filter((p) => (p.category ?? "More") === dealsCat);
+                      return (
+                        <>
+                          {cats.length > 1 && (
+                            <div className="mb-3 flex flex-wrap gap-1.5">
+                              {["all", ...cats].map((c) => (
+                                <button
+                                  key={c}
+                                  onClick={() => {
+                                    setDealsCat(c);
+                                    setDealsShown(8);
+                                  }}
+                                  className={`rounded-full px-3 py-1.5 text-[10.5px] font-semibold transition active:scale-95 ${
+                                    dealsCat === c
+                                      ? "bg-gold text-ink shadow-[0_3px_10px_rgba(255,184,0,0.3)] dark:text-[#322b45]"
+                                      : "border border-gold/25 bg-card text-ink-soft"
+                                  }`}
+                                >
+                                  {c === "all" ? t("allDeals") : c}
+                                  {c !== "all" && (
+                                    <span className="ml-1 opacity-60">{hotDeals.filter((p) => (p.category ?? "More") === c).length}</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(175px,1fr))]">
+                            {filtered.slice(0, dealsShown).map((p) => (
+                              <ProductCard key={p.id} p={p} actions={actions} fluid />
+                            ))}
+                          </div>
+                          {dealsShown < filtered.length && (
+                            <div ref={dealsSentinelRef} className="flex justify-center py-4">
+                              <span className="flex gap-1">
+                                <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
+                                <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
+                                <span className="dot h-1.5 w-1.5 rounded-full bg-gold" />
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
                 <div className="mt-7 flex flex-col items-center gap-2.5">

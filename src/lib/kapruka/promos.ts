@@ -13,6 +13,26 @@ import type { ProductSummary } from "@/lib/types";
 const g = globalThis as unknown as { __kapuDeals?: { at: number; products: ProductSummary[] } };
 const TTL = 15 * 60_000;
 
+/** Friendly category from Kapruka's product-id prefix — the only signal
+ *  present on BOTH page variants (search categories are "General" stubs). */
+function categoryFromId(id: string): string {
+  const p = id.toLowerCase();
+  if (/^(kidstoy|softtoy|toy)/.test(p)) return "Toys";
+  if (/^(elec|ef_pc_elec|abans)/.test(p)) return "Electronics";
+  if (/^(ornament|household|homedecor|home)/.test(p)) return "Home & living";
+  if (/^(kitchen|cookware)/.test(p)) return "Kitchen";
+  if (/^grocery/.test(p)) return "Grocery";
+  if (/^cake/.test(p)) return "Cakes";
+  if (/^flower/.test(p)) return "Flowers";
+  if (/^(choc|ef_pc_choc)/.test(p)) return "Chocolates";
+  if (/^(perfume|cosmetic|beauty)/.test(p)) return "Beauty";
+  if (/^(watch|jewel)/.test(p)) return "Accessories";
+  if (/^(cloth|fashion|saree)/.test(p)) return "Fashion";
+  if (/^giftv/.test(p)) return "Vouchers";
+  if (/^pharmacy/.test(p)) return "Pharmacy";
+  return "More";
+}
+
 function parseTiles(html: string): ProductSummary[] {
   const out: ProductSummary[] = [];
   const seen = new Set<string>();
@@ -37,6 +57,7 @@ function parseTiles(html: string): ProductSummary[] {
       currency: "LKR",
       image: img ? img[1] : null,
       in_stock: true,
+      category: categoryFromId(link[2]),
       url: link[1],
     });
     if (out.length >= 40) break;
@@ -50,11 +71,17 @@ function parseTiles(html: string): ProductSummary[] {
  *  500 upstream and get dropped. */
 async function recoverPrices(tiles: ProductSummary[]): Promise<ProductSummary[]> {
   const settled = await Promise.allSettled(
-    tiles.slice(0, 12).map(async (t): Promise<ProductSummary> => {
+    tiles.slice(0, 36).map(async (t): Promise<ProductSummary> => {
       const res = parseJson(await kapruka("kapruka_get_product", { product_id: t.id }));
       const p = toSummary((res.product ?? res) as Record<string, unknown>, "LKR");
       if (!p.id || p.price == null) throw new Error("no price");
-      return { ...p, image: p.image ?? t.image ?? null, url: t.url ?? p.url, in_stock: p.in_stock !== false };
+      return {
+        ...p,
+        image: p.image ?? t.image ?? null,
+        url: t.url ?? p.url,
+        in_stock: p.in_stock !== false,
+        category: p.category ?? t.category ?? categoryFromId(p.id),
+      };
     })
   );
   return settled
