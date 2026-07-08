@@ -45,6 +45,7 @@ import {
   IconTelegram,
   IconTrolley,
   IconUser,
+  IconVolume,
   IconWifiOff,
   IconWish,
   KapuMark,
@@ -197,6 +198,17 @@ function itemsFromUi(ui: UiTurn[]): ChatItem[] {
           ],
         }
   );
+}
+
+/** ♥ favorite names → `&favn=` seed param for /api/recs (empty when none). */
+function favSeedParam(): string {
+  try {
+    const favs = JSON.parse(localStorage.getItem("kapu_favs") ?? "{}") as Record<string, { name?: string }>;
+    const names = Object.values(favs).map((f) => String(f.name ?? "").slice(0, 60)).filter(Boolean).slice(-6);
+    return names.length ? `&favn=${encodeURIComponent(names.join("|"))}` : "";
+  } catch {
+    return "";
+  }
 }
 
 export default function KapuApp() {
@@ -367,9 +379,9 @@ export default function KapuApp() {
     try {
       const wishIds = (JSON.parse(localStorage.getItem("kapu_wishes") ?? "[]") as WishMeta[]).map((w) => w.id);
       const ids = [sid, ...wishIds].slice(0, 12);
-      void fetch(`/api/recs?sessions=${encodeURIComponent(ids.join(","))}`)
+      void fetch(`/api/recs?sessions=${encodeURIComponent(ids.join(","))}${favSeedParam()}`)
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => Array.isArray(d?.products) && d.products.length >= 4 && setRecs(d.products))
+        .then((d) => Array.isArray(d?.products) && d.products.length >= 3 && setRecs(d.products))
         .catch(() => {});
     } catch {
       /* fresh device */
@@ -1253,6 +1265,67 @@ export default function KapuApp() {
     playerRef.current?.stop();
   }, []);
 
+  // ── per-message "Listen" (OpenAI TTS via /api/tts) ────────────────────
+  const [msgSpeak, setMsgSpeak] = useState<{ idx: number; st: "loading" | "playing" } | null>(null);
+  const msgAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopMsgSpeech = useCallback(() => {
+    msgAudioRef.current?.pause();
+    msgAudioRef.current = null;
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* no synth */
+    }
+    setMsgSpeak(null);
+  }, []);
+
+  const speakMessage = useCallback(
+    async (idx: number, raw: string) => {
+      if (msgSpeak?.idx === idx) {
+        stopMsgSpeech();
+        return;
+      }
+      stopMsgSpeech();
+      const text = raw
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+        .replace(/[*_#>`~|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 1200);
+      if (!text) return;
+      const lang = /[\u0D80-\u0DFF]/.test(text) ? "si" : /[\u0B80-\u0BFF]/.test(text) ? "ta" : "en";
+      setMsgSpeak({ idx, st: "loading" });
+      try {
+        const r = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, language: lang }),
+        });
+        if (r.ok && r.status !== 204) {
+          const audio = new Audio(URL.createObjectURL(await r.blob()));
+          msgAudioRef.current = audio;
+          audio.onended = () => setMsgSpeak(null);
+          audio.onerror = () => setMsgSpeak(null);
+          await audio.play();
+          setMsgSpeak({ idx, st: "playing" });
+        } else if ("speechSynthesis" in window) {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = lang === "si" ? "si-LK" : lang === "ta" ? "ta-IN" : "en-US";
+          u.onend = () => setMsgSpeak(null);
+          window.speechSynthesis.speak(u);
+          setMsgSpeak({ idx, st: "playing" });
+        } else {
+          setMsgSpeak(null);
+        }
+      } catch {
+        setMsgSpeak(null);
+      }
+    },
+    [msgSpeak, stopMsgSpeech]
+  );
+
   // ── recent wishes / sessions ──────────────────────────────────────────
   /** taste-engine rail refresh — mount-only fetching left the hero rail
    *  permanently empty (signal accrues DURING the session) */
@@ -1260,7 +1333,7 @@ export default function KapuApp() {
     try {
       const wishIds = (JSON.parse(localStorage.getItem("kapu_wishes") ?? "[]") as WishMeta[]).map((w) => w.id);
       const ids = [sessionIdRef.current, ...wishIds].slice(0, 12);
-      void fetch(`/api/recs?sessions=${encodeURIComponent(ids.join(","))}`)
+      void fetch(`/api/recs?sessions=${encodeURIComponent(ids.join(","))}${favSeedParam()}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => Array.isArray(d?.products) && d.products.length >= 3 && setRecs(d.products))
         .catch(() => {});
@@ -2149,7 +2222,7 @@ export default function KapuApp() {
         {/* ══ Messages / hero ══ */}
         <main ref={scrollRef} className="relative flex-1 overflow-y-auto">
           {empty ? (
-            <div className="relative flex min-h-full flex-col items-center justify-center overflow-hidden px-5 py-8">
+            <div className="relative flex min-h-full flex-col items-center overflow-hidden px-5 py-8 sm:justify-center sm:[&>*]:shrink-0">
               {/* watermark + decorative ring */}
               <span
                 aria-hidden
@@ -2204,8 +2277,8 @@ export default function KapuApp() {
                 {/* pt + looser leading: Sinhala ascenders overflow the em box
                     and the scroll container clips them at leading-[1.08] */}
                 <h1 className="font-display mt-4 pt-2 text-[34px] leading-[1.18] text-ink sm:text-[56px]">
-                  <span className="font-semibold text-leaf" style={{ fontFamily: "var(--font-sinhala-var), 'Noto Sans Sinhala'" }}>
-                    ආයුබෝවන්
+                  <span className="font-semibold text-leaf" style={{ fontFamily: "var(--font-sinhala-var), 'Noto Sans Sinhala', 'Noto Sans Tamil'" }}>
+                    {t("heroHello")}
                   </span>
                   , I&apos;m <span className="italic text-leaf">Kapu.</span>
                 </h1>
@@ -2471,6 +2544,23 @@ export default function KapuApp() {
                         ) : (
                           <ErrorCard key={pi} part={part} onRetry={retryLast} busy={busy} />
                         )
+                      )}
+                      {!item.streaming && item.parts.some((p) => p.kind === "text" && p.text.trim().length > 0) && (
+                        <button
+                          onClick={() =>
+                            void speakMessage(idx, item.parts.flatMap((p) => (p.kind === "text" ? [p.text] : [])).join(" \n "))
+                          }
+                          title={t("listen")}
+                          aria-label={t("listen")}
+                          className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-semibold transition active:scale-95 ${
+                            msgSpeak?.idx === idx
+                              ? "border-leaf/40 bg-leaf-soft text-leaf"
+                              : "border-line bg-card text-ink-faint hover:text-leaf"
+                          }`}
+                        >
+                          <IconVolume size={12} />
+                          {msgSpeak?.idx === idx ? (msgSpeak.st === "loading" ? "…" : t("stopListen")) : t("listen")}
+                        </button>
                       )}
                       {item.streaming && (
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">

@@ -408,8 +408,12 @@ export async function executeTool(
       } else {
         emit({ type: "no_results", query });
       }
-      // taste engine: index what was shown; the query itself is intent
+      // taste engine: index what was shown; the query itself is intent;
+      // the top hits also count as light (0.5) per-user signal
       void recoSeen(products).catch(() => {});
+      void (async () => {
+        for (const p of products.slice(0, 6)) await recoProductEvent([session.userSub, session.id], p, 0.5);
+      })().catch(() => {});
       void recoQueryEvent([session.userSub, session.id], query).catch(() => {});
       return JSON.stringify({ count: products.length, products: products.map(modelView) });
     }

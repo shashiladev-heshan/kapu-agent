@@ -170,9 +170,11 @@ export async function recoQueryEvent(keys: (string | undefined)[], query: string
   }
 }
 
-function tasteVector(keys: string[]): { vec: Float32Array; carted: Set<string>; signal: number } | null {
+function tasteVector(keys: string[], seeds?: Float32Array[]): { vec: Float32Array; carted: Set<string>; signal: number } | null {
   const all: RecoEvent[] = [];
   for (const key of keys) all.push(...(events.get(key) ?? []));
+  // seed vectors (♥ favorites) count as steady weight-2 interest
+  for (const vec of seeds ?? []) all.push({ pid: null, vec, weight: 2, at: Date.now() });
   if (all.length < 2) return null;
   const acc = new Float32Array(DIMS);
   const carted = new Set<string>();
@@ -201,9 +203,9 @@ function neighbors(vec: Float32Array, k: number, exclude: Set<string>, floor: nu
 }
 
 /** "Picked for you" — taste-vector nearest neighbors across the catalog. */
-export function recommendFor(keys: (string | undefined)[], k = 8): ProductSummary[] {
+export function recommendFor(keys: (string | undefined)[], k = 8, seeds?: Float32Array[]): ProductSummary[] {
   if (!enabled()) return [];
-  const taste = tasteVector(keys.filter(Boolean) as string[]);
+  const taste = tasteVector(keys.filter(Boolean) as string[], seeds);
   if (!taste) return [];
   return neighbors(taste.vec, k, taste.carted, 0.2);
 }
@@ -283,6 +285,19 @@ export async function hydrateReco(keysIn: (string | undefined)[]): Promise<void>
     const vec = d.pid ? catalog.get(d.pid)?.vec : queryVecs.get(d.name.toLowerCase());
     if (vec) pushEvent(d.key, { pid: d.pid ?? null, vec, weight: d.weight, at: new Date(d.at).getTime() });
   }
+}
+
+/** Embed short texts (♥ favorite names) as taste seeds — query-cache backed. */
+export async function textVectors(texts: string[]): Promise<Float32Array[]> {
+  if (!enabled()) return [];
+  const want = texts.map((t) => t.trim().toLowerCase().slice(0, 80)).filter((t) => t.length >= 3).slice(0, 6);
+  const missing = want.filter((q) => !queryVecs.has(q));
+  if (missing.length) {
+    const got = await embed(missing);
+    if (got) missing.forEach((q, i) => queryVecs.set(q, got[i]));
+    evictOldest(queryVecs, 500);
+  }
+  return want.map((q) => queryVecs.get(q)).filter((v): v is Float32Array => Boolean(v));
 }
 
 /** Diagnostics for /api/recs (& honest "not enough signal" tool replies). */
