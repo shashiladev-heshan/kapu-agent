@@ -2151,6 +2151,25 @@ export default function KapuApp() {
               </span>
               <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-[380px] w-[380px] rounded-full border-[1.5px] border-leaf/[0.07]" />
               <span aria-hidden className="pointer-events-none absolute left-1/2 top-6 h-[300px] w-[620px] -translate-x-1/2 rounded-full bg-leaf/[0.09] blur-[100px]" />
+              {/* quiet geometry filling the empty flanks — same faint-ring language */}
+              <span aria-hidden className="pointer-events-none absolute -left-16 top-24 h-[220px] w-[220px] rounded-full border border-leaf/[0.06]" />
+              <span aria-hidden className="pointer-events-none absolute -right-14 bottom-28 h-[300px] w-[300px] rounded-full border-[1.5px] border-leaf/[0.05]" />
+              <span aria-hidden className="pointer-events-none absolute -right-2 bottom-40 h-[220px] w-[220px] rounded-full border border-gold/[0.05]" />
+              <span
+                aria-hidden
+                className="floaty pointer-events-none absolute right-[7%] top-[44%] h-24 w-24 rounded-full border-[1.5px] border-gold/[0.09]"
+                style={{ "--tilt": "0deg", animationDuration: "13s" } as React.CSSProperties}
+              />
+              <span
+                aria-hidden
+                className="floaty pointer-events-none absolute left-[10%] top-[60%] h-14 w-14 rounded-full border border-dashed border-leaf/[0.12]"
+                style={{ "--tilt": "0deg", animationDuration: "10s", animationDelay: "2s" } as React.CSSProperties}
+              />
+              <span aria-hidden className="pointer-events-none absolute left-[7%] top-[30%] select-none text-[26px] font-light text-leaf/[0.10]">+</span>
+              <span aria-hidden className="pointer-events-none absolute right-[13%] top-[68%] select-none text-[19px] font-light text-gold/[0.10]">+</span>
+              <span aria-hidden className="pointer-events-none absolute left-[16%] top-[78%] h-1.5 w-1.5 rounded-full bg-leaf/[0.14]" />
+              <span aria-hidden className="pointer-events-none absolute right-[22%] top-[26%] h-2 w-2 rounded-full bg-leaf/[0.10]" />
+              <span aria-hidden className="pointer-events-none absolute left-[28%] top-[14%] h-1 w-1 rounded-full bg-gold/[0.16]" />
               <span aria-hidden className="floaty pointer-events-none absolute left-[8%] top-[40%] h-40 w-40 rounded-full bg-gold/[0.05] blur-[60px]" style={{ "--tilt": "0deg", animationDuration: "9s" } as React.CSSProperties} />
               <span aria-hidden className="floaty pointer-events-none absolute right-[10%] top-[18%] h-52 w-52 rounded-full bg-leaf/[0.08] blur-[70px]" style={{ "--tilt": "0deg", animationDuration: "11s", animationDelay: "1.4s" } as React.CSSProperties} />
 
