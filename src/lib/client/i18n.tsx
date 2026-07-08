@@ -531,6 +531,8 @@ const STR = {
     si: "ඒ මොළේම ඔයාගේ phone එකේ — voice notes, photos, family group එකත් එක්ක.",
     ta: "அதே மூளை உங்கள் பாக்கெட்டில் — குரல், புகைப்படம், குடும்ப குழு.",
   },
+  tourT7: { en: "Prices in your currency 💱", si: "ඔබේ මුදලින් මිල", ta: "உங்கள் நாணயத்தில் விலை" },
+  tourB7: { en: "Diaspora-friendly: pick USD, GBP, EUR & more — every price converts live (checkout stays LKR).", si: "USD, GBP වගේ currency එකක් තෝරන්න — හැම මිලක්ම convert වෙනවා. ගෙවීම LKR වලින්මයි.", ta: "USD, GBP போன்றவற்றைத் தேர்ந்தெடுங்கள் — எல்லா விலைகளும் மாறும். கட்டணம் LKR-ல் தான்." },
   tourT6: { en: "ඔබේ භාෂාව · உங்கள் மொழி", si: "ඔබේ භාෂාව", ta: "உங்கள் மொழி" },
   tourB6: {
     en: "Flip the whole experience to Sinhala or Tamil — UI, replies, voice, everything.",

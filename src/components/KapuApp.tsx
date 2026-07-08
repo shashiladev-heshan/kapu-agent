@@ -58,6 +58,7 @@ import {
   VoiceRecorder,
   webSpeechLikelyBroken,
 } from "@/lib/client/speech";
+import { setFx } from "@/lib/client/fx";
 import { gsiSignOutHint, renderGoogleButton } from "@/lib/client/gsi";
 import { HERO_PHRASES, LangProvider, makeT, useT, type StrKey } from "@/lib/client/i18n";
 import { fileToCompressedDataUrl, scanMessage, type ScanResult } from "@/lib/client/scan";
@@ -221,6 +222,7 @@ export default function KapuApp() {
   const [panelClosed, setPanelClosed] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
   const [currency, setCurrency] = useState<Currency>("LKR");
+  const [fxRates, setFxRates] = useState<Record<string, number> | null>(null);
   const [dark, setDark] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [recorderMode, setRecorderMode] = useState(false);
@@ -329,6 +331,10 @@ export default function KapuApp() {
     sessionIdRef.current = stored || newSessionId();
     localStorage.setItem("kapu_session", sessionIdRef.current);
     const lang = localStorage.getItem("kapu_lang") as Language | null;
+    void fetch("/api/fx")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.rates && setFxRates(d.rates as Record<string, number>))
+      .catch(() => {});
     const curr = localStorage.getItem("kapu_currency") as Currency | null;
     if (lang) setLanguage(lang);
     if (curr) setCurrency(curr);
@@ -1548,6 +1554,9 @@ export default function KapuApp() {
   const cartCount = cart.items.reduce((n, i) => n + i.quantity, 0);
   const cartSubtotal = cart.items.reduce((s, i) => s + (i.price ?? 0) * i.quantity, 0);
   const empty = items.length === 0;
+  // display-currency conversion: sync the module-level fx state every render
+  // (fxRates/currency are state, so consumers re-render on change)
+  setFx(fxRates, currency);
   const currentTitle = recents.find((w) => w.id === sessionIdRef.current)?.title;
   const todayLabel = useMemo(
     () => new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Asia/Colombo" }),
@@ -2197,6 +2206,7 @@ export default function KapuApp() {
               )}
             </button>
             <button
+              data-tour="fx"
               onClick={() => setLangOpen(true)}
               className="hidden h-10 items-center gap-1.5 rounded-full border border-cream-deep bg-card px-3.5 text-[11.5px] font-semibold text-leaf transition hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 sm:flex"
               title={t("pricesIn")}
@@ -4513,7 +4523,7 @@ function LandingShowcase({
           {[
             "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching",
             "Claude Agent SDK — dual-engine orchestrator", "Kapruka MCP", "kapruka.com live promos · ratings · Q&A",
-            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "MongoDB", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
+            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
           ].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
@@ -4581,6 +4591,7 @@ const TOUR_STEPS: { key: string; selectors: string[]; t: StrKey; b: StrKey }[] =
   { key: "wishes", selectors: ['[data-tour="wishes"]'], t: "tourT4", b: "tourB4" },
   { key: "tg", selectors: ['[data-tour="tg"]'], t: "tourT5", b: "tourB5" },
   { key: "lang", selectors: ['[data-tour="lang"]'], t: "tourT6", b: "tourB6" },
+  { key: "fx", selectors: ['[data-tour="fx"]'], t: "tourT7", b: "tourB7" },
 ];
 
 function TourOverlay({ step, onStep, onClose }: { step: number; onStep: (n: number) => void; onClose: () => void }) {

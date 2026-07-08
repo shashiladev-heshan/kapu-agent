@@ -1,7 +1,7 @@
 // Kapu service worker — network-first with a tiny offline fallback shell.
 // Deliberately conservative: judges test daily, stale caches are worse than
 // no caches.
-const CACHE = "kapu-v7";
+const CACHE = "kapu-v8";
 const SHELL = ["/", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

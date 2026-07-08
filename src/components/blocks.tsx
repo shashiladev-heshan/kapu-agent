@@ -6,6 +6,7 @@
 // Instrument Serif display, 1.6px stroke icons, purple/gold, soft cream cards.
 
 import { useEffect, useMemo, useState } from "react";
+import { fxConvert } from "@/lib/client/fx";
 import { useLang, useT } from "@/lib/client/i18n";
 import type { Cart, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
 import { detailMeta, resizeImage } from "@/lib/kapruka/normalize";
@@ -54,8 +55,9 @@ export interface BlockActions {
 
 export const fmt = (n: number | null | undefined, currency = "LKR") => {
   if (n == null) return "—";
-  if (currency === "LKR") return `Rs ${Math.round(n).toLocaleString("en-LK")}`;
-  return new Intl.NumberFormat("en-LK", { style: "currency", currency, maximumFractionDigits: 2 }).format(n);
+  const { n: v, c } = fxConvert(n, currency);
+  if (c === "LKR") return `Rs ${Math.round(v).toLocaleString("en-LK")}`;
+  return new Intl.NumberFormat("en-LK", { style: "currency", currency: c, maximumFractionDigits: 2 }).format(v);
 };
 
 const CARD = "border border-line bg-card shadow-[0_2px_10px_rgba(64,41,112,0.05)]";
