@@ -840,6 +840,7 @@ export default function KapuApp() {
         setCart(data.cart);
         setCartPulse(true);
         setTimeout(() => setCartPulse(false), 600);
+        setTimeout(() => refreshRecsRef.current(), 1200);
       }
     } catch {
       /* silent — basket ops are retryable by tapping again */
@@ -2912,7 +2913,13 @@ export default function KapuApp() {
 
       {/* ══ Product detail modal ══ */}
       {productOpen && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={() => setProductOpen(null)}>
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center sm:items-center"
+          onClick={() => {
+            setProductOpen(null);
+            refreshRecsRef.current();
+          }}
+        >
           <div className="absolute inset-0 bg-[#1d1233]/50 backdrop-blur-[2px]" />
           <div
             className="sheet-in relative max-h-[90dvh] w-full overflow-y-auto rounded-t-[24px] bg-cream p-3 sm:max-w-2xl sm:rounded-[24px]"
@@ -2921,7 +2928,10 @@ export default function KapuApp() {
             <div className="mb-1 flex items-center justify-between px-1">
               <p className="font-display text-[17px]">{productOpen.name.slice(0, 40)}</p>
               <button
-                onClick={() => setProductOpen(null)}
+                onClick={() => {
+                  setProductOpen(null);
+                  refreshRecsRef.current();
+                }}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft"
                 aria-label="Close"
               >
