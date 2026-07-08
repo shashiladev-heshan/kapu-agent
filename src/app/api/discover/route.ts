@@ -70,7 +70,12 @@ export async function GET(): Promise<Response> {
   const trending = dedupe([b1, b2], 8);
   const budget = dedupe([u1, u2], 8);
   const body = { trending, budget };
-  if (trending.length + budget.length > 0) cache = { at: Date.now(), body };
+  if (trending.length + budget.length > 0) {
+    cache = { at: Date.now(), body };
+  } else if (cache) {
+    // transient MCP failure — stale rails beat empty rails
+    return Response.json(cache.body);
+  }
   void recoSeen([...trending, ...budget]).catch(() => {});
   return Response.json(body);
 }

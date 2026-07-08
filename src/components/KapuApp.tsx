@@ -340,10 +340,18 @@ export default function KapuApp() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.upcoming && setOccasions(d.upcoming))
       .catch(() => {});
-    void fetch("/api/seasonal")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setSeasonal(d))
-      .catch(() => {});
+    const fetchSeasonal = () =>
+      fetch("/api/seasonal")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d) setSeasonal(d);
+          return d;
+        })
+        .catch(() => null);
+    void fetchSeasonal().then((d) => {
+      // shield hiccup on first try — one quiet retry brings the rail back
+      if (!d || !d.products?.length) setTimeout(() => void fetchSeasonal(), 20_000);
+    });
     void fetch("/api/deals")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => Array.isArray(d?.products) && setHotDeals(d.products))
