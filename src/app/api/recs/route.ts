@@ -4,7 +4,7 @@
 // further via userSub captured at event time. Empty without OPENAI_API_KEY
 // or when the user hasn't interacted enough yet.
 
-import { recommendFor, recoStats } from "@/lib/reco/store";
+import { hydrateReco, recommendFor, recoStats } from "@/lib/reco/store";
 import { peekSession } from "@/lib/session/store";
 
 export const runtime = "nodejs";
@@ -21,6 +21,7 @@ export async function GET(req: Request): Promise<Response> {
     const sub = (await peekSession(id))?.userSub;
     if (sub) keys.add(sub);
   }
+  await hydrateReco([...keys]); // rebuild from Mongo after redeploys
   const products = recommendFor([...keys], 8);
   return Response.json({ products, stats: recoStats([...keys]) });
 }

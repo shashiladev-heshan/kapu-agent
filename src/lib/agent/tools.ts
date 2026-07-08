@@ -10,7 +10,7 @@ import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normaliz
 import { listOrders, recordOrder } from "@/lib/db/mongo";
 import { forgetRecipient, listPeople, rememberOccasion, rememberRecipient, upcomingOccasions } from "@/lib/agent/memory";
 import { cancelSchedule, createSchedule, listSchedules } from "@/lib/schedules/store";
-import { catalogSummary, queryMatchScores, recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
+import { catalogSummary, hydrateReco, queryMatchScores, recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
 import type { CartItem, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
 
@@ -523,6 +523,7 @@ export async function executeTool(
     }
 
     case "get_recommendations": {
+      await hydrateReco([session.userSub, session.id]);
       const pid = typeof input.product_id === "string" ? input.product_id : null;
       const recs = pid ? similarTo(pid, 6) : recommendFor([session.userSub, session.id], 8);
       if (recs.length < 3) {

@@ -11,6 +11,7 @@
 // Dormant without OPENAI_API_KEY (mirrors the Mongo-optional pattern):
 // every entry point no-ops and /api/recs serves empty.
 
+import { loadRecoEvents, persistRecoEvent } from "@/lib/db/mongo";
 import type { ProductSummary } from "@/lib/types";
 
 const EMBED_URL = "https://api.openai.com/v1/embeddings";
@@ -43,6 +44,7 @@ interface RecoState {
   pendingEmbed: Map<string, ProductSummary>;
   queryVecs: Map<string, Float32Array>;
   events: Map<string, RecoEvent[]>;
+  hydrated: Set<string>;
 }
 const g = globalThis as unknown as { __kapuReco?: RecoState };
 const state: RecoState =
@@ -51,8 +53,9 @@ const state: RecoState =
     pendingEmbed: new Map(),
     queryVecs: new Map(),
     events: new Map(),
+    hydrated: new Set(),
   });
-const { catalog, pendingEmbed, queryVecs, events } = state;
+const { catalog, pendingEmbed, queryVecs, events, hydrated } = state;
 
 function enabled(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
@@ -141,7 +144,9 @@ export async function recoProductEvent(keys: (string | undefined)[], p: ProductS
   const entry = catalog.get(p.id);
   if (!entry) return;
   for (const key of keys) {
-    if (key) pushEvent(key, { pid: p.id, vec: entry.vec, weight, at: Date.now() });
+    if (!key) continue;
+    pushEvent(key, { pid: p.id, vec: entry.vec, weight, at: Date.now() });
+    void persistRecoEvent({ key, pid: p.id, name: p.name, category: p.category ?? null, price: p.price, image: p.image ?? null, url: p.url ?? null, weight }).catch(() => {});
   }
 }
 
@@ -159,7 +164,9 @@ export async function recoQueryEvent(keys: (string | undefined)[], query: string
     evictOldest(queryVecs, 500);
   }
   for (const key of keys) {
-    if (key) pushEvent(key, { pid: null, vec, weight: 1, at: Date.now() });
+    if (!key) continue;
+    pushEvent(key, { pid: null, vec, weight: 1, at: Date.now() });
+    void persistRecoEvent({ key, pid: null, name: q, weight: 1 }).catch(() => {});
   }
 }
 
@@ -244,6 +251,38 @@ export async function queryMatchScores(query: string, products: ProductSummary[]
  *  gracefully when get_product 500s (EF_PC_ELEC* family does, verified). */
 export function catalogSummary(productId: string): ProductSummary | null {
   return (catalog.get(productId) ?? catalog.get(productId.toLowerCase()))?.summary ?? null;
+}
+
+/** Rebuild a user's taste events from Mongo after a redeploy (the vector
+ *  index is in-memory). Names re-embed lazily in batches; each key loads
+ *  at most once per process. No-op without MONGODB_URI. */
+export async function hydrateReco(keysIn: (string | undefined)[]): Promise<void> {
+  if (!enabled()) return;
+  const keys = (keysIn.filter(Boolean) as string[]).filter((k) => !hydrated.has(k));
+  if (keys.length === 0) return;
+  keys.forEach((k) => hydrated.add(k));
+  const docs = await loadRecoEvents(keys).catch(() => []);
+  if (docs.length === 0) return;
+  // embed all products referenced by the log (recoSeen batches 64 per call)
+  const prods = new Map<string, ProductSummary>();
+  for (const d of docs) {
+    if (d.pid && d.name && !catalog.has(d.pid)) {
+      prods.set(d.pid, { id: d.pid, name: d.name, category: d.category ?? null, price: d.price ?? null, image: d.image ?? null, url: d.url ?? null, currency: "LKR" });
+    }
+  }
+  const list = [...prods.values()];
+  for (let i = 0; i < list.length; i += 64) await recoSeen(list.slice(i, i + 64));
+  // batch-embed the query events' texts
+  const queries = [...new Set(docs.filter((d) => !d.pid && d.name).map((d) => d.name.toLowerCase()))].filter((q) => !queryVecs.has(q));
+  if (queries.length) {
+    const vecs = await embed(queries.slice(0, 64));
+    if (vecs) queries.slice(0, 64).forEach((q, i) => queryVecs.set(q, vecs[i]));
+  }
+  // replay oldest-first with original weights/timestamps
+  for (const d of [...docs].reverse()) {
+    const vec = d.pid ? catalog.get(d.pid)?.vec : queryVecs.get(d.name.toLowerCase());
+    if (vec) pushEvent(d.key, { pid: d.pid ?? null, vec, weight: d.weight, at: new Date(d.at).getTime() });
+  }
 }
 
 /** Diagnostics for /api/recs (& honest "not enough signal" tool replies). */

@@ -373,3 +373,63 @@ export async function listOrders(sessionId: string, userSub?: string, limit = 5)
     .filter((o) => o.session_id === sessionId || (userSub && o.user_sub === userSub))
     .slice(0, limit);
 }
+
+// ── taste-engine event log (so recommendations survive redeploys) ───────
+interface RecoEventDoc {
+  key: string;
+  pid?: string | null;
+  name: string;
+  category?: string | null;
+  price?: number | null;
+  image?: string | null;
+  url?: string | null;
+  weight: number;
+  at: Date;
+}
+
+function recoModel(): Model<RecoEventDoc> {
+  return (
+    (mongoose.models.KapuRecoEvent as Model<RecoEventDoc>) ??
+    mongoose.model<RecoEventDoc>(
+      "KapuRecoEvent",
+      new Schema<RecoEventDoc>(
+        {
+          key: { type: String, index: true },
+          pid: String,
+          name: String,
+          category: String,
+          price: Number,
+          image: String,
+          url: String,
+          weight: Number,
+          at: { type: Date, index: true },
+        },
+        { versionKey: false }
+      )
+    )
+  );
+}
+
+export async function persistRecoEvent(doc: { key: string; pid: string | null; name: string; category?: string | null; price?: number | null; image?: string | null; url?: string | null; weight: number }): Promise<void> {
+  const conn = db();
+  if (!conn) return;
+  try {
+    await conn;
+    await recoModel().create({ ...doc, at: new Date() });
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function loadRecoEvents(keys: string[], limit = 240): Promise<{ key: string; pid?: string | null; name: string; category?: string | null; price?: number | null; image?: string | null; url?: string | null; weight: number; at: Date }[]> {
+  const conn = db();
+  if (!conn) return [];
+  try {
+    await conn;
+    return (await recoModel().find({ key: { $in: keys } }).sort({ at: -1 }).limit(limit).lean()) as unknown as {
+      key: string; pid?: string | null; name: string; category?: string | null; price?: number | null; image?: string | null; url?: string | null; weight: number; at: Date;
+    }[];
+  } catch {
+    return [];
+  }
+}

@@ -924,7 +924,7 @@ export default function KapuApp() {
       // detail can 500 upstream (EF_PC_* family) — degrade to the summary
       // we already hold instead of a forever-skeleton
       const fallback: ProductDetail = { ...p, description: null, images: p.image ? [p.image] : [], variants: [], attributes: {} };
-      void fetch(`/api/product?id=${encodeURIComponent(p.id)}&currency=${currency}`)
+      void fetch(`/api/product?id=${encodeURIComponent(p.id)}&currency=${currency}&sessionId=${encodeURIComponent(sessionIdRef.current)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setProductDetail(d?.product ?? fallback))
         .catch(() => setProductDetail(fallback));
@@ -2272,7 +2272,7 @@ export default function KapuApp() {
                 )}
 
                 {/* taste-engine picks — appears once this device has real signal */}
-                {recs.length >= 4 && (
+                {recs.length >= 3 && (
                   <div className="mx-auto mt-8 w-full max-w-[1020px] text-left">
                     <ProductGrid title={`💜 ${t("forYouT")}`} products={recs} actions={actions} />
                   </div>
