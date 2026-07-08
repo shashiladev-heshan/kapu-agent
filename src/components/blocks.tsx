@@ -170,6 +170,17 @@ export function ProductCard({ p, actions, fluid }: { p: ProductSummary; actions:
       >
         <IconHeart size={15} filled={fav} />
       </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          actions.onAction(`Tell me about "${p.name}" (${p.id}) — is it a good pick?`);
+        }}
+        aria-label={`Ask Kapu about ${p.name}`}
+        title="Ask Kapu 🌳"
+        className="absolute right-2 top-10 z-[1] flex h-7 w-7 items-center justify-center rounded-full bg-card/90 p-[3px] shadow-sm backdrop-blur transition duration-300 hover:scale-110 active:scale-90"
+      >
+        <KapuMark size={20} radius={10} />
+      </button>
       <button onClick={() => actions.onOpenProduct(p)} className="relative overflow-hidden text-left" aria-label={`View ${p.name}`}>
         {save != null && (
           <span className="absolute bottom-2 left-2 z-[1] rounded-[7px] bg-gold px-1.5 py-0.5 text-[10px] font-bold text-ink shadow-[0_2px_8px_rgba(0,0,0,0.25)] dark:text-[#322b45]">

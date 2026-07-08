@@ -2989,9 +2989,14 @@ export default function KapuApp() {
             )}
             <button
               onClick={() => void send(`Tell me more about "${productOpen.name}" (${productOpen.id}) — is it a good pick?`)}
-              className="mt-1 w-full rounded-[13px] border border-edge bg-card py-2.5 text-[13px] font-semibold text-leaf transition active:scale-[0.99]"
+              title={t("askKapu")}
+              aria-label={t("askKapu")}
+              className="group absolute bottom-4 right-4 z-[2] flex items-center gap-0 rounded-full bg-gold p-1.5 shadow-[0_10px_28px_rgba(255,184,0,0.45)] transition hover:gap-2 hover:pr-4 active:scale-95"
             >
-              🌳 {t("askKapu")}
+              <KapuMark size={34} radius={17} />
+              <span className="max-w-0 overflow-hidden whitespace-nowrap text-[12.5px] font-bold text-ink transition-all duration-300 group-hover:max-w-[160px] dark:text-[#322b45]">
+                {t("askKapu")}
+              </span>
             </button>
           </div>
         </div>
