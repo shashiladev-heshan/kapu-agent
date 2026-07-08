@@ -4304,8 +4304,9 @@ function LandingShowcase({
         <p className="mx-auto mt-3 max-w-[560px] text-center text-[13px] leading-relaxed text-ink-soft">{t("landTechSub")}</p>
         <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-2">
           {[
-            "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching", "Kapruka MCP",
-            "MongoDB", "Railway · kapuwa.shop", "Whisper STT · gpt-4o-mini-tts", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
+            "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching",
+            "Claude Agent SDK — dual-engine orchestrator", "Kapruka MCP", "kapruka.com live promos · ratings · Q&A",
+            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "MongoDB", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
           ].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
