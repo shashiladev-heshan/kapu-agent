@@ -5,6 +5,7 @@
 // kapruka.com's Best Sellers / On Sale rails. 4 shield-cached searches per
 // 15 min (seed queries rotate daily so the rails breathe).
 
+import { loadRailCache, saveRailCache } from "@/lib/db/mongo";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
 import { recoSeen } from "@/lib/reco/store";
@@ -72,9 +73,17 @@ export async function GET(): Promise<Response> {
   const body = { trending, budget };
   if (trending.length + budget.length > 0) {
     cache = { at: Date.now(), body };
+    void saveRailCache("discover", body);
   } else if (cache) {
     // transient MCP failure — stale rails beat empty rails
     return Response.json(cache.body);
+  } else {
+    // cold process + MCP down — durable fallback from Mongo
+    const fb = await loadRailCache<{ trending: ProductSummary[]; budget: ProductSummary[] }>("discover");
+    if (fb) {
+      cache = { at: Date.now() - 12 * 60_000, body: fb }; // serve now, retry live soon
+      return Response.json(fb);
+    }
   }
   void recoSeen([...trending, ...budget]).catch(() => {});
   return Response.json(body);

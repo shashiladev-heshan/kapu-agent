@@ -433,3 +433,47 @@ export async function loadRecoEvents(keys: string[], limit = 240): Promise<{ key
     return [];
   }
 }
+
+// ── homepage rail fallback cache — live MCP always first; this fills the
+// hero rails (seasonal/discover/deals) when MCP is down AND the process is
+// fresh (in-process stale cache empty). Never used for agent search.
+interface RailCacheDoc {
+  _id: string;
+  payload: unknown;
+  at: Date;
+}
+
+function railModel(): Model<RailCacheDoc> {
+  return (
+    (mongoose.models.KapuRailCache as Model<RailCacheDoc>) ??
+    mongoose.model<RailCacheDoc>(
+      "KapuRailCache",
+      new Schema<RailCacheDoc>({ _id: String, payload: Schema.Types.Mixed, at: Date }, { versionKey: false })
+    )
+  );
+}
+
+export async function saveRailCache(key: string, payload: unknown): Promise<void> {
+  const conn = db();
+  if (!conn) return;
+  try {
+    await conn;
+    await railModel().updateOne({ _id: key }, { $set: { payload, at: new Date() } }, { upsert: true });
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Last good batch for a rail, if fresh enough (default 72 h). */
+export async function loadRailCache<T>(key: string, maxAgeMs = 72 * 3600_000): Promise<T | null> {
+  const conn = db();
+  if (!conn) return null;
+  try {
+    await conn;
+    const doc = await railModel().findById(key).lean();
+    if (!doc || Date.now() - new Date(doc.at).getTime() > maxAgeMs) return null;
+    return doc.payload as T;
+  } catch {
+    return null;
+  }
+}

@@ -5,6 +5,7 @@
 // no strikethroughs — for that variant we recover real LKR prices (and
 // often compare_at) per tile via MCP get_product (shield-cached).
 
+import { loadRailCache, saveRailCache } from "@/lib/db/mongo";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
 import { recoSeen } from "@/lib/reco/store";
@@ -97,7 +98,7 @@ export async function getHotDeals(): Promise<ProductSummary[]> {
       headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) KapuAgent/1.0" },
       signal: AbortSignal.timeout(6000),
     });
-    if (!res.ok) return [];
+    if (!res.ok) return dealsFallback();
     let products = parseTiles(await res.text());
     if (products.length > 0 && products.every((p) => p.price == null)) {
       // intl variant (USD prices) — rebuild real LKR prices from the MCP
@@ -105,10 +106,21 @@ export async function getHotDeals(): Promise<ProductSummary[]> {
     } else {
       products = products.filter((p) => p.price != null);
     }
+    if (products.length === 0) return dealsFallback();
     g.__kapuDeals = { at: Date.now(), products };
+    void saveRailCache("deals", products);
     void recoSeen(products).catch(() => {});
     return products;
   } catch {
-    return [];
+    return dealsFallback();
   }
+}
+
+/** Scrape/recovery failed — serve the last good batch from Mongo (72 h cap)
+ *  and back-date the in-process cache so a live retry happens in ~7 min. */
+async function dealsFallback(): Promise<ProductSummary[]> {
+  if (g.__kapuDeals && g.__kapuDeals.products.length > 0) return g.__kapuDeals.products;
+  const fb = (await loadRailCache<ProductSummary[]>("deals").catch(() => null)) ?? [];
+  if (fb.length > 0) g.__kapuDeals = { at: Date.now() - 8 * 60_000, products: fb };
+  return fb;
 }

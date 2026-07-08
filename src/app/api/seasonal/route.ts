@@ -2,6 +2,7 @@
 // empty-state seasonal rail. One shield-cached search per festival; a module
 // cache keeps repeat visits free.
 
+import { loadRailCache, saveRailCache } from "@/lib/db/mongo";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
 import { nextFestival } from "@/lib/festivals";
@@ -25,10 +26,15 @@ export async function GET(): Promise<Response> {
         .map((p, i) => ({ ...p, pick: i === 0 }));
       // a transient MCP hiccup must NOT blank the rail — keep the stale
       // batch until a refresh actually succeeds
-      if (products.length > 0 || !cache || cache.key !== fest.name) {
+      if (products.length > 0) {
         cache = { key: fest.name, at: Date.now(), products };
+        void saveRailCache(`seasonal:${fest.name}`, products);
+      } else if (cache?.key === fest.name && cache.products.length > 0) {
+        cache = { ...cache, at: Date.now() - 8 * 60_000 }; // keep stale, retry soon
       } else {
-        cache = { ...cache, at: Date.now() - 8 * 60_000 }; // retry soon
+        // fresh process + failed fetch — durable fallback from Mongo
+        const fb = await loadRailCache<ProductSummary[]>(`seasonal:${fest.name}`);
+        cache = { key: fest.name, at: Date.now() - 8 * 60_000, products: fb ?? [] };
       }
     }
     return Response.json({
@@ -39,8 +45,8 @@ export async function GET(): Promise<Response> {
     console.error("[seasonal] failed:", err);
     return Response.json({
       festival: { name: fest.name, label: fest.label, days: fest.days, approx: fest.approx === true, glyphs: fest.glyphs, greet: fest.greet, msg: fest.msg },
-      // stale beats empty
-      products: cache?.key === fest.name ? cache.products : [],
+      // stale beats empty; Mongo beats a cold process
+      products: cache?.key === fest.name && cache.products.length > 0 ? cache.products : ((await loadRailCache<ProductSummary[]>(`seasonal:${fest.name}`).catch(() => null)) ?? []),
     });
   }
 }
