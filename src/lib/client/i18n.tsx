@@ -497,6 +497,12 @@ const STR = {
   landF4b: { en: "Amma's address, birthdays, your budget rules — asked first, never scraped.", si: "Address, birthdays, ඔයාගේ rules — කලින් අහලා.", ta: "முகவரி, பிறந்தநாள், விதிகள் — முதலில் கேட்டு." },
   landF5t: { en: "Honest checkout", si: "අවංක checkout", ta: "நேர்மையான கட்டணம்" },
   landF5b: { en: "Visual confirm gate, price-locked pay link, delivery photo proof. No dark patterns.", si: "Confirm gate + pay link + delivery proof. වංචා නෑ.", ta: "உறுதி → கட்டணம் → ஆதாரம். ஏமாற்று இல்லை." },
+  landF7t: { en: "Knows Kapruka inside out", si: "Kapruka ගැන ඔක්කොම දන්නවා", ta: "Kapruka பற்றி முழுதும் தெரியும்" },
+  landF7b: {
+    en: "Returns, refunds, delivery rules, company info — answered from kapruka.com's own pages via a ChromaDB knowledge base, always with the source link.",
+    si: "Returns, refunds, delivery නීති — kapruka.com පිටුවලින්මයි, source link එකත් එක්කම.",
+    ta: "Returns, delivery விதிகள் — kapruka.com பக்கங்களிலிருந்தே, source link உடன்.",
+  },
   landF6t: { en: "Feels the moment", si: "හැඟීම තේරෙනවා", ta: "உணர்வை புரியும்" },
   landF6b: { en: "\"Amma feels lonely\" → a thoughtful gift, not a search error. Festivals, pirikara, nekath included.", si: "\"අම්මා තනිවෙලා\" → හරි තෑග්ග. උත්සව, පිරිකර, නැකැත්.", ta: "உணர்வுக்கு ஏற்ற பரிசு — பண்டிகைகளும்." },
   tourNext: { en: "Next", si: "ඊළඟ", ta: "அடுத்து" },
@@ -576,6 +582,8 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "⏰ I can send flowers every month-end — all on my own.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
     { text: "📦 I show your order's WHOLE journey — warehouse to doorstep, live.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
     { text: "🏷️ Show me today's offers — real deals, real discounts.", kind: "msg", msg: "Show me today's hot deals and offers" },
+    { text: "📋 Ask me Kapruka's return policy — I answer from the real pages, link included.", kind: "msg", msg: "What's Kapruka's return policy? How long do refunds take?" },
+    { text: "🕐 “Same-day delivery cutoff?” — I know Kapruka's actual rules.", kind: "msg", msg: "How does Kapruka's same day delivery work? What's the cutoff time?" },
   ],
   si: [
     { text: "🎂 අම්මට නුවරට කේක් එකක් — අදම යවන්න පුළුවන්.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
@@ -589,6 +597,8 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "⏰ හැම මාසෙම මල් — මම තනියම යවන්නම්.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
     { text: "📦 Order එකේ මුළු ගමනම live පෙන්නනවා — දොරකඩ වෙනකම්.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
     { text: "🏷️ අදම තියෙන offers බලන්න — ඇත්තම වට්ටම්.", kind: "msg", msg: "Show me today's hot deals and offers" },
+    { text: "📋 Return policy එක අහන්න — ඇත්ත pages වලින්මයි, link එකත් එක්ක.", kind: "msg", msg: "What's Kapruka's return policy? How long do refunds take?" },
+    { text: "🕐 “Same-day cutoff එක කීයද?” — Kapruka නීති මම දන්නවා.", kind: "msg", msg: "How does Kapruka's same day delivery work? What's the cutoff time?" },
   ],
   ta: [
     { text: "🎂 கண்டியில் அம்மாவுக்கு கேக் — இன்றே அனுப்பலாம்.", kind: "msg", msg: "ammage birthday ekata Kandy walata cake ekak yawanna ona, surprise ekak 🎂" },
@@ -602,6 +612,8 @@ export const HERO_PHRASES: Record<Language, HeroPhrase[]> = {
     { text: "⏰ மாத இறுதியில் பூக்கள் — நானே அனுப்புவேன்.", kind: "msg", msg: "Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — update me on Telegram" },
     { text: "📦 ஆர்டரின் முழு பயணமும் நேரலை — வீடு வரை.", kind: "msg", msg: "Track order VIMP34456CB2 — show me every step of the journey" },
     { text: "🏷️ இன்றைய சலுகைகள் — உண்மையான தள்ளுபடிகள்.", kind: "msg", msg: "Show me today's hot deals and offers" },
+    { text: "📋 Return policy கேளுங்கள் — உண்மை பக்கங்களிலிருந்து, link உடன்.", kind: "msg", msg: "What's Kapruka's return policy? How long do refunds take?" },
+    { text: "🕐 “Same-day cutoff எப்போது?” — Kapruka விதிகள் தெரியும்.", kind: "msg", msg: "How does Kapruka's same day delivery work? What's the cutoff time?" },
   ],
 };
 

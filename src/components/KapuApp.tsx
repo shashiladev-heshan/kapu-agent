@@ -19,6 +19,7 @@ import {
   IconCake,
   IconCamera,
   IconCheckCircle,
+  IconReceipt,
   IconLock,
   IconCapsule,
   IconCheck,
@@ -3925,6 +3926,7 @@ function VoiceTeaser({ onStart }: { onStart: () => void }) {
 // ── did-you-know toast — honest capability facts, competitor-style corner ──
 
 const KNOW_FACTS = [
+  "📋 Ask about returns or delivery rules — Kapu answers from kapruka.com's own pages, source link included",
   "🔮 Kapu can book a real horoscope reading for auspicious timing",
   "🧺 “Avurudu hamper under Rs 8,000” — one box, one flat delivery",
   "⏰ “Flowers for Amma every month-end” — runs itself, pays by your tap",
@@ -4132,6 +4134,7 @@ function LandingShowcase({
     { Icon: IconClock, tt: "landF3t", bb: "landF3b" },
     { Icon: IconUser, tt: "landF4t", bb: "landF4b" },
     { Icon: IconLock, tt: "landF5t", bb: "landF5b" },
+    { Icon: IconReceipt, tt: "landF7t", bb: "landF7b" },
     { Icon: IconGift, tt: "landF6t", bb: "landF6b" },
   ];
 
@@ -4526,7 +4529,7 @@ function LandingShowcase({
           {[
             "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching",
             "Claude Agent SDK — dual-engine orchestrator", "Kapruka MCP", "kapruka.com live promos · ratings · Q&A",
-            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
+            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "ChromaDB — policy knowledge base (RAG)", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
           ].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
@@ -4543,7 +4546,7 @@ function LandingShowcase({
       {/* ── act 4: stats + CTA ── */}
       <section className="py-10 text-center">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
-          {["26 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules"].map((x) => (
+          {["27 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules", "policy answers with sources"].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
             </span>

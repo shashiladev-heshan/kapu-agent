@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 920 600" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="920" height="600" rx="20" fill="#1e1633"/>
+<svg viewBox="0 0 920 665" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="920" height="665" rx="20" fill="#1e1633"/>
       <defs>
         <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/>
@@ -36,7 +36,7 @@
       <!-- core -->
       <rect x="210" y="155" width="500" height="96" rx="18" fill="#241740" stroke="#ffb800" stroke-width="2"/>
       <text x="460" y="188" fill="#fff" font-size="16" font-weight="700" text-anchor="middle">🌳 KAPU AGENT CORE</text>
-      <text x="460" y="210" fill="#c9c2dd" font-size="12" text-anchor="middle">Claude · 26 tools · trilingual persona · consent memory</text>
+      <text x="460" y="210" fill="#c9c2dd" font-size="12" text-anchor="middle">Claude · 27 tools · trilingual persona · consent memory</text>
       <text x="460" y="230" fill="#a79fc0" font-size="11" text-anchor="middle">Engine orchestrator: Messages API ⇄ Claude Agent SDK · auto-fallback · one core, every channel</text>
 
       <!-- scheduler -->
@@ -97,7 +97,17 @@
       <text x="460" y="447" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">🛍 KAPRUKA MCP</text>
       <text x="460" y="468" fill="#a79fc0" font-size="11" text-anchor="middle">mcp.kapruka.com — search · product · delivery · orders · tracking</text>
 
+      
+      <!-- chroma knowledge base (policies/FAQ RAG) -->
+      <path d="M125 493 L 125 503" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+      <rect x="25" y="507" width="200" height="80" rx="14" fill="#1e1633" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="125" y="533" fill="#fff" font-size="12.5" font-weight="600" text-anchor="middle">📚 ChromaDB — Kapu KB</text>
+      <text x="125" y="551" fill="#a79fc0" font-size="10.5" text-anchor="middle">policies · FAQs · company pages</text>
+      <text x="125" y="566" fill="#a79fc0" font-size="10.5" text-anchor="middle">RAG · cited answers · weekly crawl</text>
+      <text x="125" y="581" fill="#7c7494" font-size="9.5" text-anchor="middle">Railway service · private net · volume</text>
+      <path d="M 232 512 C 272 430, 240 315, 293 255" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
       <!-- pay note -->
-      <text x="460" y="530" fill="#ffb800" font-size="11.5" text-anchor="middle" font-style="italic">🔒 create_order only mints a secure pay link — money moves ONLY when a human taps pay</text>
-      <text x="460" y="556" fill="#7c7494" font-size="10.5" text-anchor="middle">Deployed as one Node process on Railway · custom domain kapuwa.shop</text>
+      <text x="460" y="618" fill="#ffb800" font-size="11.5" text-anchor="middle" font-style="italic">🔒 create_order only mints a secure pay link — money moves ONLY when a human taps pay</text>
+      <text x="460" y="642" fill="#7c7494" font-size="10.5" text-anchor="middle">Deployed as one Node process on Railway · custom domain kapuwa.shop</text>
     </svg>
