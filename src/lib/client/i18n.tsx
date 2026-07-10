@@ -380,6 +380,29 @@ const STR = {
     si: "ඔයාගේම Kapu ලා හදන්න Google එකෙන් sign in වෙන්න — devices හැමතැනම sync වෙනවා.",
     ta: "உங்கள் சொந்த Kapu-க்களை உருவாக்க Google மூலம் உள்நுழையவும் — எல்லா சாதனங்களிலும் ஒத்திசைவு.",
   },
+  landAgTitle: { en: "One Kapu,", si: "එක Kapu —", ta: "ஒரே Kapu," },
+  landAgTitleEm: { en: "many hats.", si: "hats ගොඩක්.", ta: "பல தொப்பிகள்." },
+  landAgSub: {
+    en: "Switch Kapu into a specialist for the job — a wedding planner, a diaspora gifting expert, a deal hunter — or build your own Kapu with its own standing brief.",
+    si: "වැඩේට ගැලපෙන විශේෂඥයෙක් — wedding planner, diaspora gifting expert, deal hunter — නැත්නම් ඔයාගේම brief එකක් තියෙන Kapu කෙනෙක් හදන්න.",
+    ta: "வேலைக்கு ஏற்ற நிபுணராக Kapu-வை மாற்றுங்கள் — திருமண planner, deal hunter — அல்லது உங்கள் சொந்த Kapu-வை உருவாக்குங்கள்.",
+  },
+  landAgB1: {
+    en: "7 specialists: Wedding · Diaspora · Pooja & Dāna · Corporate · Budget · Romance · Party Panic",
+    si: "විශේෂඥයෝ 7ක්: Wedding · Diaspora · Pooja & Dāna · Corporate · Budget · Romance · Party",
+    ta: "7 நிபுணர்கள்: Wedding · Diaspora · Pooja & Dāna · Corporate · Budget · Romance · Party",
+  },
+  landAgB2: {
+    en: "Build your own in 30 seconds — name, emoji, brief. Synced to your Google account.",
+    si: "තත්පර 30න් ඔයාගේම එකක් — නම, emoji, brief. Google account එකට sync වෙනවා.",
+    ta: "30 வினாடிகளில் சொந்தமாக — பெயர், emoji, brief. Google கணக்கில் ஒத்திசைவு.",
+  },
+  landAgB3: {
+    en: "Switches instantly, zero extra latency — and the safety rails always stay on.",
+    si: "instant switch, latency නෑ — safety rails හැමවෙලේම on.",
+    ta: "உடனடி மாற்றம், தாமதம் இல்லை — பாதுகாப்பு எப்போதும் on.",
+  },
+  landAgCta: { en: "Meet the specialists", si: "විශේෂඥයන්ව හම්බවෙන්න", ta: "நிபுணர்களை சந்திக்கவும்" },
   landSee: { en: "See what Kapu can do", si: "Kapu ට පුළුවන් දේ බලන්න", ta: "Kapu-வால் முடிந்ததை பாருங்கள்" },
   landChatTitle: { en: "One wish. Watch it happen.", si: "එක පැතුමක්. වෙන හැටි බලන්න.", ta: "ஒரு விருப்பம். நடப்பதை பாருங்கள்." },
   landChatSub: {

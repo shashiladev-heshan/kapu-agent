@@ -3599,7 +3599,15 @@ export default function KapuApp() {
             </div>
             </div>
           </div>
-          <LandingShowcase onStart={closeWelcome} onTrack={openTrackDemo} tgBot={tgBot} />
+          <LandingShowcase
+            onStart={closeWelcome}
+            onTrack={openTrackDemo}
+            onAgents={() => {
+              closeWelcome();
+              setAgentOpen(true);
+            }}
+            tgBot={tgBot}
+          />
           <KnowToast />
         </div>
       )}
@@ -4071,6 +4079,7 @@ function VoiceTeaser({ onStart }: { onStart: () => void }) {
 // ── did-you-know toast — honest capability facts, competitor-style corner ──
 
 const KNOW_FACTS = [
+  "💍 Kapu wears hats — switch to Wedding Kapu, Budget Machan… or build your own specialist",
   "📋 Ask about returns or delivery rules — Kapu answers from kapruka.com's own pages, source link included",
   "🔮 Kapu can book a real horoscope reading for auspicious timing",
   "🧺 “Avurudu hamper under Rs 8,000” — one box, one flat delivery",
@@ -4265,10 +4274,12 @@ function PickDuel() {
 function LandingShowcase({
   onStart,
   onTrack,
+  onAgents,
   tgBot,
 }: {
   onStart: () => void;
   onTrack: () => void;
+  onAgents: () => void;
   tgBot: { username: string; link: string } | null;
 }) {
   const t = useT();
@@ -4285,6 +4296,47 @@ function LandingShowcase({
 
   return (
     <div id="kapu-show" className="relative mx-auto max-w-5xl px-6 pb-20 text-left">
+      {/* ── act −1.5: specialist Kapus — the headline act ── */}
+      <section id="land-agents" className="pb-4 pt-14">
+        <div className="relative overflow-hidden rounded-[30px] border border-gold/30 bg-card/70 p-7 shadow-[0_36px_100px_rgba(64,41,112,0.4)] sm:p-10">
+          <span aria-hidden className="pointer-events-none absolute -left-20 -top-24 h-[300px] w-[300px] rounded-full bg-gold/[0.12] blur-[90px]" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-24 -right-16 h-[340px] w-[340px] rounded-full bg-leaf/[0.16] blur-[100px]" />
+          <div className="relative grid items-center gap-10 md:grid-cols-2">
+            <div>
+              <span className="inline-flex animate-pulse items-center gap-1.5 rounded-full bg-gold px-3.5 py-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink shadow-[0_4px_14px_rgba(255,184,0,0.45)] dark:text-[#322b45]">
+                ✨ {t("agentNew")}
+              </span>
+              <h2 className="font-display mt-4 text-[32px] leading-tight text-ink sm:text-[44px]">
+                {t("landAgTitle")} <span className="italic text-leaf">{t("landAgTitleEm")}</span>
+              </h2>
+              <p className="mt-4 max-w-[440px] text-[14px] leading-relaxed text-ink-soft">{t("landAgSub")}</p>
+              <ul className="mt-4 space-y-2 text-[12.5px] text-ink-soft">
+                <li>💍 {t("landAgB1")}</li>
+                <li>🛠 {t("landAgB2")}</li>
+                <li>⚡ {t("landAgB3")}</li>
+              </ul>
+              <button
+                onClick={onAgents}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-gold px-7 py-3.5 text-[14px] font-bold text-ink shadow-[0_10px_28px_rgba(255,184,0,0.45)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+              >
+                {t("landAgCta")}
+                <IconArrowRight size={15} />
+              </button>
+            </div>
+            <div className="relative mx-auto w-full max-w-[520px]">
+              <span aria-hidden className="pointer-events-none absolute -inset-8 rounded-full bg-gold/[0.10] blur-[70px]" />
+              <div
+                className="floaty relative overflow-hidden rounded-[22px] border border-gold/25 shadow-[0_36px_90px_rgba(0,0,0,0.55)]"
+                style={{ "--tilt": "-2.5deg", animationDuration: "12s" } as React.CSSProperties}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/special-kapu-img.png" alt="Specialist Kapus — pick a hat or build your own" className="w-full" loading="lazy" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── act −1: the film ── */}
       <section id="land-film" className="py-14">
         <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">
@@ -4674,7 +4726,7 @@ function LandingShowcase({
           {[
             "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching",
             "Claude Agent SDK — dual-engine orchestrator", "Kapruka MCP", "kapruka.com live promos · ratings · Q&A",
-            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "ChromaDB — policy knowledge base (RAG)", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
+            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "ChromaDB — policy knowledge base (RAG)", "Specialist Kapus — 7 presets + build-your-own", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
           ].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
@@ -4691,7 +4743,7 @@ function LandingShowcase({
       {/* ── act 4: stats + CTA ── */}
       <section className="py-10 text-center">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
-          {["27 agent tools", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules", "policy answers with sources"].map((x) => (
+          {["27 agent tools", "7 specialist Kapus + yours", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules", "policy answers with sources"].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
             </span>
