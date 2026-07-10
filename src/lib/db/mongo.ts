@@ -52,6 +52,7 @@ interface UserDoc {
   wishes: unknown[];
   recipients: unknown[];
   occasions: unknown[];
+  agents: unknown[];
   tgChatId?: number;
   updatedAt: Date;
 }
@@ -114,6 +115,7 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
           wishes: Array,
           recipients: Array,
           occasions: Array,
+          agents: Array,
           tgChatId: Number,
           updatedAt: Date,
         },
@@ -238,6 +240,7 @@ export async function persistUserDoc(u: {
   wishes: unknown[];
   recipients?: unknown[];
   occasions?: unknown[];
+  agents?: unknown[];
   tgChatId?: number;
 }): Promise<void> {
   const conn = db();
@@ -255,6 +258,7 @@ export async function persistUserDoc(u: {
           wishes: u.wishes,
           recipients: u.recipients ?? [],
           occasions: u.occasions ?? [],
+          agents: u.agents ?? [],
           ...(u.tgChatId ? { tgChatId: u.tgChatId } : {}),
           updatedAt: new Date(),
         },
@@ -277,6 +281,8 @@ export async function loadUserDoc(sub: string): Promise<{
   recipients: any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   occasions: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  agents: any[];
   tgChatId?: number;
   updatedAt: number;
 } | null> {
@@ -295,6 +301,7 @@ export async function loadUserDoc(sub: string): Promise<{
       wishes: doc.wishes ?? [],
       recipients: doc.recipients ?? [],
       occasions: doc.occasions ?? [],
+      agents: doc.agents ?? [],
       tgChatId: doc.tgChatId,
       updatedAt: Date.now(),
     };

@@ -23,6 +23,7 @@ export async function POST(req: Request): Promise<Response> {
     wishes: [],
     recipients: [],
     occasions: [],
+    agents: [],
     updatedAt: Date.now(),
   };
   user.tgChatId = chatId;

@@ -19,6 +19,7 @@ import {
   IconCake,
   IconCamera,
   IconCheckCircle,
+  IconPencil,
   IconReceipt,
   IconLock,
   IconCapsule,
@@ -61,6 +62,7 @@ import {
 } from "@/lib/client/speech";
 import { setFx } from "@/lib/client/fx";
 import { gsiSignOutHint, renderGoogleButton } from "@/lib/client/gsi";
+import { KAPU_PRESETS, loadActiveAgent, saveActiveAgent, type SpecialKapu } from "@/lib/client/agents";
 import { HERO_PHRASES, LangProvider, makeT, useT, type StrKey } from "@/lib/client/i18n";
 import { fileToCompressedDataUrl, scanMessage, type ScanResult } from "@/lib/client/scan";
 import { nextFestival } from "@/lib/festivals";
@@ -255,6 +257,11 @@ export default function KapuApp() {
   const [tgBot, setTgBot] = useState<{ username: string; link: string } | null>(null);
   const [favs, setFavs] = useState<Record<string, ProductSummary>>({});
   const [favOpen, setFavOpen] = useState(false);
+  // specialist Kapus — active hat (per device) + the user's custom library
+  const [agent, setAgent] = useState<SpecialKapu | null>(null);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [myAgents, setMyAgents] = useState<SpecialKapu[]>([]);
+  const agentRef = useRef<SpecialKapu | null>(null);
   const [productOpen, setProductOpen] = useState<ProductSummary | null>(null);
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [productExtras, setProductExtras] = useState<ProductExtras | null>(null);
@@ -317,6 +324,33 @@ export default function KapuApp() {
   useEffect(() => {
     authUserRef.current = authUser;
   }, [authUser]);
+
+  useEffect(() => {
+    agentRef.current = agent;
+  }, [agent]);
+
+  // restore the active specialist hat; refetch the custom library on sign-in
+  // and after managing the sheet
+  useEffect(() => {
+    setAgent(loadActiveAgent());
+  }, []);
+  useEffect(() => {
+    if (!authUser) {
+      setMyAgents([]);
+      return;
+    }
+    void fetch("/api/agents")
+      .then((r) => (r.ok ? (r.json() as Promise<{ agents: SpecialKapu[] }>) : null))
+      .then((d) => {
+        if (d?.agents) setMyAgents(d.agents.map((a) => ({ ...a, tagline: a.tagline ?? "", examples: a.examples ?? [], custom: true })));
+      })
+      .catch(() => {});
+  }, [authUser, agentOpen]);
+
+  const pickAgent = useCallback((a: SpecialKapu | null) => {
+    setAgent(a);
+    saveActiveAgent(a);
+  }, []);
 
   const setVoice = useCallback((s: VoiceState) => {
     voiceStateRef.current = s;
@@ -692,6 +726,9 @@ export default function KapuApp() {
               ? { favorites: Object.values(favs).slice(0, 8).map((f) => `${f.name} (${f.id})`) }
               : {}),
             ...(rules.trim() ? { rules: rules.trim() } : {}),
+            ...(agentRef.current
+              ? { agent: { name: agentRef.current.name, emoji: agentRef.current.emoji, instructions: agentRef.current.instructions } }
+              : {}),
           }),
         });
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -1701,6 +1738,17 @@ export default function KapuApp() {
           ))}
         </div>
       )}
+      <button
+        type="button"
+        onClick={() => setAgentOpen(true)}
+        title={agent ? `${agent.name} — ${agent.tagline || t("agentsTitle")}` : t("agentsTitle")}
+        aria-label={t("agentsTitle")}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border-[1.5px] transition active:scale-90 ${
+          agent ? "border-gold/60 bg-gold-soft text-[19px]" : "border-cream-deep"
+        }`}
+      >
+        {agent ? agent.emoji : <KapuMark size={24} radius={8} />}
+      </button>
       <textarea
         ref={opts?.hero ? undefined : inputRef}
         value={input}
@@ -1866,6 +1914,11 @@ export default function KapuApp() {
               <IconClock size={16} className="text-ink-soft" />
               <span className="flex-1 text-[12.5px] font-medium">{t("schedules")}</span>
             </button>
+            <button onClick={() => setAgentOpen(true)} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left hover:bg-cream">
+              <IconWish size={16} className="text-ink-soft" />
+              <span className="flex-1 text-[12.5px] font-medium">{t("agentsTitle")}</span>
+              {agent && <span className="text-[13px]">{agent.emoji}</span>}
+            </button>
           </div>
           <div className="flex flex-col gap-2.5 border-t border-line px-4 py-3.5">
             <button onClick={() => setLangOpen(true)} className="flex items-center gap-2.5 rounded-[11px] text-left">
@@ -2025,6 +2078,18 @@ export default function KapuApp() {
               </span>
             </span>
           </button>
+
+          {/* active specialist hat — tap to switch */}
+          {agent && (
+            <button
+              onClick={() => setAgentOpen(true)}
+              className="inline-flex max-w-[140px] shrink-0 items-center gap-1.5 rounded-full border border-gold/40 bg-gold-soft px-2.5 py-1 text-[10.5px] font-bold text-gold-deep transition active:scale-95"
+              title={agent.tagline || agent.name}
+            >
+              <span className="text-[13px] leading-none">{agent.emoji}</span>
+              <span className="hidden truncate sm:block">{agent.name}</span>
+            </button>
+          )}
 
           {/* desktop topbar (chat) */}
           <div className="hidden min-w-0 lg:block">
@@ -2332,6 +2397,62 @@ export default function KapuApp() {
                 <div className="mt-7 hidden sm:block">
                   <div className="composer-halo mx-auto max-w-[640px] rounded-[23px] p-[1.5px]">{composer({ hero: true })}</div>
                 </div>
+
+                {/* ── specialist Kapus — one Kapu, many hats ── */}
+                <div className="mt-8">
+                  <p className="text-center text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-faint">{t("agentsRailTitle")}</p>
+                  <div className="rail mt-3 flex gap-4 overflow-x-auto pb-1 sm:justify-center">
+                    <button onClick={() => pickAgent(null)} className="group flex shrink-0 flex-col items-center" title={t("agentClassicTag")}>
+                      <span
+                        className={`flex h-14 w-14 items-center justify-center rounded-full border-[1.5px] bg-card transition group-hover:-translate-y-0.5 ${
+                          !agent ? "border-gold shadow-[0_6px_18px_rgba(255,184,0,0.3)]" : "border-line"
+                        }`}
+                      >
+                        <KapuMark size={30} radius={10} />
+                      </span>
+                      <span className={`mt-1.5 max-w-[64px] truncate text-[10px] font-semibold ${!agent ? "text-gold-deep" : "text-ink-soft"}`}>Kapu</span>
+                    </button>
+                    {[...KAPU_PRESETS, ...myAgents].map((a) => (
+                      <button
+                        key={a.id}
+                        onClick={() => (agent?.id === a.id ? setAgentOpen(true) : pickAgent(a))}
+                        className="group flex shrink-0 flex-col items-center"
+                        title={a.tagline || a.name}
+                      >
+                        <span
+                          className={`flex h-14 w-14 items-center justify-center rounded-full border-[1.5px] bg-card text-[26px] transition group-hover:-translate-y-0.5 ${
+                            agent?.id === a.id ? "border-gold bg-gold-soft shadow-[0_6px_18px_rgba(255,184,0,0.3)]" : "border-line hover:border-leaf/40"
+                          }`}
+                        >
+                          {a.emoji}
+                        </span>
+                        <span className={`mt-1.5 max-w-[64px] truncate text-[10px] font-semibold ${agent?.id === a.id ? "text-gold-deep" : "text-ink-soft"}`}>
+                          {a.name.replace(/ Kapu$/i, "")}
+                        </span>
+                      </button>
+                    ))}
+                    <button onClick={() => setAgentOpen(true)} className="group flex shrink-0 flex-col items-center" title={t("agentCreate")}>
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full border-[1.5px] border-dashed border-edge bg-transparent text-ink-faint transition group-hover:-translate-y-0.5 group-hover:border-leaf/50 group-hover:text-leaf">
+                        <IconPlus size={18} />
+                      </span>
+                      <span className="mt-1.5 max-w-[64px] truncate text-[10px] font-semibold text-ink-faint">{t("agentNew")}</span>
+                    </button>
+                  </div>
+                  {agent && (agent.examples?.length ?? 0) > 0 && (
+                    <div className="rise mt-3 flex flex-wrap items-center justify-center gap-1.5">
+                      {agent.examples.slice(0, 3).map((ex) => (
+                        <button
+                          key={ex}
+                          onClick={() => void send(ex)}
+                          className="rounded-full border border-line bg-card px-3 py-1.5 text-[11px] font-medium text-ink-soft transition hover:border-leaf/40 hover:text-leaf active:scale-95"
+                        >
+                          {ex}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
 
                 <div data-tour="wishes" className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                   {DEMO_CHIPS.map((c, i) => (
@@ -2730,6 +2851,11 @@ export default function KapuApp() {
               <button onClick={() => { setNavOpen(false); setSchedOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
                 <IconClock size={16} className="text-ink-soft" />
                 <span className="flex-1 text-[12.5px] font-medium">{t("schedules")}</span>
+              </button>
+              <button onClick={() => { setNavOpen(false); setAgentOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
+                <IconWish size={16} className="text-ink-soft" />
+                <span className="flex-1 text-[12.5px] font-medium">{t("agentsTitle")}</span>
+                {agent && <span className="text-[13px]">{agent.emoji}</span>}
               </button>
               <button onClick={() => { setNavOpen(false); openNotifs(); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
                 <IconBell size={16} className="text-ink-soft" />
@@ -3173,6 +3299,25 @@ export default function KapuApp() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ══ Specialist Kapus — pick a hat or build one ══ */}
+      {agentOpen && (
+        <AgentSheet
+          onClose={() => setAgentOpen(false)}
+          active={agent}
+          onPick={(a) => {
+            pickAgent(a);
+            setAgentOpen(false);
+          }}
+          mine={myAgents}
+          setMine={setMyAgents}
+          signedIn={Boolean(authUser)}
+          onSignIn={() => {
+            setAgentOpen(false);
+            setLangOpen(true);
+          }}
+        />
       )}
 
       {/* ══ Track order modal ══ */}
@@ -4851,6 +4996,191 @@ function ErrorCard({
           {t("tryAgain")}
         </button>
       )}
+    </div>
+  );
+}
+
+// ── specialist Kapus picker + builder sheet ─────────────────────────────
+
+function AgentSheet({
+  onClose,
+  active,
+  onPick,
+  mine,
+  setMine,
+  signedIn,
+  onSignIn,
+}: {
+  onClose: () => void;
+  active: SpecialKapu | null;
+  onPick: (a: SpecialKapu | null) => void;
+  mine: SpecialKapu[];
+  setMine: (a: SpecialKapu[]) => void;
+  signedIn: boolean;
+  onSignIn: () => void;
+}) {
+  const t = useT();
+  const [editing, setEditing] = useState<SpecialKapu | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("🤖");
+  const [instructions, setInstructions] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const startEdit = (a: SpecialKapu | null) => {
+    setEditing(a);
+    setCreating(true);
+    setName(a?.name ?? "");
+    setEmoji(a?.emoji ?? "🤖");
+    setInstructions(a?.instructions ?? "");
+    setErr(null);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agent: { ...(editing?.id ? { id: editing.id } : {}), name, emoji, instructions } }),
+      });
+      const data = (await res.json()) as { error?: string; agent?: SpecialKapu; agents?: SpecialKapu[] };
+      if (!res.ok || !data.agent) {
+        setErr(data.error ?? "Something went wrong");
+        return;
+      }
+      setMine((data.agents ?? []).map((a) => ({ ...a, tagline: a.tagline ?? "", examples: a.examples ?? [], custom: true })));
+      onPick({ ...data.agent, tagline: data.agent.tagline ?? "", examples: data.agent.examples ?? [], custom: true });
+    } catch {
+      setErr("Connection failed — try again");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    const res = await fetch(`/api/agents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (res.ok) {
+      const data = (await res.json()) as { agents?: SpecialKapu[] };
+      setMine((data.agents ?? []).map((a) => ({ ...a, tagline: a.tagline ?? "", examples: a.examples ?? [], custom: true })));
+      if (active?.id === id) onPick(null);
+    }
+  };
+
+  const card = (a: SpecialKapu | null, tagline: string) => {
+    const isActive = a ? active?.id === a.id : !active;
+    return (
+      <div
+        key={a?.id ?? "classic"}
+        className={`relative rounded-[16px] border p-3 text-left transition ${
+          isActive ? "border-gold bg-gold-soft/40 shadow-[0_4px_14px_rgba(255,184,0,0.15)]" : "border-line bg-card hover:border-leaf/40"
+        }`}
+      >
+        <button onClick={() => onPick(a)} className="flex w-full items-start gap-2.5 text-left">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-[18px]">
+            {a ? a.emoji : <KapuMark size={22} radius={7} />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5 text-[12.5px] font-bold">
+              <span className="truncate">{a?.name ?? t("agentClassic")}</span>
+              {isActive && <span className="shrink-0 rounded-full bg-gold px-1.5 py-px text-[8.5px] font-bold text-ink dark:text-[#322b45]">{t("agentActive")}</span>}
+            </span>
+            <span className="mt-0.5 block text-[10.5px] leading-snug text-ink-soft">{tagline}</span>
+          </span>
+        </button>
+        {a?.custom && (
+          <span className="absolute right-2 top-2 flex gap-1">
+            <button onClick={() => startEdit(a)} className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-card text-ink-faint hover:text-leaf" aria-label={`Edit ${a.name}`}>
+              <IconPencil size={10} />
+            </button>
+            <button onClick={() => void remove(a.id)} className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-card text-ink-faint hover:text-clay" aria-label={`Delete ${a.name}`}>
+              <IconClose size={9} />
+            </button>
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-[#1d1233]/50 backdrop-blur-[2px]" />
+      <div className="sheet-in relative max-h-[88dvh] w-full overflow-y-auto rounded-t-[24px] bg-surface p-4 sm:max-w-xl sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-1 flex items-center gap-2">
+          <IconWish size={17} className="text-leaf" />
+          <p className="font-display text-[18px]">{t("agentsTitle")}</p>
+          <button onClick={onClose} className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft" aria-label="Close">
+            <IconClose size={12} />
+          </button>
+        </div>
+        <p className="mb-3 text-[11.5px] leading-relaxed text-ink-soft">{t("agentsSub")}</p>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {card(null, t("agentClassicTag"))}
+          {KAPU_PRESETS.map((a) => card(a, a.tagline))}
+          {mine.map((a) => card(a, a.tagline || a.instructions.slice(0, 60)))}
+        </div>
+
+        {/* build your own */}
+        <div className="mt-4 rounded-[16px] border border-dashed border-edge p-3.5">
+          {!signedIn ? (
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
+              <p className="text-[12px] text-ink-soft">{t("agentSignIn")}</p>
+              <button onClick={onSignIn} className="rounded-full bg-leaf px-4 py-2 text-[12px] font-bold text-white transition active:scale-95 dark:bg-[#402970]">
+                {t("signIn")}
+              </button>
+            </div>
+          ) : !creating ? (
+            <button onClick={() => startEdit(null)} className="flex w-full items-center justify-center gap-2 py-1 text-[12.5px] font-bold text-leaf transition hover:opacity-80">
+              <IconPlus size={14} />
+              {t("agentCreate")}
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <p className="text-[12.5px] font-bold">{editing ? editing.name : t("agentCreate")}</p>
+              <div className="flex gap-2">
+                <input
+                  value={emoji}
+                  onChange={(e) => setEmoji(e.target.value)}
+                  className="w-14 rounded-[11px] border-[1.5px] border-edge bg-card px-2 py-2 text-center text-[16px] outline-none focus:border-leaf"
+                  aria-label={t("agentEmojiL")}
+                />
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t("agentNameL")}
+                  maxLength={40}
+                  className="min-w-0 flex-1 rounded-[11px] border-[1.5px] border-edge bg-card px-3 py-2 text-[13px] outline-none placeholder:text-ink-faint focus:border-leaf"
+                />
+              </div>
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                placeholder={t("agentInstrPh")}
+                maxLength={400}
+                rows={3}
+                className="resize-none rounded-[11px] border-[1.5px] border-edge bg-card px-3 py-2 text-[12.5px] leading-relaxed outline-none placeholder:text-ink-faint focus:border-leaf"
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-ink-faint">{instructions.length}/400</span>
+                {err && <span className="truncate text-[10.5px] font-semibold text-clay">{err}</span>}
+                <button onClick={() => setCreating(false)} className="ml-auto rounded-full border border-line bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
+                  {t("cancel")}
+                </button>
+                <button
+                  onClick={() => void save()}
+                  disabled={saving || name.trim().length < 2 || instructions.trim().length < 10}
+                  className="rounded-full bg-gold px-4 py-1.5 text-[11.5px] font-bold text-ink shadow-[0_4px_12px_rgba(255,184,0,0.3)] transition active:scale-95 disabled:opacity-40 dark:text-[#322b45]"
+                >
+                  {saving ? "…" : t("agentSave")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

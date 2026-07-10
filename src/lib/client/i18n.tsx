@@ -353,6 +353,33 @@ const STR = {
   linkTgDone: { en: "Telegram linked ✓ — schedule updates go there", si: "Telegram link වුණා ✓", ta: "Telegram இணைக்கப்பட்டது ✓" },
   tryIt: { en: "Try: ", si: "Try කරන්න: ", ta: "முயற்சி: " },
   signIn: { en: "Sign in with Google", si: "Google එකෙන් sign in වෙන්න", ta: "Google மூலம் உள்நுழை" },
+
+  // ── specialist Kapus ─────────────────────────────────────────────────
+  agentsTitle: { en: "Specialist Kapus", si: "විශේෂඥ Kapu ලා", ta: "சிறப்பு Kapu-க்கள்" },
+  agentsSub: {
+    en: "One Kapu, many hats — pick a specialist for the job, or build your own.",
+    si: "එක Kapu — hats ගොඩක්. වැඩේට ගැලපෙන කෙනා තෝරන්න, නැත්නම් ඔයාගේම කෙනෙක් හදන්න.",
+    ta: "ஒரே Kapu, பல தொப்பிகள் — வேலைக்கு ஏற்ற நிபுணரைத் தேர்ந்தெடுங்கள், அல்லது சொந்தமாக உருவாக்குங்கள்.",
+  },
+  agentsRailTitle: { en: "or pick a specialist Kapu", si: "නැත්නම් විශේෂඥ Kapu කෙනෙක් තෝරන්න", ta: "அல்லது சிறப்பு Kapu ஒன்றைத் தேர்ந்தெடுங்கள்" },
+  agentClassic: { en: "Classic Kapu", si: "සාමාන්‍ය Kapu", ta: "இயல்பான Kapu" },
+  agentClassicTag: { en: "The all-round wish-granter", si: "ඔක්කොම පැතුම් ඉටුකරන කෙනා", ta: "எல்லா விருப்பங்களுக்கும்" },
+  agentActive: { en: "ACTIVE", si: "සක්‍රීයයි", ta: "இயங்குகிறது" },
+  agentCreate: { en: "Build your own Kapu", si: "ඔයාගේම Kapu කෙනෙක් හදන්න", ta: "உங்கள் சொந்த Kapu-வை உருவாக்குங்கள்" },
+  agentNew: { en: "New", si: "අලුත්", ta: "புதிய" },
+  agentNameL: { en: "Name — e.g. 'Amma's Helper'", si: "නම — උදා: 'අම්මගේ Helper'", ta: "பெயர் — எ.கா. 'அம்மாவின் உதவியாளர்'" },
+  agentEmojiL: { en: "Emoji", si: "Emoji", ta: "Emoji" },
+  agentInstrPh: {
+    en: "What should this Kapu do? e.g. 'You shop for my mother in Galle: vegetarian, loves batik & gardening, budget Rs 8,000, always suggest a handwritten note.'",
+    si: "මේ Kapu කරන්න ඕන මොනවද? උදා: 'ගාල්ලේ අම්මට shopping — vegetarian, batik වලට කැමතියි, budget රු. 8,000.'",
+    ta: "இந்த Kapu என்ன செய்ய வேண்டும்? எ.கா. 'காலியில் அம்மாவுக்கு shopping — சைவம், batik பிடிக்கும், பட்ஜெட் ரூ. 8,000.'",
+  },
+  agentSave: { en: "Save Kapu", si: "Save කරන්න", ta: "சேமிக்கவும்" },
+  agentSignIn: {
+    en: "Sign in with Google to build your own Kapus — they sync across your devices.",
+    si: "ඔයාගේම Kapu ලා හදන්න Google එකෙන් sign in වෙන්න — devices හැමතැනම sync වෙනවා.",
+    ta: "உங்கள் சொந்த Kapu-க்களை உருவாக்க Google மூலம் உள்நுழையவும் — எல்லா சாதனங்களிலும் ஒத்திசைவு.",
+  },
   landSee: { en: "See what Kapu can do", si: "Kapu ට පුළුවන් දේ බලන්න", ta: "Kapu-வால் முடிந்ததை பாருங்கள்" },
   landChatTitle: { en: "One wish. Watch it happen.", si: "එක පැතුමක්. වෙන හැටි බලන්න.", ta: "ஒரு விருப்பம். நடப்பதை பாருங்கள்." },
   landChatSub: {

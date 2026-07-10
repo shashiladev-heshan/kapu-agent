@@ -12,10 +12,20 @@ export interface WishMeta {
   at: number;
 }
 
+/** a user-built specialist Kapu (the presets live client-side in code) */
+export interface CustomAgent {
+  id: string;
+  name: string;
+  emoji: string;
+  tagline?: string;
+  instructions: string;
+}
+
 export interface UserRecord extends AuthUser {
   wishes: WishMeta[];
   recipients: Recipient[];
   occasions: Occasion[];
+  agents: CustomAgent[];
   tgChatId?: number;
   updatedAt: number;
 }
@@ -32,6 +42,7 @@ export async function getUser(sub: string): Promise<UserRecord | null> {
       if (!Array.isArray(u.wishes)) u.wishes = [];
       if (!Array.isArray(u.recipients)) u.recipients = [];
       if (!Array.isArray(u.occasions)) u.occasions = [];
+      if (!Array.isArray(u.agents)) u.agents = [];
       users.set(sub, u);
       evict();
     }
@@ -47,6 +58,7 @@ export async function upsertUser(profile: AuthUser): Promise<UserRecord> {
     wishes: existing?.wishes ?? [],
     recipients: existing?.recipients ?? [],
     occasions: existing?.occasions ?? [],
+    agents: existing?.agents ?? [],
     updatedAt: Date.now(),
   };
   users.set(profile.sub, record);

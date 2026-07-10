@@ -35,6 +35,10 @@ export async function POST(req: Request): Promise<Response> {
   session.preferredDate = typeof body.preferredDate === "string" ? body.preferredDate.slice(0, 10) : undefined;
   session.favorites = Array.isArray(body.favorites) ? body.favorites.slice(0, 8).map((f) => String(f).slice(0, 90)) : undefined;
   session.userRules = typeof body.rules === "string" && body.rules.trim() ? body.rules.trim().slice(0, 300) : undefined;
+  session.agentSpec =
+    body.agent && typeof body.agent.name === "string" && typeof body.agent.instructions === "string" && body.agent.instructions.trim()
+      ? { name: body.agent.name.trim().slice(0, 40), instructions: body.agent.instructions.trim().slice(0, 400) }
+      : undefined;
   session.cart.currency = session.currency;
   if (!session.title) session.title = message.slice(0, 60);
   appendUiTurn(session, { role: "user", text: message, at: Date.now() });

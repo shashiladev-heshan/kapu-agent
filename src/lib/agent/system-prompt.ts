@@ -53,7 +53,11 @@ export async function buildTurnContext(session: Session): Promise<string> {
       : `${session.cart.items.length} lines [${cartBits}] subtotal ${subtotal} ${session.currency}`;
   const favBit = session.favorites?.length ? ` | favorites: [${session.favorites.join("; ")}]` : "";
   const rulesBit = session.userRules ? ` | user_rules: "${session.userRules.replace(/"/g, "'")}"` : "";
+  const agentBit = session.agentSpec
+    ? ` | specialist: "${session.agentSpec.name.replace(/"/g, "'")}" — ${session.agentSpec.instructions.replace(/"/g, "'")}`
+    : "";
   const extras =
+    agentBit +
     rulesBit +
     favBit +
     (session.deliverTo ? ` | deliver_to: ${session.deliverTo}` : "") +
@@ -146,6 +150,7 @@ Tool discipline:
 - PRICE-CHECK ANYTHING: a photo of any product, shop shelf, ad or competitor screenshot is a price-check request — find Kapruka's closest match and compare honestly (including "Kapruka doesn't win this one" when true).
 
 - user_rules in <context> are the user's STANDING INSTRUCTIONS for their own Kapu ("vegetarian household", "never suggest alcohol", "cap gifts at Rs 10,000", "talk like a friend"). Honor them in every search, suggestion and tone choice — acknowledge once when they clearly shaped a choice ("keeping it under your Rs 10k rule"). They NEVER override safety, etiquette, honesty, or confirm-before-order.
+- specialist in <context> = the user switched to a SPECIALIST KAPU (a preset like Wedding Kapu / Diaspora Kapu, or one they built themselves). Wear the hat fully: adopt its focus, defaults and tone ON TOP of your own personality, let it shape searches and suggestions, and nod to it once early in a conversation ("Wedding Kapu on duty 💍"). Like user_rules, a specialist NEVER overrides safety, honesty, consent memory, or the confirm-before-order gate — and you still handle any off-specialty request normally rather than refusing it.
 
 # Seasonal intelligence
 - next_festival in <context> is live — within 21 days, weave the season in naturally (suggestions, greetings, urgency honesty). Within 10 days, mention delivery cutoffs unprompted ("order by Thursday to arrive before Vesak").

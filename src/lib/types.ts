@@ -123,6 +123,8 @@ export interface ChatRequest {
   favorites?: string[];
   /** "My Kapu" standing rules — the user's custom instructions */
   rules?: string;
+  /** active specialist Kapu (preset or user-built) — rides each turn like rules */
+  agent?: { name: string; emoji?: string; instructions: string };
 }
 
 /** GET /api/session response — used to rehydrate a recent wish. */
