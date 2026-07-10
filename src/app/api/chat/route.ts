@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { runTurn } from "@/lib/agent/loop";
 import { readUser } from "@/lib/auth/session";
 import { appendUiTurn, getSession, saveSession } from "@/lib/session/store";
-import type { ChatRequest, StreamEvent, UiBlock } from "@/lib/types";
+import type { AgentStep, ChatRequest, StreamEvent, UiBlock } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,10 +45,19 @@ export async function POST(req: Request): Promise<Response> {
       // Accumulate the assistant's visible turn for the persisted transcript.
       let assistantText = "";
       const assistantBlocks: UiBlock[] = [];
+      const assistantSteps: AgentStep[] = [];
 
       const send = (event: StreamEvent) => {
         if (event.type === "text") assistantText += event.delta;
         if (event.type === "block" && event.block.type !== "speech") assistantBlocks.push(event.block);
+        if (event.type === "tool" && event.status === "start") {
+          // thinking-steps timeline — mirror the client's accumulation so a
+          // reload rehydrates the same collapsible trail
+          const text = event.detail || (event.label && event.label !== "…" ? event.label : "");
+          if (text && assistantSteps[assistantSteps.length - 1]?.text !== text && assistantSteps.length < 40) {
+            assistantSteps.push({ tool: event.name, text });
+          }
+        }
         if (event.type === "error") assistantText += (assistantText ? "\n\n" : "") + event.message;
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
@@ -86,7 +95,13 @@ export async function POST(req: Request): Promise<Response> {
       } finally {
         session.busy = false;
         if (assistantText || assistantBlocks.length) {
-          appendUiTurn(session, { role: "assistant", text: assistantText, blocks: assistantBlocks, at: Date.now() });
+          appendUiTurn(session, {
+            role: "assistant",
+            text: assistantText,
+            blocks: assistantBlocks,
+            at: Date.now(),
+            ...(assistantSteps.length ? { steps: assistantSteps } : {}),
+          });
           saveSession(session);
         }
         try {

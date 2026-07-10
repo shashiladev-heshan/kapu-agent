@@ -3,6 +3,7 @@
 // and UiBlocks stream to the browser as SSE events via `send`.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { TOOL_LABELS, stepFor } from "@/lib/agent/steps";
 import { buildTurnContext, KAPU_SYSTEM_PROMPT } from "@/lib/agent/system-prompt";
 import { TOOL_DEFINITIONS, executeTool } from "@/lib/agent/tools";
 import { trimHistory, saveSession, type Session } from "@/lib/session/store";
@@ -22,34 +23,6 @@ const client = apiKey
   : authToken
     ? new Anthropic({ authToken, apiKey: null })
     : new Anthropic(); // falls back to `ant auth login` profile resolution
-
-const TOOL_LABELS: Record<string, string> = {
-  search_products: "Searching Kapruka…",
-  get_product: "Checking the details…",
-  compare_products: "Comparing options…",
-  get_recommendations: "Curating picks for you…",
-  get_hot_deals: "Hunting today's deals…",
-  crown_pick: "Moving my badge…",
-  list_categories: "Browsing categories…",
-  resolve_city: "Finding your city…",
-  check_delivery: "Checking delivery…",
-  cart_update: "Updating your basket…",
-  view_cart: "Opening your basket…",
-  propose_order: "Preparing your order summary…",
-  create_order: "Placing your order…",
-  track_order: "Tracking your order…",
-  remember_recipient: "Remembering them…",
-  get_recipients: "Checking your people…",
-  forget_recipient: "Forgetting…",
-  save_occasion: "Saving the date…",
-  get_upcoming_occasions: "Checking your calendar…",
-  get_my_orders: "Looking at your orders…",
-  create_schedule: "Setting up your standing wish…",
-  list_schedules: "Checking your schedules…",
-  cancel_schedule: "Cancelling…",
-  create_card: "Designing your card…",
-  suggest_replies: "…",
-};
 
 // ── engine selection ──────────────────────────────────────────────────
 // "api"       → manual Messages API loop (needs ANTHROPIC_API_KEY)
@@ -144,16 +117,18 @@ async function runTurnApi(
 
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const tool of toolUses) {
-      send({ type: "tool", name: tool.name, status: "start", label: TOOL_LABELS[tool.name] });
+      const input = (tool.input ?? {}) as Record<string, unknown>;
+      send({
+        type: "tool",
+        name: tool.name,
+        status: "start",
+        label: TOOL_LABELS[tool.name],
+        detail: stepFor(tool.name, input) ?? undefined,
+      });
       let result: string;
       let isError = false;
       try {
-        result = await executeTool(
-          tool.name,
-          (tool.input ?? {}) as Record<string, unknown>,
-          session,
-          (block) => send({ type: "block", block })
-        );
+        result = await executeTool(tool.name, input, session, (block) => send({ type: "block", block }));
       } catch (err) {
         isError = true;
         result = `Tool failed: ${err instanceof Error ? err.message : String(err)}`;

@@ -6,40 +6,13 @@
 
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import { TOOL_LABELS, stepFor } from "@/lib/agent/steps";
 import { buildTurnContext, KAPU_SYSTEM_PROMPT } from "@/lib/agent/system-prompt";
 import { executeTool } from "@/lib/agent/tools";
 import { saveSession, trimHistory, type Session } from "@/lib/session/store";
 import type { StreamEvent } from "@/lib/types";
 
 const MODEL = process.env.KAPU_MODEL || "claude-sonnet-4-6";
-
-const TOOL_LABELS: Record<string, string> = {
-  search_products: "Searching Kapruka…",
-  get_product: "Checking the details…",
-  compare_products: "Comparing options…",
-  get_recommendations: "Curating picks for you…",
-  get_hot_deals: "Hunting today's deals…",
-  crown_pick: "Moving my badge…",
-  list_categories: "Browsing categories…",
-  resolve_city: "Finding your city…",
-  check_delivery: "Checking delivery…",
-  cart_update: "Updating your basket…",
-  view_cart: "Opening your basket…",
-  propose_order: "Preparing your order summary…",
-  create_order: "Placing your order…",
-  track_order: "Tracking your order…",
-  remember_recipient: "Remembering them…",
-  get_recipients: "Checking your people…",
-  forget_recipient: "Forgetting…",
-  save_occasion: "Saving the date…",
-  get_upcoming_occasions: "Checking your calendar…",
-  get_my_orders: "Looking at your orders…",
-  create_schedule: "Setting up your standing wish…",
-  list_schedules: "Checking your schedules…",
-  cancel_schedule: "Cancelling…",
-  create_card: "Designing your card…",
-  suggest_replies: "…",
-};
 
 function ensureSdkCredentials() {
   // The Claude Code harness reads CLAUDE_CODE_OAUTH_TOKEN; map our generic
@@ -59,7 +32,7 @@ function ensureSdkCredentials() {
 
 function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
   const run = (name: string) => async (args: Record<string, unknown>) => {
-    send({ type: "tool", name, status: "start", label: TOOL_LABELS[name] });
+    send({ type: "tool", name, status: "start", label: TOOL_LABELS[name], detail: stepFor(name, args) ?? undefined });
     try {
       const result = await executeTool(name, args, session, (block) => send({ type: "block", block }));
       return { content: [{ type: "text" as const, text: result }] };

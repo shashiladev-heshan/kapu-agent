@@ -129,7 +129,14 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
   return { Session, Order, User, Sched };
 }
 
-export async function persistSession(s: {
+// Per-session write chain: saveSession fires twice within the same tick at
+// turn end (agent loop + route finally), and two fire-and-forget updateOnes
+// race on parallel pool sockets — the stale one can land LAST and silently
+// drop the just-appended assistant turn. Serializing per id makes the final
+// write always carry the freshest session state.
+const persistChains = new Map<string, Promise<void>>();
+
+export function persistSession(s: {
   id: string;
   messages: unknown[];
   cart: unknown;
@@ -140,6 +147,16 @@ export async function persistSession(s: {
   recipients?: unknown[];
   occasions?: unknown[];
 }): Promise<void> {
+  const prev = persistChains.get(s.id) ?? Promise.resolve();
+  const next = prev.then(() => persistSessionNow(s));
+  persistChains.set(s.id, next);
+  void next.finally(() => {
+    if (persistChains.get(s.id) === next) persistChains.delete(s.id);
+  });
+  return next;
+}
+
+async function persistSessionNow(s: Parameters<typeof persistSession>[0]): Promise<void> {
   const conn = db();
   if (!conn) return;
   try {
@@ -162,8 +179,9 @@ export async function persistSession(s: {
       },
       { upsert: true }
     );
-  } catch {
-    /* persistence is best-effort */
+  } catch (err) {
+    // best-effort, but say so — silent loss cost us a debugging session
+    console.error("[mongo] persistSession failed:", err instanceof Error ? err.message.slice(0, 200) : err);
   }
 }
 

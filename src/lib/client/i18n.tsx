@@ -209,6 +209,8 @@ const STR = {
   doneSend: { en: "Done — send it", si: "ඉවරයි — යවන්න", ta: "முடிந்தது — அனுப்பு" },
   listeningPill: { en: "Listening — speak now!", si: "අහගෙන — කතා කරන්න!", ta: "கேட்கிறேன் — பேசுங்கள்!" },
   thinkingPill: { en: "Kapu is thinking…", si: "Kapu හිතනවා…", ta: "Kapu யோசிக்கிறார்…" },
+  stepsDone: { en: "Done", si: "ඉවරයි", ta: "முடிந்தது" },
+  stepsN: { en: "Worked through {n} steps", si: "පියවර {n}ක් කළා", ta: "{n} படிகள் செய்தேன்" },
   tapInterrupt: { en: "Speaking — tap anywhere to interrupt", si: "කතා කරනවා — නවත්තන්න tap කරන්න", ta: "பேசுகிறேன் — நிறுத்த தட்டவும்" },
 
   // ── welcome / sheet / account ────────────────────────────────────────

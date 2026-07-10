@@ -88,15 +88,21 @@ export type UiBlock =
   // displayed reply, e.g. romanized colloquial Sinhala). Never rendered.
   | { type: "speech"; text: string };
 
+/** one entry in the assistant's collapsible "thinking steps" timeline */
+export interface AgentStep {
+  tool: string;
+  text: string;
+}
+
 // ── persisted UI transcript (rehydrates the visible chat on reload) ───
 export type UiTurn =
   | { role: "user"; text: string; at: number }
-  | { role: "assistant"; text: string; blocks: UiBlock[]; at: number };
+  | { role: "assistant"; text: string; blocks: UiBlock[]; at: number; steps?: AgentStep[] };
 
 // ── SSE events streamed to the browser ────────────────────────────────
 export type StreamEvent =
   | { type: "text"; delta: string }
-  | { type: "tool"; name: string; status: "start" | "end"; label?: string }
+  | { type: "tool"; name: string; status: "start" | "end"; label?: string; detail?: string }
   | { type: "block"; block: UiBlock }
   | { type: "cart"; cart: Cart }
   | { type: "done" }

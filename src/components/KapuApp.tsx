@@ -63,7 +63,7 @@ import { gsiSignOutHint, renderGoogleButton } from "@/lib/client/gsi";
 import { HERO_PHRASES, LangProvider, makeT, useT, type StrKey } from "@/lib/client/i18n";
 import { fileToCompressedDataUrl, scanMessage, type ScanResult } from "@/lib/client/scan";
 import { nextFestival } from "@/lib/festivals";
-import type { Cart, CartRequest, Currency, Language, Occasion, ProductDetail, ProductSummary, SessionSnapshot, StreamEvent, UiBlock, UiTurn } from "@/lib/types";
+import type { AgentStep, Cart, CartRequest, Currency, Language, Occasion, ProductDetail, ProductSummary, SessionSnapshot, StreamEvent, UiBlock, UiTurn } from "@/lib/types";
 
 type VoiceState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -73,7 +73,7 @@ type Part =
   | { kind: "error"; variant: "connection" | "rate_limit" | "auth" | "generic"; message: string; lastMessage: string; retryAfter?: number; attempt: number };
 type ChatItem =
   | { role: "user"; text: string }
-  | { role: "assistant"; parts: Part[]; streaming?: boolean; toolLabel?: string | null; steps?: string[] };
+  | { role: "assistant"; parts: Part[]; streaming?: boolean; toolLabel?: string | null; steps?: AgentStep[] };
 
 interface WishMeta {
   id: string;
@@ -197,6 +197,7 @@ function itemsFromUi(ui: UiTurn[]): ChatItem[] {
             ...(t.text ? [{ kind: "text" as const, text: t.text }] : []),
             ...t.blocks.filter((b) => b.type !== "speech").map((b) => ({ kind: "block" as const, block: b })),
           ],
+          ...(t.steps?.length ? { steps: t.steps } : {}),
         }
   );
 }
@@ -625,7 +626,10 @@ export default function KapuApp() {
   }, []);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    // Chat follows the newest message; the hero (no items) always opens at
+    // the top — otherwise "home" inherits the chat's bottom scroll position.
+    if (!items.length) scrollRef.current?.scrollTo({ top: 0 });
+    else scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [items, busy]);
 
   // ── send a turn ───────────────────────────────────────────────────────
@@ -712,10 +716,12 @@ export default function KapuApp() {
             case "tool":
               setVoiceTool(event.status === "start" ? event.label ?? null : null);
               patchAssistant((a) => {
-                a.toolLabel = event.status === "start" ? event.label || "Working…" : null;
-                if (event.status === "start" && event.label && event.label !== "…") {
-                  a.steps = a.steps ?? [];
-                  if (a.steps[a.steps.length - 1] !== event.label) a.steps.push(event.label);
+                a.toolLabel = event.status === "start" ? event.detail || event.label || "Working…" : null;
+                if (event.status === "start") {
+                  const text = event.detail || (event.label && event.label !== "…" ? event.label : "");
+                  if (text && a.steps?.[a.steps.length - 1]?.text !== text) {
+                    a.steps = [...(a.steps ?? []), { tool: event.name, text }];
+                  }
                 }
               });
               break;
@@ -2539,6 +2545,9 @@ export default function KapuApp() {
                       <KapuMark size={28} radius={9} />
                     </span>
                     <div className="min-w-0 flex-1">
+                      {(item.steps?.length ?? 0) > 0 && (
+                        <ThinkingSteps steps={item.steps!} streaming={!!item.streaming} label={item.toolLabel ?? null} />
+                      )}
                       {item.parts.map((part, pi) =>
                         part.kind === "text" ? (
                           <div
@@ -2572,21 +2581,15 @@ export default function KapuApp() {
                           {msgSpeak?.idx === idx ? (msgSpeak.st === "loading" ? "…" : t("stopListen")) : t("listen")}
                         </button>
                       )}
-                      {item.streaming && (
+                      {item.streaming && !item.steps?.length && (
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          {(item.steps ?? []).slice(0, -1).slice(-4).map((st, si) => (
-                            <span key={si} className="rise inline-flex items-center gap-1 rounded-full bg-good-soft px-2.5 py-1 text-[10.5px] font-medium text-good">
-                              <IconCheck size={8} />
-                              {st.replace(/…$/, "")}
-                            </span>
-                          ))}
                           <span className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-1.5 text-[12px] text-ink-soft shadow-[0_2px_8px_rgba(64,41,112,0.05)]">
                             <span className="flex gap-1">
                               <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
                               <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
                               <span className="dot h-1.5 w-1.5 rounded-full bg-leaf-bright" />
                             </span>
-                            <span>{item.toolLabel ?? (item.steps?.length ? item.steps[item.steps.length - 1] : "Kapu is thinking…")}</span>
+                            <span>{item.toolLabel ?? t("thinkingPill")}</span>
                           </span>
                         </div>
                       )}
@@ -4844,6 +4847,93 @@ function ErrorCard({
           <IconRetry size={13} />
           {t("tryAgain")}
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── thinking-steps timeline (Claude-desktop-style, persisted per turn) ──
+
+// Past-tense phrases for the collapsed header, keyed by tool name.
+const STEP_PAST: Record<string, string> = {
+  search_products: "Searched Kapruka",
+  get_product: "Checked the details",
+  compare_products: "Compared options",
+  crown_pick: "Crowned a pick",
+  get_hot_deals: "Hunted live deals",
+  get_recommendations: "Curated picks",
+  list_categories: "Browsed categories",
+  resolve_city: "Matched the city",
+  check_delivery: "Checked delivery",
+  cart_update: "Updated the basket",
+  view_cart: "Checked the basket",
+  propose_order: "Prepared the order",
+  create_order: "Placed the order",
+  track_order: "Tracked the order",
+  remember_recipient: "Saved a person",
+  get_recipients: "Checked saved people",
+  forget_recipient: "Forgot a person",
+  save_occasion: "Saved the date",
+  get_upcoming_occasions: "Checked occasions",
+  get_my_orders: "Reviewed past orders",
+  create_schedule: "Set up a standing wish",
+  list_schedules: "Checked schedules",
+  cancel_schedule: "Cancelled a schedule",
+  create_card: "Designed a card",
+};
+
+function ThinkingSteps({ steps, streaming, label }: { steps: AgentStep[]; streaming: boolean; label: string | null }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const live = streaming && !!label; // a tool is running right now
+  const summary = (() => {
+    const phrases: string[] = [];
+    for (const s of steps) {
+      const p = STEP_PAST[s.tool];
+      if (p && !phrases.includes(p)) phrases.push(p);
+    }
+    if (!phrases.length) return t("stepsN", { n: steps.length });
+    return phrases.slice(0, 3).join(" · ") + (phrases.length > 3 ? " …" : "");
+  })();
+
+  return (
+    <div className="mb-2 max-w-[95%]">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 rounded-lg py-0.5 pr-1 text-left text-[12.5px] font-medium text-ink-faint transition hover:text-ink-soft"
+      >
+        <span className={live ? "think-shimmer" : ""}>{live ? label : summary}</span>
+        <IconChevronDown size={11} className={`shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="rise mt-1">
+          {steps.map((s, i) => {
+            const last = i === steps.length - 1;
+            const current = live && last;
+            return (
+              <div key={i} className="flex gap-2.5">
+                <div className="flex w-4 flex-col items-center">
+                  <span className={`mt-[3px] shrink-0 ${current ? "animate-pulse text-leaf" : "text-ink-faint"}`}>
+                    <IconClock size={13} />
+                  </span>
+                  {(!last || !streaming) && <span className="my-1 w-px flex-1 bg-line" />}
+                </div>
+                <p className={`pb-3 text-[12.5px] leading-relaxed ${current ? "think-shimmer" : "text-ink-soft"}`}>
+                  {s.text}
+                </p>
+              </div>
+            );
+          })}
+          {!streaming && (
+            <div className="flex gap-2.5">
+              <span className="mt-[3px] flex w-4 shrink-0 justify-center text-good">
+                <IconCheck size={13} />
+              </span>
+              <p className="text-[12.5px] leading-relaxed text-ink-soft">{t("stepsDone")}</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -143,6 +143,20 @@ body {
 }
 .spark { animation: kapu-spark 1.6s ease-in-out infinite; }
 
+/* "Thinking…" text sweep — the live header of the steps timeline */
+@keyframes kapu-sweep {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.think-shimmer {
+  background: linear-gradient(90deg, var(--color-ink-faint) 35%, var(--color-ink) 50%, var(--color-ink-faint) 65%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: kapu-sweep 2.2s linear infinite;
+}
+
 /* Skeleton shimmer */
 @keyframes kapu-shimmer {
   0% { opacity: 0.55; }
