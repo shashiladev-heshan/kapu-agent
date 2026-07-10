@@ -495,3 +495,66 @@ export async function loadRailCache<T>(key: string, maxAgeMs = 72 * 3600_000): P
     return null;
   }
 }
+
+// ── knowledge-base chunks (kapruka.com policies/FAQs/company pages) ────
+// Chroma is the primary store; this mirror survives Chroma downtime and
+// cold-starts the in-process fallback without re-crawling or re-embedding.
+interface KbChunkDoc {
+  _id: string;
+  url: string;
+  title: string;
+  section: string;
+  text: string;
+  vec: number[];
+  at: Date;
+}
+
+function kbModel(): Model<KbChunkDoc> {
+  return (
+    (mongoose.models.KapuKbChunk as Model<KbChunkDoc>) ??
+    mongoose.model<KbChunkDoc>(
+      "KapuKbChunk",
+      new Schema<KbChunkDoc>(
+        { _id: String, url: String, title: String, section: String, text: String, vec: Array, at: Date },
+        { versionKey: false }
+      )
+    )
+  );
+}
+
+export async function saveKbChunks(
+  chunks: { id: string; url: string; title: string; section: string; text: string; vec: number[] }[]
+): Promise<void> {
+  const conn = db();
+  if (!conn || !chunks.length) return;
+  try {
+    await conn;
+    const at = new Date();
+    await kbModel().bulkWrite(
+      chunks.map((c) => ({
+        replaceOne: {
+          filter: { _id: c.id },
+          replacement: { _id: c.id, url: c.url, title: c.title, section: c.section, text: c.text, vec: c.vec, at },
+          upsert: true,
+        },
+      }))
+    );
+    await kbModel().deleteMany({ at: { $lt: at } }); // drop chunks gone from the site
+  } catch (err) {
+    console.error("[mongo] saveKbChunks failed:", err instanceof Error ? err.message.slice(0, 160) : err);
+  }
+}
+
+export async function loadKbChunks(): Promise<
+  { id: string; url: string; title: string; section: string; text: string; vec: number[]; at: Date }[]
+> {
+  const conn = db();
+  if (!conn) return [];
+  try {
+    await conn;
+    const docs = await kbModel().find({}).lean();
+    return docs.map((d) => ({ id: d._id, url: d.url, title: d.title, section: d.section, text: d.text, vec: d.vec ?? [], at: d.at }));
+  } catch {
+    return [];
+  }
+}

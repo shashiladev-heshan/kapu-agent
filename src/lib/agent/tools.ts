@@ -9,6 +9,7 @@ import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
 import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normalize";
 import { listOrders, recordOrder } from "@/lib/db/mongo";
 import { forgetRecipient, listPeople, rememberOccasion, rememberRecipient, upcomingOccasions } from "@/lib/agent/memory";
+import { queryKb } from "@/lib/kb/store";
 import { cancelSchedule, createSchedule, listSchedules } from "@/lib/schedules/store";
 import { catalogSummary, hydrateReco, queryMatchScores, recommendFor, recoProductEvent, recoQueryEvent, recoSeen, recoStats, similarTo } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
@@ -83,6 +84,18 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
     description:
       "Today's REAL discounts from kapruka.com's live promotions page (true strikethrough prices). Renders a product grid with SAVE % badges. Call whenever the user asks for offers/deals/discounts/promotions/sale ('mokakda offers thiyenne?'). If it returns none, say so honestly and offer trending picks instead.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "kapruka_help",
+    description:
+      "Search Kapruka's OWN knowledge base (crawled live from kapruka.com: delivery & shipping policies, returns/refunds, payments & instalments, warranties, privacy/terms, company story, contact/office info, corporate services, category FAQs). Use for ANY question about Kapruka itself rather than about products. Answer from the returned excerpts and cite the source url as a markdown link. Never guess policies.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "The user's question about Kapruka, in English, e.g. 'how long do refunds take?'" },
+      },
+      required: ["question"],
+    },
   },
   {
     name: "get_recommendations",
@@ -523,6 +536,23 @@ export async function executeTool(
           ...modelView(p),
           save_pct: p.price && p.compare_at_price ? Math.round((1 - p.price / p.compare_at_price) * 100) : null,
         })),
+      });
+    }
+
+    case "kapruka_help": {
+      const question = String(input.question ?? "").trim();
+      if (!question) return JSON.stringify({ error: "question required" });
+      const { hits, backend } = await queryKb(question, 5);
+      if (!hits.length) {
+        return JSON.stringify({
+          unavailable: true,
+          note: "Knowledge base is unreachable right now — say so honestly, share what you know from your persona facts only if certain, and point them to https://www.kapruka.com/shop/faq or the 24/7 hotline +94 117 551 111.",
+        });
+      }
+      return JSON.stringify({
+        backend,
+        excerpts: hits,
+        note: "Answer ONLY from these excerpts. Cite the most relevant source as a markdown link, e.g. [Kapruka's delivery policy](url). If the excerpts don't cover it, say so and point to the Help Center.",
       });
     }
 

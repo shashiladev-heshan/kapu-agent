@@ -92,6 +92,12 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         run("get_hot_deals")
       ),
       tool(
+        "kapruka_help",
+        "Search Kapruka's OWN knowledge base (crawled live from kapruka.com: delivery & shipping policies, returns/refunds, payments & instalments, warranties, privacy/terms, company story, contact/office info, corporate services, category FAQs). Use for ANY question about Kapruka itself rather than about products. Answer from the returned excerpts and cite the source url as a markdown link. Never guess policies.",
+        { question: z.string().min(3).max(300).describe("The user's question about Kapruka, in English") },
+        run("kapruka_help")
+      ),
+      tool(
         "get_recommendations",
         "Personalized 'picked for you' products from THIS user's taste profile (vector similarity over what they searched/opened/carted). Pass product_id for 'more like this'. Renders a product grid automatically. If it returns too_little_signal, search normally instead.",
         {

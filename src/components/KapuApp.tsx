@@ -4861,6 +4861,7 @@ const STEP_PAST: Record<string, string> = {
   compare_products: "Compared options",
   crown_pick: "Crowned a pick",
   get_hot_deals: "Hunted live deals",
+  kapruka_help: "Checked Kapruka's policies",
   get_recommendations: "Curated picks",
   list_categories: "Browsed categories",
   resolve_city: "Matched the city",
