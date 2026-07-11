@@ -86,13 +86,17 @@ const STR = {
   item1: { en: "1 item", si: "බඩු 1යි", ta: "1 பொருள்" },
   basketEmpty: { en: "Your basket is empty — whisper a wish!", si: "බාස්කට් එක හිස් — පැතුමක් කියන්න!", ta: "கூடை காலி — ஒரு விருப்பம் சொல்லுங்கள்!" },
   flatNote: {
-    en: "One flat delivery fee for the whole basket — Kapruka magic.",
-    si: "මුළු බාස්කට් එකටම එක delivery ගාස්තුවයි — Kapruka magic.",
-    ta: "முழு கூடைக்கும் ஒரே டெலிவரி கட்டணம் — Kapruka மேஜிக்.",
+    en: "One flat delivery fee for the whole basket (rate depends on the city) — Kapruka magic.",
+    si: "මුළු බාස්කට් එකටම එක delivery ගාස්තුවයි (ගාන නගරය අනුව) — Kapruka magic.",
+    ta: "முழு கூடைக்கும் ஒரே டெலிவரி கட்டணம் (நகரத்தைப் பொறுத்து) — Kapruka மேஜிக்.",
   },
   subtotal: { en: "Subtotal", si: "එකතුව", ta: "கூட்டுத்தொகை" },
   checkout: { en: "Checkout with Kapu", si: "Kapu එක්ක checkout", ta: "Kapu உடன் செக்அவுட்" },
   forgotChip: { en: "Anything I forgot?", si: "මොනවහරි අමතක වුණාද?", ta: "ஏதாவது மறந்துவிட்டதா?" },
+  returnsChip: { en: "Return policy?", si: "බඩු ආපහු දෙන්න පුළුවන්ද?", ta: "பொருளை திருப்பித் தர முடியுமா?" },
+  deliveryFaqChip: { en: "Delivery & fees?", si: "බෙදාහැරීම් විස්තර?", ta: "டெலிவரி விவரங்கள்?" },
+  paymentsChip: { en: "How can I pay?", si: "ගෙවන්නේ කොහොමද?", ta: "எப்படி பணம் செலுத்துவது?" },
+  shipNextDate: { en: "from {date}", si: "{date} ඉඳන්", ta: "{date} முதல்" },
   remove: { en: "Remove", si: "අයින් කරන්න", ta: "நீக்கு" },
 
   // ── product blocks ───────────────────────────────────────────────────

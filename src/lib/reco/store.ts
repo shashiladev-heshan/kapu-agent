@@ -5,8 +5,10 @@
 // embedded once (OpenAI text-embedding-3-small, 512 dims, normalized) into an
 // in-memory catalog index. Each user interaction becomes a weighted event;
 // a user's "taste vector" is the time-decayed weighted mean of their event
-// embeddings. Recommendations = cosine nearest neighbors in the catalog,
-// excluding what they already carted. similarTo() powers "more like this".
+// embeddings. Recommendations = cosine nearest neighbors in the catalog —
+// carted items INCLUDED (a basket add is the strongest taste signal; hiding
+// the item from "Picked for you" reads as the rail losing products).
+// similarTo() powers "more like this".
 //
 // Dormant without OPENAI_API_KEY (mirrors the Mongo-optional pattern):
 // every entry point no-ops and /api/recs serves empty.
@@ -170,14 +172,13 @@ export async function recoQueryEvent(keys: (string | undefined)[], query: string
   }
 }
 
-function tasteVector(keys: string[], seeds?: Float32Array[]): { vec: Float32Array; carted: Set<string>; signal: number } | null {
+function tasteVector(keys: string[], seeds?: Float32Array[]): { vec: Float32Array; signal: number } | null {
   const all: RecoEvent[] = [];
   for (const key of keys) all.push(...(events.get(key) ?? []));
   // seed vectors (♥ favorites) count as steady weight-2 interest
   for (const vec of seeds ?? []) all.push({ pid: null, vec, weight: 2, at: Date.now() });
   if (all.length < 2) return null;
   const acc = new Float32Array(DIMS);
-  const carted = new Set<string>();
   let total = 0;
   const now = Date.now();
   for (const ev of all) {
@@ -185,10 +186,9 @@ function tasteVector(keys: string[], seeds?: Float32Array[]): { vec: Float32Arra
     const w = ev.weight * decay;
     for (let i = 0; i < DIMS; i++) acc[i] += ev.vec[i] * w;
     total += w;
-    if (ev.pid && ev.weight >= 3) carted.add(ev.pid);
   }
   if (total <= 0) return null;
-  return { vec: normalize(Array.from(acc, (v) => v / total)), carted, signal: all.length };
+  return { vec: normalize(Array.from(acc, (v) => v / total)), signal: all.length };
 }
 
 function neighbors(vec: Float32Array, k: number, exclude: Set<string>, floor: number): ProductSummary[] {
@@ -199,15 +199,30 @@ function neighbors(vec: Float32Array, k: number, exclude: Set<string>, floor: nu
     if (s >= floor) scored.push({ s, p: entry.summary });
   }
   scored.sort((a, b) => b.s - a.s);
-  return scored.slice(0, k).map(({ p }, i) => ({ ...p, pick: i === 0 }));
+  // the catalog can hold one product under several id forms (MCP tools vs
+  // scraped rails) — collapse by normalized id AND name before slicing
+  const seen = new Set<string>();
+  const out: ProductSummary[] = [];
+  for (const { p } of scored) {
+    const idKey = p.id.toLowerCase();
+    const nameKey = `n:${p.name.trim().toLowerCase()}`;
+    if (seen.has(idKey) || seen.has(nameKey)) continue;
+    seen.add(idKey);
+    seen.add(nameKey);
+    out.push(p);
+    if (out.length === k) break;
+  }
+  return out.map((p, i) => ({ ...p, pick: i === 0 }));
 }
 
-/** "Picked for you" — taste-vector nearest neighbors across the catalog. */
+/** "Picked for you" — taste-vector nearest neighbors across the catalog.
+ *  Carted items stay eligible: the rail must not "lose" a product the
+ *  moment it lands in the basket. */
 export function recommendFor(keys: (string | undefined)[], k = 8, seeds?: Float32Array[]): ProductSummary[] {
   if (!enabled()) return [];
   const taste = tasteVector(keys.filter(Boolean) as string[], seeds);
   if (!taste) return [];
-  return neighbors(taste.vec, k, taste.carted, 0.2);
+  return neighbors(taste.vec, k, new Set(), 0.2);
 }
 
 /** "More like this" — neighbors of one product's own embedding. */

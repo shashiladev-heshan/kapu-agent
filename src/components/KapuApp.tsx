@@ -1100,7 +1100,12 @@ export default function KapuApp() {
 
   const actions: BlockActions = useMemo(
     () => ({
-      onAction: (t) => void sendRef.current(t),
+      // any block action lands the user in the conversation — close the
+      // basket overlay so the streaming reply is visible (sheet/slide-over)
+      onAction: (t) => {
+        setCartOpen(false);
+        void sendRef.current(t);
+      },
       onCartAdd: (p: ProductSummary, opts) =>
         void cartOp({
           action: "add",
@@ -1122,10 +1127,11 @@ export default function KapuApp() {
       onFocusComposer: () => inputRef.current?.focus(),
       onOpenProduct: (p) => openProduct(p),
       onDeliverTo: (city) => {
+        // empty string = remove the chosen city (basket quote row ✕)
         const v = city.trim().slice(0, 40);
-        if (!v) return;
         setDeliverTo(v);
-        localStorage.setItem("kapu_deliver_to", v);
+        if (v) localStorage.setItem("kapu_deliver_to", v);
+        else localStorage.removeItem("kapu_deliver_to");
       },
       onToggleFav: (p) => toggleFav(p),
       isFav: (id) => Boolean(favs[id]),
@@ -2789,16 +2795,6 @@ export default function KapuApp() {
           </div>
           <div className="flex-1 overflow-y-auto pb-3">
             <CartView cart={cart} actions={actions} compact deliverTo={deliverTo || undefined} />
-            {cartCount > 0 && (
-              <div className="mt-1 flex flex-wrap gap-2 px-3">
-                <button
-                  onClick={() => void send("Anything I forgot for this basket?")}
-                  className="rounded-full border border-edge bg-card px-3 py-1.5 text-[11.5px] font-medium text-ink"
-                >
-                  {t("forgotChip")}
-                </button>
-              </div>
-            )}
           </div>
         </aside>
       )}
@@ -2934,16 +2930,6 @@ export default function KapuApp() {
             </div>
             <div className="flex-1 overflow-y-auto pb-4">
               <CartView cart={cart} actions={actions} compact deliverTo={deliverTo || undefined} />
-              {cartCount > 0 && (
-                <div className="mt-1 flex flex-wrap gap-2 px-3">
-                  <button
-                    onClick={() => void send("Anything I forgot for this basket?")}
-                    className="rounded-full border border-edge bg-card px-3 py-1.5 text-[11.5px] font-medium text-ink"
-                  >
-                    {t("forgotChip")}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
           {/* mobile bottom sheet */}

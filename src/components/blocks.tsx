@@ -19,6 +19,7 @@ import {
   IconCheck,
   IconCheckCircle,
   IconClock,
+  IconClose,
   IconExternal,
   IconGlobe,
   IconHeart,
@@ -846,15 +847,26 @@ export function CartView({
   compact?: boolean;
   deliverTo?: string;
 }) {
-  // live flat-rate quote for the chosen city — same source as the hero pill
-  const [ship, setShip] = useState<{ rate: number | null; currency: string } | null>(null);
+  // live flat-rate quote for the chosen city — same source as the hero pill.
+  // The rate is real even after today's cutoff (available:false + a next
+  // date) — surface the fee with the next-day note, never hide it.
+  const [ship, setShip] = useState<{ rate: number | null; currency: string; next: string | null } | null>(null);
   useEffect(() => {
     setShip(null);
     if (!deliverTo || cart.items.length === 0) return;
     let alive = true;
     fetch(`/api/delivery?city=${encodeURIComponent(deliverTo)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && d?.available && typeof d.rate === "number" && setShip({ rate: d.rate, currency: d.currency || "LKR" }))
+      .then(
+        (d) =>
+          alive &&
+          typeof d?.rate === "number" &&
+          setShip({
+            rate: d.rate,
+            currency: d.currency || "LKR",
+            next: d.available === true ? null : typeof d.next === "string" ? d.next : null,
+          })
+      )
       .catch(() => {});
     return () => {
       alive = false;
@@ -945,13 +957,22 @@ export function CartView({
         ))}
       </ul>
 
-      {deliverTo && ship ? (
+      {deliverTo ? (
         <div className="mx-3 mt-2.5 flex items-center gap-2.5 rounded-[13px] border border-leaf/25 bg-leaf-soft px-3 py-2.5">
           <IconTruck size={15} className="shrink-0 text-leaf" />
           <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-leaf">
-            {t("shipTo", { city: deliverTo, date: "" }).replace(/·\s*$/, "")}
+            {ship
+              ? t("shipTo", { city: deliverTo, date: ship.next ? t("shipNextDate", { date: ship.next }) : "" }).replace(/·\s*$/, "")
+              : t("shipCheck", { city: deliverTo })}
           </p>
-          <span className="price-serif shrink-0 text-[15px] text-leaf">{fmt(ship.rate, ship.currency)}</span>
+          {ship && <span className="price-serif shrink-0 text-[15px] text-leaf">{fmt(ship.rate, ship.currency)}</span>}
+          <button
+            onClick={() => actions.onDeliverTo("")}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-leaf/25 text-leaf transition active:scale-95"
+            aria-label={`Remove delivery city ${deliverTo}`}
+          >
+            <IconClose size={9} />
+          </button>
         </div>
       ) : (
         <div className="mx-3 mt-2.5 rounded-[13px] bg-leaf-soft px-3 py-2.5">
@@ -959,7 +980,7 @@ export function CartView({
             <IconTruck size={15} className="mt-0.5 shrink-0 text-leaf" />
             <p className="text-[11.5px] leading-snug text-leaf">{t("flatNote")}</p>
           </div>
-          {cart.items.length > 0 && !deliverTo && (
+          {cart.items.length > 0 && (
             <div className="mt-2">
               <InlineCityQuote onPick={actions.onDeliverTo} />
             </div>
@@ -999,6 +1020,24 @@ export function CartView({
         >
           <span className="text-[#25D366]">🟢</span> {t("waBasket")}
         </a>
+        {/* ask-Kapu shortcuts — real chat turns; the KB tool answers policy
+            questions with kapruka.com citations */}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[
+            { label: t("forgotChip"), msg: "Anything I forgot for this basket?" },
+            { label: t("returnsChip"), msg: "What's Kapruka's return & refund policy?" },
+            { label: t("deliveryFaqChip"), msg: "How do delivery fees and timings work for my basket?" },
+            { label: t("paymentsChip"), msg: "What payment options do I have at checkout — card, KOKO instalments, bank transfer?" },
+          ].map((c) => (
+            <button
+              key={c.label}
+              onClick={() => actions.onAction(c.msg)}
+              className="rounded-full border border-edge bg-card px-3 py-1.5 text-[11.5px] font-medium text-ink transition active:scale-[0.98]"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
     </>
   );
