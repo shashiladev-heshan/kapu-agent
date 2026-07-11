@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const id = (url.searchParams.get("id") ?? "").trim().slice(0, 80);
-  const currency = (url.searchParams.get("currency") ?? "LKR").slice(0, 3);
+  // canonical LKR — display conversion happens client-side in fmt()
+  const currency = "LKR";
   if (id.length < 3) return Response.json({ error: "id required" }, { status: 400 });
   try {
     const res = parseJson(await kapruka("kapruka_get_product", { product_id: id, currency }));

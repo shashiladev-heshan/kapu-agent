@@ -58,8 +58,8 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         {
           q: z.string().min(3).max(200).describe("Search keywords in English"),
           category: z.string().optional().describe("e.g. Electronic, Grocery, Pharmacy, Fashion, cakes, flowers"),
-          min_price: z.number().optional(),
-          max_price: z.number().optional(),
+          min_price: z.number().optional().describe("In LKR (convert a foreign-currency budget first — rate in context)"),
+          max_price: z.number().optional().describe("In LKR (convert a foreign-currency budget first — rate in context)"),
           sort: z.enum(["relevance", "price_asc", "price_desc", "newest", "bestseller"]).optional(),
           in_stock_only: z.boolean().optional(),
           limit: z.number().optional().describe("1-20, default 8"),

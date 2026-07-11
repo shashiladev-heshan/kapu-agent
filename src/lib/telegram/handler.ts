@@ -215,7 +215,6 @@ function replyParams(replyTo?: number): Record<string, unknown> {
 async function handleTurn(chatId: number, message: string, replyTo?: number): Promise<void> {
   const session = await getSession(sessionId(chatId));
   session.voice = false;
-  session.cart.currency = session.currency;
   if (!session.title) session.title = message.slice(0, 60);
 
   await sendChatAction(chatId, "typing");

@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { BlockRenderer, CartView, OrderTimeline, ProductCard, ProductGrid, ProductHero, ProductImage, fmt, type BlockActions } from "@/components/blocks";
+import { BlockRenderer, CartView, OrderTimeline, ProductCard, ProductGrid, ProductHero, ProductImage, cartDisplayTotal, fmt, type BlockActions } from "@/components/blocks";
 import {
   IconArrowRight,
   IconBasket,
@@ -995,7 +995,7 @@ export default function KapuApp() {
       // detail can 500 upstream (EF_PC_* family) — degrade to the summary
       // we already hold instead of a forever-skeleton
       const fallback: ProductDetail = { ...p, description: null, images: p.image ? [p.image] : [], variants: [], attributes: {} };
-      void fetch(`/api/product?id=${encodeURIComponent(p.id)}&currency=${currency}&sessionId=${encodeURIComponent(sessionIdRef.current)}`)
+      void fetch(`/api/product?id=${encodeURIComponent(p.id)}&sessionId=${encodeURIComponent(sessionIdRef.current)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setProductDetail(d?.product ?? fallback))
         .catch(() => setProductDetail(fallback));
@@ -1015,7 +1015,7 @@ export default function KapuApp() {
         .then((d) => Array.isArray(d?.products) && d.products.length >= 3 && setProductSimilar(d.products))
         .catch(() => {});
     },
-    [currency]
+    []
   );
 
   const notifItems = useMemo(() => {
@@ -1420,9 +1420,9 @@ export default function KapuApp() {
     setWishesOpen(false);
     // basket follows the user into the fresh wish
     if (cart.items.length > 0) carryCart(prev);
-    else setCart({ items: [], currency });
+    else setCart({ items: [], currency: "LKR" });
     refreshRecs();
-  }, [currency, stopVoice, cart.items.length, carryCart, refreshRecs]);
+  }, [stopVoice, cart.items.length, carryCart, refreshRecs]);
 
   const openWish = useCallback(
     async (id: string) => {
@@ -1596,7 +1596,6 @@ export default function KapuApp() {
   }, []);
 
   const cartCount = cart.items.reduce((n, i) => n + i.quantity, 0);
-  const cartSubtotal = cart.items.reduce((s, i) => s + (i.price ?? 0) * i.quantity, 0);
   const empty = items.length === 0;
   // display-currency conversion: sync the module-level fx state every render
   // (fxRates/currency are state, so consumers re-render on change)
@@ -2746,7 +2745,7 @@ export default function KapuApp() {
                     <div className="flex items-center gap-2.5 rounded-[13px] border border-line bg-card px-3.5 py-2.5">
                       <IconBasket size={15} className="text-leaf" />
                       <p className="text-[12px] font-semibold">
-                        {t("itemsWaiting", { n: cartCount === 1 ? t("item1") : t("itemsN", { n: cartCount }), total: fmt(cartSubtotal, cart.currency) })}
+                        {t("itemsWaiting", { n: cartCount === 1 ? t("item1") : t("itemsN", { n: cartCount }), total: cartDisplayTotal(cart.items) })}
                       </p>
                       <span className="ml-auto rounded-md bg-cream px-2 py-0.5 text-[9px] font-bold tracking-[0.06em] text-ink-faint">
                         {t("savedTag")}

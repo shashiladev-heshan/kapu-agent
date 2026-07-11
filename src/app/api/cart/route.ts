@@ -3,7 +3,7 @@
 // The agent stays in sync because every chat turn's context carries the
 // live cart summary.
 
-import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
+import { applyCartUpdate, cartSubtotal, ensureCartLkr } from "@/lib/kapruka/cart";
 import { getSession, peekSession, saveSession } from "@/lib/session/store";
 import type { CartRequest } from "@/lib/types";
 
@@ -14,6 +14,7 @@ export async function GET(req: Request): Promise<Response> {
   const sessionId = new URL(req.url).searchParams.get("sessionId")?.slice(0, 64);
   if (!sessionId) return Response.json({ error: "sessionId required" }, { status: 400 });
   const session = await getSession(sessionId);
+  if (await ensureCartLkr(session)) saveSession(session);
   return Response.json({ cart: session.cart, subtotal: cartSubtotal(session) });
 }
 
@@ -35,7 +36,7 @@ export async function POST(req: Request): Promise<Response> {
     const source = await peekSession(from);
     if (source && source.id !== target.id) {
       target.cart.items = source.cart.items.map((i) => ({ ...i }));
-      target.cart.currency = source.cart.currency;
+      await ensureCartLkr(target);
       saveSession(target);
     }
     return Response.json({ cart: target.cart, subtotal: cartSubtotal(target) });

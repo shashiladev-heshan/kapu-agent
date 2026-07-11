@@ -77,6 +77,10 @@ Telegram channel (`src/lib/telegram/*`): tg_<chatId> sessions reuse the store/to
 
 ## Language system
 - The UI toggle (සිං/த/EN) is AUTHORITATIVE: `reply_language` in each turn's context. si → Sinhala script replies, ta → Tamil script, en → mirror user style (English/Tanglish). Explicit in-chat request overrides.
+
+## Currency system — canonical LKR
+- The server NEVER asks the MCP to convert currency: search/get_product/cart/order totals are always LKR (`tools.ts` pins `currency = "LKR"`; so do `/api/product` and `cart.ts`). Display conversion is client-only: `/api/fx` rates (exchangerate-api, logic in `src/lib/fx.ts`) → `fxConvert` inside `fmt()`/`cartDisplayTotal()` in blocks.tsx. The agent quotes LKR as authoritative and gets a rate hint in turn context (`currency: USD (1 USD ≈ Rs 335 …)`) for approximate mentions.
+- Why: the MCP's own fx rates drift from /api/fx rates, and storing display-currency prices in the cart once produced the "Rs 3,103 item, Subtotal Rs 7" bug (a GBP 6.90 line summed raw and labeled Rs). `ensureCartLkr()` (cart.ts) reprices any legacy foreign-currency cart line — exact MCP price first, fx-approx fallback (EF_PC_* 500s) — and runs on cart reads/mutations and at the top of `buildTurnContext`. Basket subtotals must convert per-line BEFORE summing (`cartDisplayTotal`), never blind-sum `item.price`.
 - Voice mode (`mode: voice` in context): visible reply stays in script; model ALSO calls the `say` tool with a speech-optimized version — for Sinhala that's **romanized colloquial Sinhala**, because TTS engines read Latin-script Sinhala far more naturally than Sinhala orthography.
 
 ## Voice loop (hands-free)

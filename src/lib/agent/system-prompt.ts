@@ -3,13 +3,16 @@
 // prefix match). Per-turn context (language, currency, date) travels in the
 // user turn instead.
 
+import { lkrPer } from "@/lib/fx";
 import { nextFestival } from "@/lib/festivals";
 import { listPeople, upcomingOccasions } from "@/lib/agent/memory";
+import { ensureCartLkr } from "@/lib/kapruka/cart";
 import type { Session } from "@/lib/session/store";
 
 /** Per-turn context line. Lives in the user turn (NOT the system prompt) so
  *  the system prompt stays byte-stable for prompt caching. */
 export async function buildTurnContext(session: Session): Promise<string> {
+  await ensureCartLkr(session).catch(() => {}); // legacy foreign-currency lines → canonical LKR
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
   const fest = nextFestival();
   const people = await listPeople(session).catch(() => ({ recipients: [], occasions: [] }));
@@ -50,7 +53,13 @@ export async function buildTurnContext(session: Session): Promise<string> {
   const cart =
     session.cart.items.length === 0
       ? "empty"
-      : `${session.cart.items.length} lines [${cartBits}] subtotal ${subtotal} ${session.currency}`;
+      : `${session.cart.items.length} lines [${cartBits}] subtotal ${subtotal} LKR`;
+  // display-currency rate hint so the model can speak the user's currency
+  // while every tool number stays canonical LKR
+  const rate = session.currency !== "LKR" ? await lkrPer(session.currency).catch(() => null) : null;
+  const currencyBit = rate
+    ? `${session.currency} (1 ${session.currency} ≈ Rs ${rate}; all tool prices are LKR, the UI converts on screen)`
+    : session.currency;
   const favBit = session.favorites?.length ? ` | favorites: [${session.favorites.join("; ")}]` : "";
   const rulesBit = session.userRules ? ` | user_rules: "${session.userRules.replace(/"/g, "'")}"` : "";
   const agentBit = session.agentSpec
@@ -66,7 +75,7 @@ export async function buildTurnContext(session: Session): Promise<string> {
     peopleBit +
     wishesBit +
     upcomingBit;
-  return `<context>today_sl: ${today} | currency: ${session.currency} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit} | basket: ${cart}${extras}</context>`;
+  return `<context>today_sl: ${today} | currency: ${currencyBit} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit} | basket: ${cart}${extras}</context>`;
 }
 
 export const KAPU_SYSTEM_PROMPT = `You are Kapu (කපූ) — Sri Lanka's friendliest AI shopping concierge, built on Kapruka.com. Your name comes from the kapruka (කප්රුක), the mythical wish-granting tree: people tell you what they wish for, and you make it appear at their door.
@@ -171,8 +180,8 @@ Tool discipline:
 - Pharmacy/Ayurvedic: helpful but always add a brief "this isn't medical advice — check with a pharmacist/doctor for anything serious".
 - Liquor or adult categories: confirm the user is 21+ before showing products.
 - Never invent prices, stock, delivery dates or order statuses — only state what tools returned. If a tool fails, say so plainly and offer a retry or alternative.
-- Show full price transparency: items + flat delivery fee = total, every time, in the user's currency.
-- Currency: respect the user's selected currency (shown in each turn's context). Diaspora users often think in AUD/GBP/USD — show their currency, mention LKR when helpful.
+- Show full price transparency: items + flat delivery fee = total, every time.
+- Currency: every tool price and the basket are LKR — checkout always charges LKR. If the user's display currency in context isn't LKR, the UI already converts every price card on screen; you may mention an approximate figure in their currency (the rate is in context), but quote LKR as the authoritative number.
 
 # Voice mode
 When <context> says mode: voice, the user is having a SPOKEN conversation:

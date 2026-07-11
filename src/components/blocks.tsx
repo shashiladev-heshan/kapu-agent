@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fxConvert } from "@/lib/client/fx";
 import { useLang, useT } from "@/lib/client/i18n";
-import type { Cart, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
+import type { Cart, CartItem, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
 import { detailMeta, resizeImage } from "@/lib/kapruka/normalize";
 import {
   IconArrowRight,
@@ -53,11 +53,36 @@ export interface BlockActions {
   isFav: (id: string) => boolean;
 }
 
+const fmtIn = (v: number, c: string) =>
+  c === "LKR"
+    ? `Rs ${Math.round(v).toLocaleString("en-LK")}`
+    : new Intl.NumberFormat("en-LK", { style: "currency", currency: c, maximumFractionDigits: 2 }).format(v);
+
 export const fmt = (n: number | null | undefined, currency = "LKR") => {
   if (n == null) return "—";
   const { n: v, c } = fxConvert(n, currency);
-  if (c === "LKR") return `Rs ${Math.round(v).toLocaleString("en-LK")}`;
-  return new Intl.NumberFormat("en-LK", { style: "currency", currency: c, maximumFractionDigits: 2 }).format(v);
+  return fmtIn(v, c);
+};
+
+/** Basket totals: convert each line to the display currency BEFORE summing —
+ *  lines are canonically LKR, but legacy carts can still carry a foreign-
+ *  currency line, and a blind sum of mixed currencies is how a Rs 3,103
+ *  basket once showed "Subtotal Rs 7". `extraLkr` folds an LKR amount
+ *  (the flat delivery rate) into the same conversion. */
+export const cartDisplayTotal = (items: CartItem[], extraLkr = 0): string => {
+  let v = 0;
+  let c = "LKR";
+  for (const i of items) {
+    const r = fxConvert((i.price ?? 0) * i.quantity, i.currency || "LKR");
+    v += r.n;
+    c = r.c;
+  }
+  if (extraLkr) {
+    const r = fxConvert(extraLkr, "LKR");
+    v += r.n;
+    if (items.length === 0) c = r.c;
+  }
+  return fmtIn(v, c);
 };
 
 const CARD = "border border-line bg-card shadow-[0_2px_10px_rgba(64,41,112,0.05)]";
@@ -821,7 +846,6 @@ export function CartView({
   compact?: boolean;
   deliverTo?: string;
 }) {
-  const subtotal = cart.items.reduce((s, i) => s + (i.price ?? 0) * i.quantity, 0);
   // live flat-rate quote for the chosen city — same source as the hero pill
   const [ship, setShip] = useState<{ rate: number | null; currency: string } | null>(null);
   useEffect(() => {
@@ -945,7 +969,7 @@ export function CartView({
 
       <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
         <p className="text-[12.5px] text-ink-soft">{t("subtotal")}</p>
-        <p className="price-serif text-[20px]">{fmt(subtotal, cart.currency)}</p>
+        <p className="price-serif text-[20px]">{cartDisplayTotal(cart.items)}</p>
       </div>
       {deliverTo && ship?.rate != null && (
         <div className="-mt-1 flex items-baseline justify-between px-4 pb-1">
@@ -956,7 +980,7 @@ export function CartView({
       {deliverTo && ship?.rate != null && (
         <div className="flex items-baseline justify-between border-t border-line px-4 pb-1 pt-2">
           <p className="text-[12.5px] font-semibold">{t("totalWithDelivery")}</p>
-          <p className="price-serif text-[21px] text-leaf">{fmt(subtotal + ship.rate, cart.currency)}</p>
+          <p className="price-serif text-[21px] text-leaf">{cartDisplayTotal(cart.items, ship.rate)}</p>
         </div>
       )}
       <div className="p-3 pt-1.5">
@@ -968,7 +992,7 @@ export function CartView({
           <IconArrowRight size={15} />
         </button>
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`🌳 Kapu basket · ${cart.items.map((i) => `${i.name} ×${i.quantity}`).join(", ")} · ${fmt(subtotal, cart.currency)} — kapuwa.shop`)}`}
+          href={`https://wa.me/?text=${encodeURIComponent(`🌳 Kapu basket · ${cart.items.map((i) => `${i.name} ×${i.quantity}`).join(", ")} · ${cartDisplayTotal(cart.items)} — kapuwa.shop`)}`}
           target="_blank"
           rel="noreferrer"
           className="mt-2 flex items-center justify-center gap-2 rounded-[13px] border border-edge bg-card py-2.5 text-[12px] font-semibold text-ink-soft transition active:scale-[0.99]"

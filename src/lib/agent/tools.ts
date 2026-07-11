@@ -27,8 +27,8 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
       properties: {
         q: { type: "string", description: "Search keywords in English, 3-200 chars (translate Sinhala/Tamil intents to English product terms, e.g. 'kiri' -> 'milk')" },
         category: { type: "string", description: "Optional category filter, e.g. Electronic, Grocery, Pharmacy, Fashion, cakes, flowers, samedaydelivery, bestsellers, promotions — or a bakery brand under cakes (e.g. 'Java', 'Divine')" },
-        min_price: { type: "number" },
-        max_price: { type: "number" },
+        min_price: { type: "number", description: "In LKR (convert a foreign-currency budget first — rate in context)" },
+        max_price: { type: "number", description: "In LKR (convert a foreign-currency budget first — rate in context)" },
         sort: { type: "string", enum: ["relevance", "price_asc", "price_desc", "newest", "bestseller"] },
         in_stock_only: { type: "boolean" },
         limit: { type: "number", description: "1-20, default 8" },
@@ -368,7 +368,11 @@ export async function executeTool(
   session: Session,
   emit: Emit
 ): Promise<string> {
-  const currency = session.currency;
+  // Canonical LKR: the MCP will convert when asked, but its rates drift from
+  // the display rates (/api/fx) — so prices are fetched, stored and totalled
+  // in LKR only. The client converts for display; the agent gets a rate hint
+  // in turn context to speak the user's currency.
+  const currency = "LKR";
 
   switch (name) {
     case "search_products": {
