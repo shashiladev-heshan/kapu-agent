@@ -660,11 +660,27 @@ export default function KapuApp() {
     });
   }, []);
 
+  // Chat follows the newest message ONLY while the user is at the bottom —
+  // once they scroll up to read, streaming deltas must not drag them back
+  // down. Unstick on any upward scroll; re-stick near the bottom or on send.
+  const stickToBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  const onChatScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop < lastScrollTopRef.current - 2) stickToBottomRef.current = false;
+    else if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) stickToBottomRef.current = true;
+    lastScrollTopRef.current = el.scrollTop;
+  }, []);
+
   useEffect(() => {
-    // Chat follows the newest message; the hero (no items) always opens at
-    // the top — otherwise "home" inherits the chat's bottom scroll position.
-    if (!items.length) scrollRef.current?.scrollTo({ top: 0 });
-    else scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    // The hero (no items) always opens at the top — otherwise "home"
+    // inherits the chat's bottom scroll position.
+    if (!items.length) {
+      stickToBottomRef.current = true;
+      scrollRef.current?.scrollTo({ top: 0 });
+    } else if (stickToBottomRef.current) {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
   }, [items, busy]);
 
   // ── send a turn ───────────────────────────────────────────────────────
@@ -673,6 +689,7 @@ export default function KapuApp() {
       const message = text.trim();
       if (!message || busy) return;
       setBusy(true);
+      stickToBottomRef.current = true; // sending = wanting to see the reply
       setInput("");
       setCartOpen(false);
       setWishesOpen(false);
@@ -2307,7 +2324,7 @@ export default function KapuApp() {
         </header>
 
         {/* ══ Messages / hero ══ */}
-        <main ref={scrollRef} className="relative flex-1 overflow-y-auto">
+        <main ref={scrollRef} onScroll={onChatScroll} className="relative flex-1 overflow-y-auto">
           {empty ? (
             <div className="relative flex min-h-full flex-col items-center overflow-hidden px-5 py-8 sm:justify-center sm:[&>*]:shrink-0">
               {/* watermark + decorative ring */}
