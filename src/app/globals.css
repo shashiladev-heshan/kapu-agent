@@ -90,6 +90,18 @@ body {
   display: none;
 }
 
+/* Streamed words materialize — smooth reveal on the live bubble */
+@keyframes kapu-word {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.stream-word {
+  animation: kapu-word 0.32s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stream-word { animation: none; }
+}
+
 /* Streaming caret */
 @keyframes kapu-blink {
   0%, 100% { opacity: 1; }

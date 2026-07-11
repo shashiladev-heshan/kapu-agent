@@ -8,8 +8,8 @@
 //  · Full-screen immersive voice canvas with live captions & barge-in.
 //  · Edge states with grace: connection lost, rate-limited, offline, mic ask.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { Children, createElement, memo, useCallback, useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BlockRenderer, CartView, OrderTimeline, ProductCard, ProductGrid, ProductHero, ProductImage, cartDisplayTotal, fmt, type BlockActions } from "@/components/blocks";
 import {
@@ -76,7 +76,53 @@ type Part =
   | { kind: "error"; variant: "connection" | "rate_limit" | "auth" | "generic"; message: string; lastMessage: string; retryAfter?: number; attempt: number };
 type ChatItem =
   | { role: "user"; text: string }
-  | { role: "assistant"; parts: Part[]; streaming?: boolean; toolLabel?: string | null; steps?: AgentStep[] };
+  | { role: "assistant"; parts: Part[]; streaming?: boolean; toolLabel?: string | null; steps?: AgentStep[]; turn?: number };
+
+// Monotonic id per assistant turn — the smooth-reveal painter can keep
+// draining after the network stream (and `busy`) end, so its patches must
+// target THIS turn's bubble, never "whatever is last" (a new send may have
+// appended a fresh bubble by then).
+let turnSeq = 0;
+
+// ── smooth streaming: word-level fade-in ────────────────────────────────
+// The live bubble's markdown renders through these components so every
+// newly revealed word mounts as a `.stream-word` span and fades in (the
+// painter only emits whole words, so each fade plays exactly once).
+// Finalized bubbles render plain markdown — same layout, clean DOM.
+function fadeChildren(children: ReactNode): ReactNode {
+  return Children.map(children, (child) =>
+    typeof child === "string"
+      ? child.split(/(\s+)/).map((w, i) =>
+          w.trim() ? (
+            <span key={i} className="stream-word">
+              {w}
+            </span>
+          ) : (
+            w
+          )
+        )
+      : child
+  );
+}
+const STREAM_TAGS = ["p", "li", "strong", "em", "a", "h1", "h2", "h3", "h4", "blockquote"] as const;
+const streamComponents = Object.fromEntries(
+  STREAM_TAGS.map((tag) => [
+    tag,
+    ({ node: _node, children, ...rest }: { node?: unknown; children?: ReactNode } & Record<string, unknown>) =>
+      createElement(tag, rest as HTMLAttributes<HTMLElement>, fadeChildren(children)),
+  ])
+) as Components;
+
+// Memoized so the 60fps reveal only re-renders the ONE live bubble — every
+// finalized message (and its markdown parse) bails out on reference equality.
+const MdPart = memo(function MdPart({ text, live }: { text: string; live: boolean }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={live ? streamComponents : undefined}>
+      {text}
+    </ReactMarkdown>
+  );
+});
+const MemoBlock = memo(BlockRenderer);
 
 interface WishMeta {
   id: string;
@@ -679,7 +725,10 @@ export default function KapuApp() {
       stickToBottomRef.current = true;
       scrollRef.current?.scrollTo({ top: 0 });
     } else if (stickToBottomRef.current) {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      // while streaming this runs per animation frame — instant pin follows
+      // buttery; a fresh `smooth` scroll every frame stutters (each call
+      // restarts the easing animation)
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: busy ? "auto" : "smooth" });
     }
   }, [items, busy]);
 
@@ -709,23 +758,102 @@ export default function KapuApp() {
         const acks = ackCacheRef.current[languageRef.current];
         if (acks?.length) void playerRef.current?.playAck(acks[Math.floor(acks.length * ((Date.now() % 97) / 97))]);
       }
+      const turn = ++turnSeq;
       setItems((prev) => [
         ...prev,
         { role: "user", text: message },
-        { role: "assistant", parts: [], streaming: true, toolLabel: null },
+        { role: "assistant", parts: [], streaming: true, toolLabel: null, turn },
       ]);
 
       const patchAssistant = (fn: (a: Extract<ChatItem, { role: "assistant" }>) => void) =>
         setItems((prev) => {
           const next = [...prev];
-          const last = next[next.length - 1];
-          if (last?.role === "assistant") {
-            const copy = { ...last, parts: [...last.parts] };
-            fn(copy);
-            next[next.length - 1] = copy;
+          for (let i = next.length - 1; i >= 0; i--) {
+            const it = next[i];
+            if (it.role === "assistant" && it.turn === turn) {
+              const copy = { ...it, parts: [...it.parts] };
+              fn(copy);
+              next[i] = copy;
+              break;
+            }
           }
           return next;
         });
+
+      // ── smooth reveal ──────────────────────────────────────────────────
+      // SSE deltas arrive as uneven chunks (whole phrases at a time). Instead
+      // of repainting each chunk, buffer everything and let a rAF painter
+      // reveal a few characters per frame — cruising near reading speed and
+      // accelerating with backlog so it never falls behind the model. Block/
+      // tool/error patches ride the same queue, so transcript order is exact.
+      // Voice mode paints instantly: speech latency beats typography there.
+      const instant = voiceOnRef.current;
+      const pending: (string | (() => void))[] = [];
+      let painting = false;
+      let closed = false; // network stream ended — drain the tail fast
+
+      const appendText = (chunk: string) =>
+        patchAssistant((a) => {
+          a.toolLabel = null;
+          const last = a.parts[a.parts.length - 1];
+          if (last?.kind === "text") {
+            a.parts[a.parts.length - 1] = { kind: "text", text: last.text + chunk };
+          } else {
+            a.parts.push({ kind: "text", text: chunk });
+          }
+        });
+
+      const backlog = () => pending.reduce((n, p) => n + (typeof p === "string" ? p.length : 0), 0);
+
+      const paint = () => {
+        let budget = Math.max(closed ? 24 : 5, Math.ceil(backlog() / (closed ? 6 : 24)));
+        let progressed = false;
+        while (budget > 0 && pending.length) {
+          const head = pending[0];
+          if (typeof head === "function") {
+            pending.shift();
+            head();
+            progressed = true;
+            continue;
+          }
+          let take = Math.min(budget, head.length);
+          // Whole words only — each word's fade-in must play exactly once,
+          // so never mount a half word. The trailing (possibly incomplete)
+          // word waits for its whitespace or stream close; unbroken ≥40-char
+          // runs (URLs) flow through anyway.
+          const tailMayGrow = !closed && pending.length === 1 && take === head.length;
+          if (take < head.length || tailMayGrow) {
+            let cut = take;
+            while (cut > 0 && !/\s/.test(head[cut - 1])) cut--;
+            if (cut > 0) take = cut;
+            else if (tailMayGrow && head.length < 40) break; // hold the partial word
+          }
+          appendText(head.slice(0, take));
+          if (take === head.length) pending.shift();
+          else pending[0] = head.slice(take);
+          budget -= take;
+          progressed = true;
+        }
+        // a held tail word parks the painter; the next enqueue (more text or
+        // the close op) restarts it
+        if (pending.length && progressed) requestAnimationFrame(paint);
+        else painting = false;
+      };
+
+      const enqueue = (item: string | (() => void)) => {
+        if (instant) {
+          if (typeof item === "string") appendText(item);
+          else item();
+          return;
+        }
+        const last = pending[pending.length - 1];
+        if (typeof item === "string" && typeof last === "string") pending[pending.length - 1] = last + item;
+        else pending.push(item);
+        if (!painting) {
+          painting = true;
+          requestAnimationFrame(paint);
+        }
+      };
 
       try {
         const res = await fetch("/api/chat", {
@@ -758,28 +886,24 @@ export default function KapuApp() {
           switch (event.type) {
             case "text":
               if (voiceOnRef.current) speakBuffer += event.delta;
-              patchAssistant((a) => {
-                a.toolLabel = null;
-                const last = a.parts[a.parts.length - 1];
-                if (last?.kind === "text") {
-                  a.parts[a.parts.length - 1] = { kind: "text", text: last.text + event.delta };
-                } else {
-                  a.parts.push({ kind: "text", text: event.delta });
-                }
-              });
+              enqueue(event.delta);
               break;
-            case "tool":
+            case "tool": {
               setVoiceTool(event.status === "start" ? event.label ?? null : null);
-              patchAssistant((a) => {
-                a.toolLabel = event.status === "start" ? event.detail || event.label || "Working…" : null;
-                if (event.status === "start") {
-                  const text = event.detail || (event.label && event.label !== "…" ? event.label : "");
-                  if (text && a.steps?.[a.steps.length - 1]?.text !== text) {
-                    a.steps = [...(a.steps ?? []), { tool: event.name, text }];
+              const ev = event;
+              enqueue(() =>
+                patchAssistant((a) => {
+                  a.toolLabel = ev.status === "start" ? ev.detail || ev.label || "Working…" : null;
+                  if (ev.status === "start") {
+                    const text = ev.detail || (ev.label && ev.label !== "…" ? ev.label : "");
+                    if (text && a.steps?.[a.steps.length - 1]?.text !== text) {
+                      a.steps = [...(a.steps ?? []), { tool: ev.name, text }];
+                    }
                   }
-                }
-              });
+                })
+              );
               break;
+            }
             case "block":
               if (event.block.type === "speech") {
                 // voice-optimized text from the say() tool — spoken, not shown
@@ -792,19 +916,22 @@ export default function KapuApp() {
                 const pid = event.block.product_id.toLowerCase();
                 const crown = (ps: ProductSummary[]) =>
                   ps.map((p) => ({ ...p, pick: p.id.toLowerCase() === pid, value: p.id.toLowerCase() === pid ? false : p.value }));
-                patchAssistant((a) => {
-                  for (let i = a.parts.length - 1; i >= 0; i--) {
-                    const part = a.parts[i];
-                    if (
-                      part.kind === "block" &&
-                      part.block.type === "product_grid" &&
-                      part.block.products.some((p) => p.id.toLowerCase() === pid)
-                    ) {
-                      a.parts[i] = { kind: "block", block: { ...part.block, products: crown(part.block.products) } };
-                      break;
+                // queued: the grid it crowns may itself still be waiting in line
+                enqueue(() =>
+                  patchAssistant((a) => {
+                    for (let i = a.parts.length - 1; i >= 0; i--) {
+                      const part = a.parts[i];
+                      if (
+                        part.kind === "block" &&
+                        part.block.type === "product_grid" &&
+                        part.block.products.some((p) => p.id.toLowerCase() === pid)
+                      ) {
+                        a.parts[i] = { kind: "block", block: { ...part.block, products: crown(part.block.products) } };
+                        break;
+                      }
                     }
-                  }
-                });
+                  })
+                );
                 setVoiceBlocks((prev) =>
                   prev.map((b) =>
                     b.type === "product_grid" && b.products.some((p) => p.id.toLowerCase() === pid)
@@ -816,32 +943,38 @@ export default function KapuApp() {
               }
               if (event.block.type === "cart") setCart(event.block.cart);
               if (event.block.type === "order_timeline") rememberTracked(event.block);
-              patchAssistant((a) => a.parts.push({ kind: "block", block: event.block }));
-              if (voiceOnRef.current) {
+              {
                 const b = event.block;
-                setVoiceBlocks((prev) => [...prev, b]);
+                enqueue(() => patchAssistant((a) => a.parts.push({ kind: "block", block: b })));
+                if (voiceOnRef.current) setVoiceBlocks((prev) => [...prev, b]);
               }
               break;
             case "cart":
               setCart(event.cart);
               break;
-            case "error":
-              patchAssistant((a) =>
-                a.parts.push({
-                  kind: "error",
-                  variant: event.kind === "rate_limit" ? "rate_limit" : event.kind === "auth" ? "auth" : "generic",
-                  message: event.message,
-                  lastMessage: message,
-                  retryAfter: event.retry_after,
-                  attempt: 0,
-                })
+            case "error": {
+              const ev = event;
+              enqueue(() =>
+                patchAssistant((a) =>
+                  a.parts.push({
+                    kind: "error",
+                    variant: ev.kind === "rate_limit" ? "rate_limit" : ev.kind === "auth" ? "auth" : "generic",
+                    message: ev.message,
+                    lastMessage: message,
+                    retryAfter: ev.retry_after,
+                    attempt: 0,
+                  })
+                )
               );
               break;
+            }
             case "done":
-              patchAssistant((a) => {
-                a.streaming = false;
-                a.toolLabel = null;
-              });
+              enqueue(() =>
+                patchAssistant((a) => {
+                  a.streaming = false;
+                  a.toolLabel = null;
+                })
+              );
               break;
           }
         };
@@ -863,15 +996,22 @@ export default function KapuApp() {
           }
         }
       } catch {
-        patchAssistant((a) => {
-          a.parts.push({ kind: "error", variant: "connection", message: "", lastMessage: message, attempt: 0 });
-          a.streaming = false;
-        });
+        enqueue(() =>
+          patchAssistant((a) => {
+            a.parts.push({ kind: "error", variant: "connection", message: "", lastMessage: message, attempt: 0 });
+            a.streaming = false;
+          })
+        );
       } finally {
-        patchAssistant((a) => {
-          a.streaming = false;
-          a.toolLabel = null;
-        });
+        // stream is over: let the painter drain the tail fast, then close the
+        // caret. Busy clears NOW — typing must never wait on typography.
+        closed = true;
+        enqueue(() =>
+          patchAssistant((a) => {
+            a.streaming = false;
+            a.toolLabel = null;
+          })
+        );
         setBusy(false);
         setVoiceTool(null);
         if (!voiceOnRef.current) inputRef.current?.focus();
@@ -2700,10 +2840,10 @@ export default function KapuApp() {
                               item.streaming && pi === item.parts.length - 1 ? "caret" : ""
                             } ${pi > 0 ? "mt-2" : ""}`}
                           >
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
+                            <MdPart text={part.text} live={!!item.streaming && pi === item.parts.length - 1} />
                           </div>
                         ) : part.kind === "block" ? (
-                          <BlockRenderer key={pi} block={part.block} actions={actions} deliverTo={deliverTo || undefined} />
+                          <MemoBlock key={pi} block={part.block} actions={actions} deliverTo={deliverTo || undefined} />
                         ) : (
                           <ErrorCard key={pi} part={part} onRetry={retryLast} busy={busy} />
                         )
