@@ -12,6 +12,7 @@
 import { runTurn } from "@/lib/agent/loop";
 import { getUser } from "@/lib/auth/users";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
+import { money } from "@/lib/kapruka/normalize";
 import { getSession, saveSession } from "@/lib/session/store";
 import { dueSchedules, computeNextRun, updateSchedule, type Schedule } from "@/lib/schedules/store";
 import { esc, mdToTelegram, sendMessage, telegramEnabled } from "@/lib/telegram/api";
@@ -53,7 +54,11 @@ async function tick(): Promise<void> {
         else await runTask(s);
       } catch (err) {
         console.error(`[schedules] ${s.id} failed:`, err);
-        s.lastResult = `Run failed: ${err instanceof Error ? err.message : "unknown error"}`;
+        // lastResult is user-facing (web bell + Standing wishes sheet) —
+        // upstream hiccups get friendly copy, never a raw exception string
+        const raw = err instanceof Error ? err.message : "unknown error";
+        const transient = /non-JSON|HTTP\s*5\d\d|rate.?limit|429|too many|timed?.?out|ECONN|fetch failed|network|socket/i.test(raw);
+        s.lastResult = transient ? RETRY_NOTE : `Run failed: ${raw.slice(0, 160)}`;
         await updateSchedule(s);
       }
     }
@@ -105,12 +110,51 @@ async function runTask(s: Schedule): Promise<void> {
   }
 }
 
+const RETRY_NOTE = "Couldn't read the price this check — I'll try again at the next run.";
+
+function tryParse(text: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Watched product's live LKR price. get_product 500s permanently on the
+ *  whole EF_PC_* marketplace family (and MCP errors arrive as plain text),
+ *  so degrade to search-summary data — the same fallback hero/compare use.
+ *  Returns null instead of throwing; a watch must survive upstream blips. */
+async function watchedPrice(s: Schedule): Promise<number | null> {
+  const pid = String(s.productId).toLowerCase();
+  try {
+    const res = tryParse(await kapruka("kapruka_get_product", { product_id: s.productId, currency: "LKR" }));
+    const prod = (res?.product ?? res) as Record<string, unknown> | null;
+    const amt = prod ? money(prod.price).amount : null;
+    if (amt != null) return amt;
+  } catch (err) {
+    console.warn(`[schedules] ${s.id} get_product failed (${err instanceof Error ? err.message.slice(0, 120) : err}) — trying search fallback`);
+  }
+  // schedule titles look like "Price-drop watch — Glitter Hearts Chocolate Box"
+  const q = (s.title.split("—").pop() ?? s.title).replace(/price[- ]?drop watch/i, "").trim();
+  if (!q) return null;
+  try {
+    const res = tryParse(await kapruka("kapruka_search_products", { q, limit: 20, in_stock_only: false, currency: "LKR" }));
+    const list = (res?.products ?? res?.results ?? res?.items ?? []) as Record<string, unknown>[];
+    if (!Array.isArray(list)) return null;
+    const hit = list.find((p) => String(p.id ?? p.product_id ?? "").toLowerCase() === pid);
+    return hit ? money(hit.price).amount : null;
+  } catch {
+    return null;
+  }
+}
+
 async function runPriceWatch(s: Schedule): Promise<void> {
-  const res = parseJson(await kapruka("kapruka_get_product", { product_id: s.productId }));
-  const prod = (res.product ?? res) as Record<string, unknown>;
-  const priceObj = prod.price as { amount?: number } | number | undefined;
-  const price = typeof priceObj === "number" ? priceObj : typeof priceObj?.amount === "number" ? priceObj.amount : null;
-  if (price == null) return;
+  const price = await watchedPrice(s);
+  if (price == null) {
+    s.lastResult = RETRY_NOTE;
+    await updateSchedule(s);
+    return;
+  }
   if (s.baselinePrice == null) {
     s.baselinePrice = price;
     s.lastResult = `Watching at Rs ${Math.round(price).toLocaleString()}`;
