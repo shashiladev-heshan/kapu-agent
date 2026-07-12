@@ -4482,12 +4482,12 @@ function LandingShowcase({
       {/* ── act −1: the film ── */}
       <section id="land-film" className="py-14">
         <h2 className="font-display text-center text-[26px] text-ink sm:text-[32px]">
-          ▶ Kapu in <span className="italic text-leaf">75 seconds</span>
+          ▶ The full <span className="italic text-leaf">Kapu</span> tour — 5 minutes
         </h2>
         <div className="mx-auto mt-7 max-w-4xl overflow-hidden rounded-[26px] border border-line bg-card shadow-[0_40px_100px_rgba(64,41,112,0.3)]">
           <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
             <iframe
-              src="https://www.youtube-nocookie.com/embed/zQyPcT_V1_A?rel=0&modestbranding=1"
+              src="https://www.youtube-nocookie.com/embed/ZRdrXYQR8hY?rel=0&modestbranding=1"
               title="Kapu — Sri Lanka's wish-granting shopping agent"
               loading="lazy"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -4898,8 +4898,8 @@ function LandingShowcase({
           {t("landStart")}
           <IconArrowRight size={16} />
         </button>
-        <a href="https://youtu.be/zQyPcT_V1_A" target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-[12px] font-semibold text-leaf transition hover:text-leaf-bright">
-          ▶ Watch the 75-second film
+        <a href="https://youtu.be/ZRdrXYQR8hY" target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-[12px] font-semibold text-leaf transition hover:text-leaf-bright">
+          ▶ Watch the 5-minute film
         </a>
         <div className="mt-5 flex items-center justify-center gap-2.5">
           <a
