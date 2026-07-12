@@ -5,7 +5,7 @@
 import { toLkr } from "@/lib/fx";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
-import { recoProductEvent } from "@/lib/reco/store";
+import { catalogSummary, recoProductEvent } from "@/lib/reco/store";
 import type { Session } from "@/lib/session/store";
 import type { CartItem } from "@/lib/types";
 
@@ -54,11 +54,39 @@ export async function applyCartUpdate(
         quantity,
       };
     } else {
-      const res = parseJson(
-        await kapruka("kapruka_get_product", { product_id: productId, currency: "LKR" })
-      );
-      const p = toSummary((res.product ?? res) as Record<string, unknown>, "LKR");
-      if (!p.id) return { error: `Product ${productId} not found.` };
+      // get_product 500s permanently on the EF_PC_* marketplace family — degrade
+      // to search-summary data (same fallback as hero/compare/price-watch).
+      let p: ReturnType<typeof toSummary> | null = null;
+      try {
+        const res = parseJson(
+          await kapruka("kapruka_get_product", { product_id: productId, currency: "LKR" })
+        );
+        const s = toSummary((res.product ?? res) as Record<string, unknown>, "LKR");
+        if (s.id) p = s;
+      } catch {
+        /* upstream 500 / plain-text error — try search below */
+      }
+      // the product was almost always in a search grid moments ago — the
+      // taste-engine catalog still has its summary, no MCP round-trip needed
+      if (!p) p = catalogSummary(productId);
+      if (!p) {
+        try {
+          const res = parseJson(
+            await kapruka("kapruka_search_products", { q: productId, limit: 20, in_stock_only: false, currency: "LKR" })
+          );
+          const list = (res.products ?? res.results ?? res.items ?? []) as Record<string, unknown>[];
+          const hit = Array.isArray(list)
+            ? list.find((r) => String(r.id ?? r.product_id ?? "").toLowerCase() === productId.toLowerCase())
+            : undefined;
+          if (hit) {
+            const s = toSummary(hit, "LKR");
+            if (s.id) p = s;
+          }
+        } catch {
+          /* fall through to not-found */
+        }
+      }
+      if (!p) return { error: `Product ${productId} not found.` };
       item = {
         product_id: p.id,
         name: p.name,
