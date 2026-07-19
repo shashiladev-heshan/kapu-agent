@@ -106,6 +106,8 @@ const STR = {
   saveToday: { en: "Save {n}% today", si: "අද {n}% අඩුයි", ta: "இன்று {n}% சேமிப்பு" },
   savePct: { en: "SAVE {n}%", si: "{n}% අඩුයි", ta: "{n}% தள்ளுபடி" },
   icingLabel: { en: "Icing message", si: "කේක් එකේ ලියන දේ", ta: "கேக் மீது எழுத" },
+  aiWrite: { en: "Write it for me", si: "ලියලා දෙන්න", ta: "எழுதித் தா" },
+  aiWriting: { en: "Kapu's thinking…", si: "කපූ හිතනවා…", ta: "யோசிக்கிறேன்…" },
   deliverDay: { en: "Delivery day", si: "ගෙන්වන දවස", ta: "டெலிவரி நாள்" },
   deliverToCityLabel: { en: "Deliver to {city}", si: "{city}ට ගෙන්වන්න", ta: "{city}க்கு டெலிவரி" },
   tomorrow: { en: "Tomorrow", si: "හෙට", ta: "நாளை" },

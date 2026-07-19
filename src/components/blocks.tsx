@@ -29,6 +29,7 @@ import {
   IconPlus,
   IconReceipt,
   IconSearchNone,
+  IconSparkle,
   IconTrolley,
   IconTruck,
   IconWish,
@@ -87,6 +88,29 @@ export const cartDisplayTotal = (items: CartItem[], extraLkr = 0): string => {
 };
 
 const CARD = "border border-line bg-card shadow-[0_2px_10px_rgba(64,41,112,0.05)]";
+
+/** "Write it for me" — AI icing/card suggestions for a gift (/api/icing).
+ *  Session id rides along so saved people/occasions personalize the lines. */
+async function fetchGiftSuggestions(name: string, category: string | null | undefined, lang: string): Promise<string[]> {
+  try {
+    const res = await fetch("/api/icing", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sessionId: localStorage.getItem("kapu_session") ?? undefined,
+        name,
+        category,
+        lang,
+        kind: "icing",
+      }),
+    });
+    if (!res.ok) return [];
+    const d = (await res.json()) as { suggestions?: unknown };
+    return Array.isArray(d.suggestions) ? d.suggestions.filter((s): s is string => typeof s === "string").slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
 
 function savePercent(p: ProductSummary): number | null {
   if (p.compare_at_price == null || p.price == null || p.compare_at_price <= p.price) return null;
@@ -345,6 +369,8 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
   const [imgIdx, setImgIdx] = useState(0);
   const isCake = /cake/i.test(product.category ?? "") || /^cake/i.test(product.id);
   const [icing, setIcing] = useState("");
+  const [icingSugs, setIcingSugs] = useState<string[]>([]);
+  const [icingBusy, setIcingBusy] = useState(false);
   const [editCity, setEditCity] = useState(false);
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const t = useT();
@@ -533,7 +559,25 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
 
           {isCake && (
             <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("icingLabel")}</p>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("icingLabel")}</p>
+                <button
+                  onClick={() => {
+                    if (icingBusy) return;
+                    setIcingBusy(true);
+                    void fetchGiftSuggestions(product.name, product.category, lang)
+                      .then((sugs) => {
+                        if (sugs.length) setIcingSugs(sugs);
+                      })
+                      .finally(() => setIcingBusy(false));
+                  }}
+                  disabled={icingBusy}
+                  className={`flex shrink-0 items-center gap-1 rounded-full border border-edge bg-card px-2.5 py-1 text-[10.5px] font-semibold text-leaf transition active:scale-95 ${icingBusy ? "animate-pulse" : ""}`}
+                >
+                  <IconSparkle size={12} />
+                  {icingBusy ? t("aiWriting") : t("aiWrite")}
+                </button>
+              </div>
               <label className="flex items-center gap-2.5 rounded-[13px] border-[1.5px] border-edge bg-surface px-3.5 py-2.5">
                 <IconPencil size={15} className="shrink-0 text-leaf" />
                 <input
@@ -544,6 +588,21 @@ export function ProductHero({ product, deliverTo, actions }: { product: ProductD
                 />
                 <span className="shrink-0 text-[10.5px] text-ink-faint">{icing.length} / 40</span>
               </label>
+              {icingSugs.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {icingSugs.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setIcing(s.slice(0, 40))}
+                      className={`font-display rounded-full border px-2.5 py-1 text-[11.5px] italic transition active:scale-95 ${
+                        icing === s.slice(0, 40) ? "border-leaf bg-leaf-soft text-leaf" : "border-edge bg-card text-ink-soft"
+                      }`}
+                    >
+                      &ldquo;{s}&rdquo;
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -873,8 +932,12 @@ export function CartView({
     };
   }, [deliverTo, cart.items.length]);
   const t = useT();
+  const lang = useLang();
   const [editingIcing, setEditingIcing] = useState<string | null>(null);
   const [icingDraft, setIcingDraft] = useState("");
+  // "Write it for me" in the basket editor — cached per item so repeat taps cycle
+  const [aiIcing, setAiIcing] = useState<{ id: string; list: string[]; idx: number } | null>(null);
+  const [aiIcingBusy, setAiIcingBusy] = useState(false);
 
   if (cart.items.length === 0)
     return (
@@ -911,19 +974,47 @@ export function CartView({
                   </button>
                 )}
                 {editingIcing === i.product_id && (
-                  <input
-                    autoFocus
-                    value={icingDraft}
-                    onChange={(e) => setIcingDraft(e.target.value.slice(0, 40))}
-                    onBlur={() => {
-                      actions.onCartIcing(i.product_id, icingDraft.trim());
-                      setEditingIcing(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                    }}
-                    className="font-display mt-1 w-full rounded-lg border border-edge bg-card px-2 py-1 text-[11.5px] italic outline-none"
-                  />
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      value={icingDraft}
+                      onChange={(e) => setIcingDraft(e.target.value.slice(0, 40))}
+                      onBlur={() => {
+                        actions.onCartIcing(i.product_id, icingDraft.trim());
+                        setEditingIcing(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      className="font-display w-full rounded-lg border border-edge bg-card px-2 py-1 text-[11.5px] italic outline-none"
+                    />
+                    <button
+                      onMouseDown={(e) => e.preventDefault() /* keep input focus — blur commits & closes */}
+                      onClick={() => {
+                        if (aiIcing?.id === i.product_id && aiIcing.list.length) {
+                          const idx = (aiIcing.idx + 1) % aiIcing.list.length;
+                          setAiIcing({ ...aiIcing, idx });
+                          setIcingDraft(aiIcing.list[idx].slice(0, 40));
+                          return;
+                        }
+                        if (aiIcingBusy) return;
+                        setAiIcingBusy(true);
+                        void fetchGiftSuggestions(i.name, i.category, lang)
+                          .then((list) => {
+                            if (list.length) {
+                              setAiIcing({ id: i.product_id, list, idx: 0 });
+                              setIcingDraft(list[0].slice(0, 40));
+                            }
+                          })
+                          .finally(() => setAiIcingBusy(false));
+                      }}
+                      aria-label={t("aiWrite")}
+                      title={t("aiWrite")}
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-edge bg-card text-leaf transition active:scale-90 ${aiIcingBusy ? "animate-pulse" : ""}`}
+                    >
+                      <IconSparkle size={12} />
+                    </button>
+                  </div>
                 )}
                 <div className="mt-1.5 flex items-center gap-2">
                   <div className="flex items-center overflow-hidden rounded-[9px] border border-edge">

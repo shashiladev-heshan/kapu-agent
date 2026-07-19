@@ -275,6 +275,18 @@ export const IconRetry = (p: P) => (
   </svg>
 );
 
+export const IconSparkle = (p: P) => (
+  <svg {...base(p)}>
+    <path
+      d="M10 3.2c.55 3 2.25 4.7 5.3 5.3-3.05.6-4.75 2.3-5.3 5.3-.55-3-2.25-4.7-5.3-5.3 3.05-.6 4.75-2.3 5.3-5.3Z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+    />
+    <path d="M15.6 13.4v3.6m-1.8-1.8h3.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+);
+
 export const IconSearchNone = (p: P) => (
   <svg {...base(p)}>
     <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.6" />
