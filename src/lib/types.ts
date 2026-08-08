@@ -82,6 +82,10 @@ export type UiBlock =
   | { type: "pay_link"; order_ref: string; pay_url: string; total?: number; currency?: string; created_at?: number; expires_at?: string; breakdown?: { items_total: number | null; delivery_fee: number | null; addons_total: number | null } }
   | { type: "order_timeline"; order_number: string; status: string; status_display?: string; progress: { step: string; timestamp?: string | null }[]; has_delivery_photo?: boolean; has_delivery_video?: boolean; items?: { name?: string; quantity?: number }[] }
   | { type: "greeting_card"; to: string; message: string; from?: string; glyph: string; color_from: string; color_to: string }
+  // Global Shop: landed cost to import an Amazon product to Sri Lanka.
+  // All *_lkr are canonical LKR (Kapruka's own estimate); the card converts
+  // per-line for display. local_from_lkr = cheapest comparable Kapruka SL item.
+  | { type: "import_quote"; url: string; handoff_url: string; checkout_url?: string; product_name: string; product_image?: string | null; usd_price?: number | null; shipping: "Air" | "Sea"; weight_lb?: number | null; weight_estimated?: boolean; hs_code?: string | null; hs_text?: string | null; item_lkr?: number | null; ship_duty_lkr?: number | null; total_lkr?: number | null; usd_ship_duty?: number | null; usd_total?: number | null; local_from_lkr?: number | null }
   | { type: "no_results"; query: string }
   | { type: "chips"; chips: string[] }
   // voice mode: the exact text the TTS should speak (may differ from the
@@ -125,6 +129,8 @@ export interface ChatRequest {
   rules?: string;
   /** active specialist Kapu (preset or user-built) — rides each turn like rules */
   agent?: { name: string; emoji?: string; instructions: string };
+  /** edit/resend: fork the conversation, keeping only the first N user turns */
+  resetToUserTurns?: number;
 }
 
 /** GET /api/session response — used to rehydrate a recent wish. */

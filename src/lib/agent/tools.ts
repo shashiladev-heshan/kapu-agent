@@ -5,6 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { getHotDeals } from "@/lib/kapruka/promos";
+import { importQuote, isAmazonUrl } from "@/lib/kapruka/globalshop";
 import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
 import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normalize";
 import { listOrders, recordOrder } from "@/lib/db/mongo";
@@ -84,6 +85,20 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
     description:
       "Today's REAL discounts from kapruka.com's live promotions page (true strikethrough prices). Renders a product grid with SAVE % badges. Call whenever the user asks for offers/deals/discounts/promotions/sale ('mokakda offers thiyenne?'). If it returns none, say so honestly and offer trending picks instead.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "import_product",
+    description:
+      "Quote importing a product from Amazon to Sri Lanka via Kapruka's Global Shop freight service (SL has no direct Amazon delivery). Call when the user pastes an amazon.com / amazon.in / a.co link, OR asks to get/import/ship something from Amazon or abroad. Renders a card with the REAL landed cost in LKR (item + shipping + duties + Kapruka fee) plus local Kapruka alternatives to compare. Pass a category word (e.g. 'laptop', 'bluetooth speaker', 'watch') when you can tell — it sets the customs code. Only Amazon quotes inline; eBay/other sites return a handoff link (say so honestly).",
+    input_schema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "The product URL — amazon.com / amazon.in / a.co short link" },
+        category: { type: "string", description: "Product category for the customs/HS code, e.g. 'laptop', 'bluetooth speaker', 'watch', 'shoes'" },
+        shipping: { type: "string", enum: ["Air", "Sea"], description: "Default Air (7-10 days). Sea is slower and cheaper mainly for heavy items." },
+      },
+      required: ["url"],
+    },
   },
   {
     name: "kapruka_help",
@@ -540,6 +555,80 @@ export async function executeTool(
           ...modelView(p),
           save_pct: p.price && p.compare_at_price ? Math.round((1 - p.price / p.compare_at_price) * 100) : null,
         })),
+      });
+    }
+
+    case "import_product": {
+      const url = String(input.url ?? "").trim();
+      const shipping = input.shipping === "Sea" ? "Sea" : "Air";
+      if (!url) return JSON.stringify({ error: "A product URL is required." });
+      if (!isAmazonUrl(url)) {
+        // eBay & other sites can't be quoted inline (verified: Kapruka only
+        // server-fetches Amazon) — hand off honestly instead of faking a price.
+        return JSON.stringify({
+          cannot_quote_inline: true,
+          shop: /ebay\./i.test(url) ? "ebay" : "other",
+          handoff_url: "https://www.kapruka.com/globalshop/price_check_auto.jsp",
+          note: "Only Amazon links get a live in-chat quote. Tell the user honestly you can't fetch an eBay/other-site landed cost here, share the Global Shop link to check it there, and offer to find a local Kapruka alternative meanwhile (search the catalog).",
+        });
+      }
+      const quote = await importQuote(url, typeof input.category === "string" ? input.category : undefined, shipping);
+      if ("error" in quote) {
+        return JSON.stringify({
+          error: quote.error,
+          handoff_url: quote.handoff_url,
+          note: "Couldn't get a live quote. Share the Global Shop link so they can check it on Kapruka, and offer a local alternative — NEVER invent an import price.",
+        });
+      }
+      // local-vs-import — the honest differentiator. Show a grid of local
+      // matches (relevance-ranked so a real counterpart leads, not the cheapest
+      // accessory) and hand the model the top options with names+prices so IT
+      // judges the true comparable. Best-effort: never fail the quote for it.
+      let localOptions: { name: string; price: number | null }[] = [];
+      try {
+        // A clean catalog query beats the raw Amazon title (drops the "Amazon"
+        // brand, "(newest model)" parentheticals and punctuation).
+        const q =
+          (typeof input.category === "string" && input.category.trim()) ||
+          quote.product_name
+            .replace(/\bamazon\b/gi, " ")
+            .replace(/\([^)]*\)/g, " ")
+            .replace(/[^a-z0-9\s]/gi, " ")
+            .split(/\s+/)
+            .filter((w) => w.length > 1)
+            .slice(0, 3)
+            .join(" ");
+        const res = parseJson(await kapruka("kapruka_search_products", { q, limit: 8, in_stock_only: true, currency }));
+        let locals = ((res.products ?? res.results ?? res.items ?? []) as Record<string, unknown>[])
+          .map((p) => toSummary(p, currency))
+          .filter((p) => p.price != null);
+        if (locals.length) {
+          const scores = locals.length > 1 ? await queryMatchScores(q, locals).catch(() => null) : null;
+          if (scores) {
+            const order = locals.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
+            const top = scores[order[0]];
+            locals = order.filter((i) => scores[i] >= top - 0.18).map((i, rank) => ({ ...locals[i], pick: rank === 0 }));
+          }
+          emit({ type: "product_grid", title: "Or buy it local on Kapruka 🇱🇰", products: locals.slice(0, 4) });
+          void recoSeen(locals).catch(() => {});
+          localOptions = locals.slice(0, 3).map((p) => ({ name: p.name, price: p.price }));
+        }
+      } catch {
+        /* local compare is a bonus */
+      }
+      emit({ type: "import_quote", ...quote });
+      return JSON.stringify({
+        imported: {
+          product: quote.product_name,
+          amazon_usd: quote.usd_price,
+          landed_lkr: quote.total_lkr,
+          breakdown_lkr: { item: quote.item_lkr, shipping_duties_handling: quote.ship_duty_lkr },
+          shipping: quote.shipping,
+          weight_lb: quote.weight_lb,
+          weight_estimated: quote.weight_estimated,
+        },
+        ...(localOptions.length ? { local_options: localOptions } : {}),
+        note: "Landed cost is Kapruka's own estimate, finalised at their Global Shop checkout. Give the honest local-vs-import verdict in ONE line: look at local_options and pick the TRUE comparable (ignore accessories like cooling pads/cases — a cooling pad is not a laptop); if a real equivalent exists, contrast it ('importing ≈ landed_lkr in 7-10 days vs Kapruka SL's <item> at Rs <price>, sooner') and recommend local when it's clearly better value; if none is a genuine match, say Kapruka SL doesn't stock this exact item so importing is the way. Say the import order is placed on Kapruka's Global Shop page (the card links there). If weight_estimated, note the final cost can shift with real weight.",
       });
     }
 

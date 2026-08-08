@@ -92,6 +92,16 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         run("get_hot_deals")
       ),
       tool(
+        "import_product",
+        "Quote importing a product from Amazon to Sri Lanka via Kapruka's Global Shop freight service (SL has no direct Amazon delivery). Call when the user pastes an amazon.com/amazon.in/a.co link or asks to get/import/ship something from Amazon or abroad. Renders a landed-cost card (item + shipping + duties + Kapruka fee, in LKR) plus local Kapruka alternatives to compare. Pass a category word (e.g. 'laptop','bluetooth speaker','watch') to set the customs code. Only Amazon quotes inline; eBay/other return a handoff link.",
+        {
+          url: z.string().describe("Product URL — amazon.com / amazon.in / a.co short link"),
+          category: z.string().optional().describe("Category for the customs/HS code, e.g. 'laptop','bluetooth speaker','watch'"),
+          shipping: z.enum(["Air", "Sea"]).optional().describe("Default Air (7-10 days); Sea is slower/cheaper for heavy items"),
+        },
+        run("import_product")
+      ),
+      tool(
         "kapruka_help",
         "Search Kapruka's OWN knowledge base (crawled live from kapruka.com: delivery & shipping policies, returns/refunds, payments & instalments, warranties, privacy/terms, company story, contact/office info, corporate services, category FAQs). Use for ANY question about Kapruka itself rather than about products. Answer from the returned excerpts and cite the source url as a markdown link. Never guess policies.",
         { question: z.string().min(3).max(300).describe("The user's question about Kapruka, in English") },
@@ -270,6 +280,7 @@ const KAPU_TOOL_NAMES = [
   "compare_products",
   "get_recommendations",
   "get_hot_deals",
+  "import_product",
   "crown_pick",
   "list_categories",
   "resolve_city",

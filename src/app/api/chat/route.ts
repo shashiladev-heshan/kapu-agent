@@ -5,7 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { runTurn } from "@/lib/agent/loop";
 import { readUser } from "@/lib/auth/session";
-import { appendUiTurn, getSession, saveSession } from "@/lib/session/store";
+import { appendUiTurn, getSession, saveSession, truncateToUserTurns } from "@/lib/session/store";
 import type { AgentStep, ChatRequest, StreamEvent, UiBlock } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -39,6 +39,11 @@ export async function POST(req: Request): Promise<Response> {
     body.agent && typeof body.agent.name === "string" && typeof body.agent.instructions === "string" && body.agent.instructions.trim()
       ? { name: body.agent.name.trim().slice(0, 40), instructions: body.agent.instructions.trim().slice(0, 400) }
       : undefined;
+  // Edit / resend a past user message: fork the conversation to just before
+  // that turn so the model never sees both the old and edited versions.
+  if (typeof body.resetToUserTurns === "number" && body.resetToUserTurns >= 0) {
+    truncateToUserTurns(session, body.resetToUserTurns);
+  }
   if (!session.title) session.title = message.slice(0, 60);
   appendUiTurn(session, { role: "user", text: message, at: Date.now() });
 

@@ -1625,6 +1625,123 @@ export function Chips({ chips, actions }: { chips: string[]; actions: BlockActio
 
 // ── renderer ───────────────────────────────────────────────────────────
 
+// ── Global Shop: import an Amazon product to Sri Lanka ──────────────────
+
+export function ImportQuoteCard({ block, actions }: { block: Extract<UiBlock, { type: "import_quote" }>; actions: BlockActions }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  const isSea = block.shipping === "Sea";
+  const otherLabel = isSea ? `✈️ ${t("importAir")}` : `🚢 ${t("importSea")}`;
+  const checkoutUrl = block.checkout_url || block.handoff_url;
+  const usd = (v?: number | null) => (v != null ? `$${v.toFixed(2)}` : null);
+  const meta = [block.hs_text, block.weight_lb != null ? `${block.weight_lb} lb` : null].filter(Boolean).join(" · ");
+  const openCheckout = () => window.open(checkoutUrl, "_blank", "noopener");
+  const shareQuote = async () => {
+    try {
+      await navigator.clipboard.writeText(checkoutUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
+  // amount cell: LKR (display-converted) with the original USD beneath
+  const cell = (lkrAmt?: number | null, usdAmt?: number | null, big = false) => (
+    <span className="text-right">
+      <span className={big ? "font-display text-[17px] text-leaf" : "block"}>{fmt(lkrAmt ?? null, "LKR")}</span>
+      {usd(usdAmt) && <span className="block text-[10.5px] text-ink-faint">{usd(usdAmt)}</span>}
+    </span>
+  );
+  return (
+    <div className={`rise relative my-2 overflow-hidden rounded-2xl p-4 ${CARD}`}>
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-leaf-soft text-leaf">
+          <IconGlobe size={18} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13.5px] font-semibold">{t("importTitle")}</p>
+          <p className="text-[11.5px] text-ink-soft">{t("importSub")}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-start gap-3">
+        {block.product_image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={resizeImage(block.product_image, 140) ?? block.product_image}
+            alt=""
+            className="h-16 w-16 shrink-0 rounded-[12px] border border-line bg-white object-contain"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-[13px] font-medium leading-snug">{block.product_name}</p>
+          {block.usd_price != null && (
+            <p className="mt-0.5 text-[11.5px] text-ink-soft">${block.usd_price.toFixed(2)} {t("importOnAmazon")}</p>
+          )}
+          {meta && <p className="mt-0.5 text-[11px] text-ink-faint">{meta}</p>}
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-1.5 rounded-[13px] bg-surface p-3 text-[12.5px]">
+        {block.item_lkr != null && (
+          <div className="flex items-start justify-between">
+            <span className="pt-0.5 text-ink-soft">{t("importItem")}</span>
+            {cell(block.item_lkr, block.usd_price)}
+          </div>
+        )}
+        {block.ship_duty_lkr != null && (
+          <div className="flex items-start justify-between">
+            <span className="pt-0.5 text-ink-soft">{t("importShipDuty")}</span>
+            {cell(block.ship_duty_lkr, block.usd_ship_duty)}
+          </div>
+        )}
+        <div className="mt-1 flex items-start justify-between border-t border-line pt-1.5">
+          <span className="pt-1 font-semibold">{t("importTotal")}</span>
+          {cell(block.total_lkr, block.usd_total, true)}
+        </div>
+      </div>
+
+      {block.weight_estimated && block.weight_lb != null && (
+        <p className="mt-2 text-[11px] text-ink-soft">⚖️ {t("importWeightEst", { w: String(block.weight_lb) })}</p>
+      )}
+
+      <div className="mt-3 flex gap-2">
+        <span className="flex-1 rounded-full bg-leaf-soft px-3 py-2 text-center text-[12px] font-semibold text-leaf">
+          {isSea ? `🚢 ${t("importSea")}` : `✈️ ${t("importAir")}`}
+        </span>
+        <button
+          onClick={() => actions.onAction(t("importSwitch", { mode: otherLabel }))}
+          className="rounded-full border border-line px-3 py-2 text-[12px] font-medium text-ink-soft transition active:scale-95"
+        >
+          {otherLabel}
+        </button>
+      </div>
+
+      {block.local_from_lkr != null && (
+        <p className="mt-3 rounded-[11px] bg-gold-soft px-3 py-2 text-[12px] leading-relaxed text-gold-deep">
+          🇱🇰 {t("importLocalCompare", { price: fmt(block.local_from_lkr, "LKR") })}
+        </p>
+      )}
+
+      <button
+        onClick={openCheckout}
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-[13px] bg-gold py-3 text-[13.5px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.28)] transition active:scale-[0.99] dark:text-[#322b45]"
+      >
+        <IconExternal size={15} />
+        {t("importCta")}
+      </button>
+      <button
+        onClick={shareQuote}
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-[13px] border border-line bg-card py-2.5 text-[12.5px] font-semibold text-ink-soft transition active:scale-[0.99]"
+      >
+        <IconExternal size={13} className="text-leaf" />
+        {copied ? t("importCopied") : t("importShareWa")}
+      </button>
+      <p className="mt-2 text-center text-[10.5px] leading-snug text-ink-soft">{t("importEstimate")}</p>
+    </div>
+  );
+}
+
 export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; actions: BlockActions; deliverTo?: string }) {
   switch (block.type) {
     case "product_grid":
@@ -1647,6 +1764,8 @@ export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; a
       return <OrderTimeline block={block} actions={actions} />;
     case "greeting_card":
       return <GreetingCard block={block} />;
+    case "import_quote":
+      return <ImportQuoteCard block={block} actions={actions} />;
     case "no_results":
       return <NoResults query={block.query} />;
     case "chips":

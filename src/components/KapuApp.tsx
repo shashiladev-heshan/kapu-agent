@@ -20,6 +20,9 @@ import {
   IconCamera,
   IconCheckCircle,
   IconPencil,
+  IconCopy,
+  IconThumbUp,
+  IconThumbDown,
   IconReceipt,
   IconLock,
   IconCapsule,
@@ -236,6 +239,33 @@ function timeAgo(at: number): string {
   return "Last week";
 }
 
+// Stable key for a reply's 👍/👎 selection, persisted in localStorage so it
+// survives refresh. Whitespace-stripped so live (text split around blocks,
+// joined with "\n") and rehydrated (one concatenated text field) keys match.
+const fbTextKey = (s: string) => s.replace(/\s+/g, "").slice(0, 120);
+const fbLsKey = (sid: string) => `kapu_fb_${sid}`;
+const assistantText = (it: ChatItem): string =>
+  it.role === "assistant" ? it.parts.flatMap((p) => (p.kind === "text" ? [p.text] : [])).join("\n") : "";
+
+/** Rebuild the idx-keyed 👍/👎 map for a transcript from its durable
+ *  (reply-text-keyed) localStorage record. */
+function feedbackFromLS(its: ChatItem[], sid: string): Record<number, "up" | "down"> {
+  let map: Record<string, "up" | "down"> = {};
+  try {
+    map = JSON.parse(localStorage.getItem(fbLsKey(sid)) || "{}");
+  } catch {}
+  const out: Record<number, "up" | "down"> = {};
+  if (Object.keys(map).length) {
+    its.forEach((it, i) => {
+      if (it.role === "assistant") {
+        const r = map[fbTextKey(assistantText(it))];
+        if (r) out[i] = r;
+      }
+    });
+  }
+  return out;
+}
+
 function itemsFromUi(ui: UiTurn[]): ChatItem[] {
   return ui.map((t) =>
     t.role === "user"
@@ -313,6 +343,13 @@ export default function KapuApp() {
   const [productExtras, setProductExtras] = useState<ProductExtras | null>(null);
   const [productSimilar, setProductSimilar] = useState<ProductSummary[]>([]);
   const [trackOpen, setTrackOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<Record<number, "up" | "down">>({});
+  // edit/resend: user turns to keep before the re-sent message (read by send)
+  const pendingEditResetRef = useRef<number | null>(null);
+  // highlight-to-ask: floating "Ask Kapu" popup for a text selection in chat
+  const [askSel, setAskSel] = useState<{ text: string; x: number; y: number } | null>(null);
   const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
   /** hero discovery: live trending/budget/deals rails (site-parity with kapruka.com) */
   const [discover, setDiscover] = useState<{ trending: ProductSummary[]; budget: ProductSummary[] } | null>(null);
@@ -737,6 +774,9 @@ export default function KapuApp() {
     async (text: string) => {
       const message = text.trim();
       if (!message || busy) return;
+      // edit/resend fork: keep only the first N user turns before this message
+      const editReset = pendingEditResetRef.current;
+      pendingEditResetRef.current = null;
       setBusy(true);
       stickToBottomRef.current = true; // sending = wanting to see the reply
       setInput("");
@@ -745,6 +785,7 @@ export default function KapuApp() {
       setProductOpen(null);
       setFavOpen(false);
       setTrackOpen(false);
+      setImportOpen(false);
       setNotifOpen(false);
       setSchedOpen(false);
       upsertRecent(message);
@@ -759,11 +800,26 @@ export default function KapuApp() {
         if (acks?.length) void playerRef.current?.playAck(acks[Math.floor(acks.length * ((Date.now() % 97) / 97))]);
       }
       const turn = ++turnSeq;
-      setItems((prev) => [
-        ...prev,
-        { role: "user", text: message },
-        { role: "assistant", parts: [], streaming: true, toolLabel: null, turn },
-      ]);
+      setItems((prev) => {
+        let base = prev;
+        if (editReset != null) {
+          // drop the edited user turn and everything after it
+          let u = 0;
+          let cut = prev.length;
+          for (let i = 0; i < prev.length; i++) {
+            if (prev[i].role === "user") {
+              if (u === editReset) { cut = i; break; }
+              u++;
+            }
+          }
+          base = prev.slice(0, cut);
+        }
+        return [
+          ...base,
+          { role: "user", text: message },
+          { role: "assistant", parts: [], streaming: true, toolLabel: null, turn },
+        ];
+      });
 
       const patchAssistant = (fn: (a: Extract<ChatItem, { role: "assistant" }>) => void) =>
         setItems((prev) => {
@@ -865,6 +921,7 @@ export default function KapuApp() {
             language: languageRef.current,
             currency,
             voice: voiceOnRef.current,
+            ...(editReset != null ? { resetToUserTurns: editReset } : {}),
             ...(deliverTo ? { deliverTo } : {}),
             ...(preferredDateRef.current ? { preferredDate: preferredDateRef.current } : {}),
             ...(Object.keys(favs).length
@@ -1053,6 +1110,107 @@ export default function KapuApp() {
     },
     [busy]
   );
+
+  // ── user-message actions: copy + edit/resend ─────────────────────────
+  const copyMessage = (idx: number, text: string) => {
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => {
+        setCopiedIdx(idx);
+        setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1600);
+      })
+      .catch(() => {});
+  };
+  // 👍 / 👎 on an assistant reply — toggles locally and persists to the
+  // backend (/api/feedback → Mongo) so it's real, queryable signal.
+  const rateMessage = (idx: number, rating: "up" | "down") => {
+    const wasSame = feedback[idx] === rating;
+    setFeedback((prev) => {
+      const next = { ...prev };
+      if (next[idx] === rating) delete next[idx];
+      else next[idx] = rating;
+      return next;
+    });
+    const target = items[idx];
+    const msgText = target ? assistantText(target) : "";
+    // persist the selection locally so it survives a refresh (idx is ephemeral;
+    // localStorage is keyed by the reply text and rehydrated on load)
+    try {
+      const lsk = fbLsKey(sessionIdRef.current);
+      const map = JSON.parse(localStorage.getItem(lsk) || "{}") as Record<string, "up" | "down">;
+      const key = fbTextKey(msgText);
+      if (wasSame) delete map[key];
+      else map[key] = rating;
+      localStorage.setItem(lsk, JSON.stringify(map));
+    } catch {}
+    if (wasSame) return; // toggled off — recorded the removal locally, no POST
+    let userText = "";
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = items[i];
+      if (prev.role === "user") { userText = prev.text; break; }
+    }
+    void fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: sessionIdRef.current,
+        rating,
+        message: msgText.slice(0, 4000),
+        userMessage: userText.slice(0, 2000),
+        language: languageRef.current,
+      }),
+    }).catch(() => {});
+  };
+  const editUserMessage = (idx: number) => {
+    if (busy) return;
+    const it = items[idx];
+    if (!it || it.role !== "user") return;
+    // count real user turns BEFORE this one — the fork point
+    let keep = 0;
+    for (let i = 0; i < idx; i++) if (items[i].role === "user") keep++;
+    pendingEditResetRef.current = keep;
+    setInput(it.text);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    });
+  };
+
+  // highlight-to-ask: show a floating "Ask Kapu" button when the user selects
+  // text inside the chat transcript (not the composer, sidebar, or inputs).
+  useEffect(() => {
+    const container = scrollRef.current;
+    const onSelect = () => {
+      const sel = window.getSelection();
+      const text = sel?.toString().replace(/\s+/g, " ").trim() ?? "";
+      if (!sel || sel.isCollapsed || text.length < 2 || text.length > 600) return setAskSel(null);
+      const node = sel.anchorNode;
+      const el = node?.nodeType === 3 ? node.parentElement : (node as Element | null);
+      if (!el || !container || !container.contains(el)) return setAskSel(null);
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (!rect.width && !rect.height) return setAskSel(null);
+      setAskSel({ text, x: rect.left + rect.width / 2, y: rect.top });
+    };
+    const clear = () => setAskSel(null);
+    document.addEventListener("mouseup", onSelect);
+    document.addEventListener("touchend", onSelect);
+    container?.addEventListener("scroll", clear, { passive: true });
+    return () => {
+      document.removeEventListener("mouseup", onSelect);
+      document.removeEventListener("touchend", onSelect);
+      container?.removeEventListener("scroll", clear);
+    };
+  }, []);
+
+  // restore 👍/👎 selection from localStorage when the transcript loads or a
+  // new turn is added (state is idx-keyed & ephemeral; localStorage is durable)
+  useEffect(() => {
+    setFeedback(feedbackFromLS(items, sessionIdRef.current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]);
 
   // ── instant basket ops (no LLM round-trip) ───────────────────────────
   const cartOp = useCallback(async (payload: Omit<CartRequest, "sessionId">) => {
@@ -1574,6 +1732,8 @@ export default function KapuApp() {
   const newWish = useCallback(() => {
     setNavOpen(false);
     stopVoice();
+    pendingEditResetRef.current = null; // don't carry a pending edit across wishes
+    setFeedback({}); // idx-keyed — reset for the fresh transcript
     const prev = sessionIdRef.current;
     sessionIdRef.current = newSessionId();
     localStorage.setItem("kapu_session", sessionIdRef.current);
@@ -1594,6 +1754,8 @@ export default function KapuApp() {
         return;
       }
       stopVoice();
+      pendingEditResetRef.current = null; // don't carry a pending edit across wishes
+      setFeedback({}); // idx-keyed — reset for the loaded transcript
       try {
         const res = await fetch(`/api/session?id=${encodeURIComponent(id)}`);
         const snap = (await res.json()) as SessionSnapshot;
@@ -1606,7 +1768,10 @@ export default function KapuApp() {
         sessionIdRef.current = id;
         localStorage.setItem("kapu_session", id);
         preferredDateRef.current = null;
-        setItems(itemsFromUi(snap.ui));
+        const loaded = itemsFromUi(snap.ui);
+        setItems(loaded);
+        setFeedback(feedbackFromLS(loaded, id)); // covers same-length switches
+
         // global basket: a non-empty current basket follows into this wish;
         // otherwise adopt whatever this wish had
         if (cart.items.length > 0) carryCart(prev);
@@ -2071,6 +2236,11 @@ export default function KapuApp() {
             <button onClick={() => setTrackOpen(true)} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left hover:bg-cream">
               <IconPackage size={16} className="text-ink-soft" />
               <span className="flex-1 text-[12.5px] font-medium">{t("trackOrder")}</span>
+            </button>
+            <button onClick={() => setImportOpen(true)} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left hover:bg-cream">
+              <IconGlobe size={16} className="text-ink-soft" />
+              <span className="flex-1 text-[12.5px] font-medium">{t("importTitle")}</span>
+              <span className="rounded-full bg-gold-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-gold-deep">{t("newTag")}</span>
             </button>
             <button onClick={() => setSchedOpen(true)} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left hover:bg-cream">
               <IconClock size={16} className="text-ink-soft" />
@@ -2817,11 +2987,28 @@ export default function KapuApp() {
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-4">
               {items.map((item, idx) =>
                 item.role === "user" ? (
-                  <div
-                    key={idx}
-                    className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-bubble px-4 py-2.5 text-[14px] leading-relaxed text-white shadow-[0_4px_14px_rgba(64,41,112,0.25)]"
-                  >
-                    {item.text}
+                  <div key={idx} className="group flex flex-col items-end">
+                    <div className="max-w-[85%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-bubble px-4 py-2.5 text-[14px] leading-relaxed text-white shadow-[0_4px_14px_rgba(64,41,112,0.25)]">
+                      {item.text}
+                    </div>
+                    <div className="mt-1 flex gap-0.5 pr-0.5 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100">
+                      <button
+                        onClick={() => copyMessage(idx, item.text)}
+                        title={t("copyMsg")}
+                        aria-label={t("copyMsg")}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-ink-faint transition hover:bg-cream hover:text-leaf active:scale-90"
+                      >
+                        {copiedIdx === idx ? <IconCheck size={13} className="text-leaf" /> : <IconCopy size={13} />}
+                      </button>
+                      <button
+                        onClick={() => editUserMessage(idx)}
+                        title={t("editMsg")}
+                        aria-label={t("editMsg")}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-ink-faint transition hover:bg-cream hover:text-leaf active:scale-90"
+                      >
+                        <IconPencil size={13} />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div key={idx} className="flex max-w-full gap-2.5">
@@ -2836,7 +3023,7 @@ export default function KapuApp() {
                         part.kind === "text" ? (
                           <div
                             key={pi}
-                            className={`bubble-md max-w-[95%] rounded-2xl rounded-bl-md border border-line bg-card px-4 py-2.5 text-[14px] leading-relaxed shadow-[0_2px_10px_rgba(64,41,112,0.05)] ${
+                            className={`bubble-md max-w-full rounded-2xl rounded-bl-md border border-line bg-card px-4 py-2.5 text-[14px] leading-relaxed shadow-[0_2px_10px_rgba(64,41,112,0.05)] ${
                               item.streaming && pi === item.parts.length - 1 ? "caret" : ""
                             } ${pi > 0 ? "mt-2" : ""}`}
                           >
@@ -2849,21 +3036,54 @@ export default function KapuApp() {
                         )
                       )}
                       {!item.streaming && item.parts.some((p) => p.kind === "text" && p.text.trim().length > 0) && (
-                        <button
-                          onClick={() =>
-                            void speakMessage(idx, item.parts.flatMap((p) => (p.kind === "text" ? [p.text] : [])).join(" \n "))
-                          }
-                          title={t("listen")}
-                          aria-label={t("listen")}
-                          className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-semibold transition active:scale-95 ${
-                            msgSpeak?.idx === idx
-                              ? "border-leaf/40 bg-leaf-soft text-leaf"
-                              : "border-line bg-card text-ink-faint hover:text-leaf"
-                          }`}
-                        >
-                          <IconVolume size={12} />
-                          {msgSpeak?.idx === idx ? (msgSpeak.st === "loading" ? "…" : t("stopListen")) : t("listen")}
-                        </button>
+                        <div className="group/act mt-1 flex items-center gap-0.5">
+                          <button
+                            onClick={() => copyMessage(idx, item.parts.flatMap((p) => (p.kind === "text" ? [p.text] : [])).join("\n"))}
+                            title={t("copyReply")}
+                            aria-label={t("copyReply")}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-ink-faint transition hover:bg-cream hover:text-leaf active:scale-90"
+                          >
+                            {copiedIdx === idx ? <IconCheck size={14} className="text-leaf" /> : <IconCopy size={14} />}
+                          </button>
+                          <button
+                            onClick={() =>
+                              void speakMessage(idx, item.parts.flatMap((p) => (p.kind === "text" ? [p.text] : [])).join(" \n "))
+                            }
+                            title={msgSpeak?.idx === idx ? t("stopListen") : t("listen")}
+                            aria-label={msgSpeak?.idx === idx ? t("stopListen") : t("listen")}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full transition active:scale-90 ${
+                              msgSpeak?.idx === idx ? "bg-leaf-soft text-leaf" : "text-ink-faint hover:bg-cream hover:text-leaf"
+                            }`}
+                          >
+                            {msgSpeak?.idx === idx && msgSpeak.st === "loading" ? (
+                              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
+                            ) : msgSpeak?.idx === idx ? (
+                              <IconStop size={13} />
+                            ) : (
+                              <IconVolume size={15} />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => rateMessage(idx, "up")}
+                            title={t("goodReply")}
+                            aria-label={t("goodReply")}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full transition active:scale-90 ${
+                              feedback[idx] === "up" ? "bg-leaf-soft text-leaf" : "text-ink-faint hover:bg-cream hover:text-leaf"
+                            }`}
+                          >
+                            <IconThumbUp size={14} />
+                          </button>
+                          <button
+                            onClick={() => rateMessage(idx, "down")}
+                            title={t("badReply")}
+                            aria-label={t("badReply")}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full transition active:scale-90 ${
+                              feedback[idx] === "down" ? "bg-clay-soft text-clay" : "text-ink-faint hover:bg-cream hover:text-clay"
+                            }`}
+                          >
+                            <IconThumbDown size={14} />
+                          </button>
+                        </div>
                       )}
                       {item.streaming && !item.steps?.length && (
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -2999,6 +3219,11 @@ export default function KapuApp() {
               <button onClick={() => { setNavOpen(false); setTrackOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
                 <IconPackage size={16} className="text-ink-soft" />
                 <span className="flex-1 text-[12.5px] font-medium">{t("trackOrder")}</span>
+              </button>
+              <button onClick={() => { setNavOpen(false); setImportOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
+                <IconGlobe size={16} className="text-ink-soft" />
+                <span className="flex-1 text-[12.5px] font-medium">{t("importTitle")}</span>
+                <span className="rounded-full bg-gold-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-gold-deep">{t("newTag")}</span>
               </button>
               <button onClick={() => { setNavOpen(false); setSchedOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
                 <IconClock size={16} className="text-ink-soft" />
@@ -3475,6 +3700,30 @@ export default function KapuApp() {
           onTracked={rememberTracked}
           initial={trackPrefill}
         />
+      )}
+
+      {/* ══ Import from Amazon — Global Shop landed-cost front door ══ */}
+      {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSubmit={(url) => void send(url)} />}
+
+      {/* ══ Highlight-to-ask — floating "Ask Kapu" on a text selection ══ */}
+      {askSel && (
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            const q = t("askAbout", { sel: askSel.text.slice(0, 240) });
+            window.getSelection()?.removeAllRanges();
+            setAskSel(null);
+            void sendRef.current(q);
+          }}
+          style={{
+            left: Math.min(Math.max(askSel.x, 78), (typeof window !== "undefined" ? window.innerWidth : 400) - 78),
+            top: Math.max(askSel.y - 10, 52),
+          }}
+          className="fixed z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1.5 rounded-full bg-gold px-3.5 py-2 text-[12.5px] font-bold text-ink shadow-[0_8px_24px_rgba(255,184,0,0.45)] ring-1 ring-black/5 transition active:scale-95 dark:text-[#322b45]"
+        >
+          <KapuMark size={15} radius={5} />
+          {t("askSelBtn")}
+        </button>
       )}
 
       {/* ══ Schedules — standing wishes (auth-gated) ══ */}
@@ -4150,6 +4399,51 @@ function TrackModal({
             </ul>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Import from Amazon — paste a link, get the landed cost in chat ──────
+
+function ImportModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (url: string) => void }) {
+  const t = useT();
+  const [value, setValue] = useState("");
+  const go = () => {
+    const url = value.trim();
+    if (url.length < 8) return;
+    onSubmit(url);
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-[#1d1233]/50 backdrop-blur-[2px]" />
+      <div className="sheet-in relative w-full overflow-y-auto rounded-t-[24px] bg-surface p-4 sm:max-w-lg sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center gap-2">
+          <IconGlobe size={17} className="text-leaf" />
+          <p className="font-display text-[18px]">{t("importTitle")}</p>
+          <button onClick={onClose} className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft" aria-label="Close">
+            <IconClose size={12} />
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && go()}
+            placeholder={t("importSheetPlaceholder")}
+            className="min-w-0 flex-1 rounded-[13px] border-[1.5px] border-edge bg-card px-3.5 py-2.5 text-[13.5px] outline-none focus:border-leaf"
+          />
+          <button
+            onClick={go}
+            disabled={value.trim().length < 8}
+            className="rounded-[13px] bg-gold px-5 text-[13px] font-bold text-ink shadow-[0_4px_14px_rgba(255,184,0,0.35)] transition active:scale-95 disabled:opacity-40 dark:text-[#322b45]"
+          >
+            {t("importSheetBtn")}
+          </button>
+        </div>
+        <p className="mt-2 text-[10.5px] leading-snug text-ink-faint">{t("importSheetHint")}</p>
       </div>
     </div>
   );

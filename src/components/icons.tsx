@@ -80,6 +80,28 @@ export const IconPencil = (p: P) => (
   </svg>
 );
 
+export const IconCopy = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="7" y="7" width="9.5" height="9.5" rx="2.2" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M4 12.8V5.2A1.2 1.2 0 0 1 5.2 4h7.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+const THUMB_PATH =
+  "M6.5 9v7.5M6.5 9l3-5.5A1.6 1.6 0 0 1 12.6 4.4V8h3.2a1.6 1.6 0 0 1 1.55 2l-1.15 5A1.6 1.6 0 0 1 14.65 16.5H6.5M6.5 9H4.6A1.1 1.1 0 0 0 3.5 10.1v5.3a1.1 1.1 0 0 0 1.1 1.1H6.5";
+
+export const IconThumbUp = (p: P) => (
+  <svg {...base(p)}>
+    <path d={THUMB_PATH} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
+export const IconThumbDown = (p: P) => (
+  <svg {...base(p)}>
+    <path d={THUMB_PATH} transform="rotate(180 10 10)" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
 export const IconBasket = (p: P) => (
   <svg {...base(p)}>
     <path d="M4 8h12l-1 8.2a1.5 1.5 0 0 1-1.5 1.3h-7A1.5 1.5 0 0 1 5 16.2L4 8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />

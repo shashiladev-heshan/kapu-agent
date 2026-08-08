@@ -9,6 +9,7 @@ export const TOOL_LABELS: Record<string, string> = {
   compare_products: "Comparing options…",
   get_recommendations: "Curating picks for you…",
   get_hot_deals: "Hunting today's deals…",
+  import_product: "Checking the import cost…",
   kapruka_help: "Reading Kapruka's help pages…",
   crown_pick: "Moving my badge…",
   list_categories: "Browsing categories…",
@@ -61,6 +62,10 @@ export function stepFor(name: string, input: Record<string, unknown>): string | 
       return "Crowning my pick";
     case "get_hot_deals":
       return "Hunting today's live deals on kapruka.com";
+    case "import_product": {
+      const host = /amazon\.in/i.test(String(input.url)) ? "Amazon.in" : /ebay\./i.test(String(input.url)) ? "eBay" : "Amazon";
+      return `Checking the import cost from ${host}`;
+    }
     case "kapruka_help": {
       const q = clip(input.question, 60);
       return q ? `Checking Kapruka's policies for “${q}”` : "Reading Kapruka's help pages";

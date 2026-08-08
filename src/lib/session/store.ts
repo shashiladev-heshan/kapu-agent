@@ -112,6 +112,41 @@ export function trimHistory(s: Session) {
   s.messages = s.messages.slice(start);
 }
 
+/** Fork the conversation for an edited/resent user message: keep only the
+ *  first `keep` real user turns in BOTH the Anthropic history and the UI
+ *  transcript, dropping everything from the (keep+1)-th user turn onward. Cuts
+ *  strictly at a user-turn boundary, so a tool_use is never orphaned from its
+ *  result. (Messages engine reads session.messages directly; the Agent SDK
+ *  keeps its own transcript via resume, so edit-fork is exact only on the
+ *  Messages engine — the hosted/judged path.) */
+export function truncateToUserTurns(s: Session, keep: number) {
+  if (keep < 0) return;
+  let uiSeen = 0;
+  let uiCut = s.ui.length;
+  for (let i = 0; i < s.ui.length; i++) {
+    if (s.ui[i].role === "user") {
+      if (uiSeen === keep) { uiCut = i; break; }
+      uiSeen++;
+    }
+  }
+  s.ui = s.ui.slice(0, uiCut);
+
+  let msgSeen = 0;
+  let msgCut = s.messages.length;
+  for (let i = 0; i < s.messages.length; i++) {
+    const m = s.messages[i];
+    const isToolResult =
+      m.role === "user" &&
+      Array.isArray(m.content) &&
+      m.content.some((b) => (b as { type?: string }).type === "tool_result");
+    if (m.role === "user" && !isToolResult) {
+      if (msgSeen === keep) { msgCut = i; break; }
+      msgSeen++;
+    }
+  }
+  s.messages = s.messages.slice(0, msgCut);
+}
+
 export function saveSession(s: Session) {
   s.updatedAt = Date.now();
   sessions.set(s.id, s);

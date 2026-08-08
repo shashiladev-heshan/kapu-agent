@@ -503,6 +503,55 @@ export async function loadRailCache<T>(key: string, maxAgeMs = 72 * 3600_000): P
   }
 }
 
+// ── message feedback (👍 / 👎 on assistant replies) ───────────────────
+interface FeedbackDoc {
+  session_id: string;
+  user_sub?: string;
+  rating: "up" | "down";
+  message: string;
+  user_message?: string;
+  language?: string;
+  at: Date;
+}
+
+function feedbackModel(): Model<FeedbackDoc> {
+  return (
+    (mongoose.models.KapuFeedback as Model<FeedbackDoc>) ??
+    mongoose.model<FeedbackDoc>(
+      "KapuFeedback",
+      new Schema<FeedbackDoc>(
+        {
+          session_id: String,
+          user_sub: String,
+          rating: String,
+          message: String,
+          user_message: String,
+          language: String,
+          at: Date,
+        },
+        { versionKey: false }
+      )
+    )
+  );
+}
+
+// in-memory mirror so feedback is captured even without MongoDB
+const recentFeedback: (FeedbackDoc & { at: Date })[] = [];
+
+export async function recordFeedback(fb: Omit<FeedbackDoc, "at">): Promise<void> {
+  const doc = { ...fb, at: new Date() };
+  recentFeedback.unshift(doc);
+  if (recentFeedback.length > 500) recentFeedback.pop();
+  const conn = db();
+  if (!conn) return;
+  try {
+    await conn;
+    await feedbackModel().create(doc);
+  } catch {
+    /* best-effort */
+  }
+}
+
 // ── knowledge-base chunks (kapruka.com policies/FAQs/company pages) ────
 // Chroma is the primary store; this mirror survives Chroma downtime and
 // cold-starts the in-process fallback without re-crawling or re-embedding.
