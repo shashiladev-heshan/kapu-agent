@@ -10,3 +10,14 @@ next-env.d.ts
 # local tooling
 .claude/
 *.log
+
+# Obsidian per-machine state (graph.json/app config stay shared)
+brain/.obsidian/workspace*
+brain/.obsidian/cache
+brain/
+
+# product-video pipeline — local-only, never ships (see demo-video/README.md)
+demo-video/
+
+# internal working docs — reverse-engineered endpoints + strategy; keep out of the PUBLIC repo
+docs/IMPLEMENTATION-PLAN.md

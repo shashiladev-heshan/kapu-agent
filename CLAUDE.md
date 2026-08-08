@@ -1,8 +1,16 @@
 # Kapu (කපූ) — Kapruka Agent Challenge 2026
 
 Trilingual (Sinhala / Tamil / English / Tanglish) AI shopping concierge on the Kapruka MCP.
-Full spec & decisions: `kapruka-agent-challenge-2026.md` (read §0 first — official rubric: Experience 30 / Visual 20 / Personality 15 / Usefulness 15 / Completeness 15 / Creativity 5). Deadline: **5 July 2026** (extended from 30 Jun — verified on the challenge page 4 Jul; demos judged via live browser access).
-UI implements the 11-section "Kapu redesigned" spec (`Kapu UI Redesign.html` + `assets/`): Instrument Serif/Sans, stroke icons, app shell (sidebar→rail + live basket), immersive voice canvas.
+**Submitted 5 Jul 2026 → live at kapuwa.shop; judges test daily via live browser.** Rubric: Experience 30 / Visual 20 / Personality 15 / Usefulness 15 / Completeness 15 / Creativity 5.
+
+## 🧠 The brain — `brain/` (read this protocol first)
+
+Deep project knowledge lives in `brain/`: an Obsidian-style wiki of small notes connected by `[[wikilinks]]`. Resolve `[[name]]` → glob `brain/**/<name>.md`. (Open the `brain/` folder in Obsidian to see the graph — optional, for humans.)
+
+- **Read:** start at `brain/hot.md` (current state), then `brain/INDEX.md` (one line per note) → open only the 2–4 notes the task touches, follow their `[[links]]`. Don't re-derive what a note already records; don't read the whole vault.
+- **Write:** after verifying something live (probe, bug root-cause, decision, upstream behavior change), file it — update the matching note (bump `verified:`) or create one (frontmatter `type/summary/verified` + `Related:` links), AND keep its one-line `INDEX.md` entry + `hot.md` current. Notes hold **non-derivable knowledge only** (probe results, decisions, upstream gotchas, history) — never restate what's readable in `src/`.
+- **Lint (occasional):** flag contradictions between notes, stale `verified:` dates, and orphan notes; fix or ask.
+- The old monolithic docs (`kapruka-agent-challenge-2026.md` spec) are raw sources — superseded by `brain/spec/*` for lookup; only open the original when a note cites a section you need verbatim.
 
 ## Commands
 
@@ -12,101 +20,54 @@ npm run build        # production build — must stay clean
 npm start            # serves on $PORT (Railway)
 ```
 
-No test suite yet. Verify changes with `npm run build` + a curl smoke test against `/api/chat` (SSE).
-⚠️ NEVER run `npm run build` while a dev server is running — they share `.next` and the build corrupts the dev server's chunks (500s, "Cannot find module './NNN.js'"). Check `lsof -ti :3100` first; use `npx tsc --noEmit` for verification while dev is up.
-Voice STT note (verified live): whisper-1 REJECTS `language=si` as a param — Sinhala is steered via the Sinhala-exemplar prompt in `/api/stt`, with a wrong-script retry guard; `ta` is a legal param. gpt-4o-mini-transcribe 400s on this account; the route caches whichever model works.
+No test suite. Verify with `npm run build` + a curl smoke test against `/api/chat` (SSE).
+⚠️ NEVER run `npm run build` while a dev server is running — they share `.next` and corrupt each other (500s, "Cannot find module './NNN.js'"). Check `lsof -ti :3100` first; use `npx tsc --noEmit` while dev is up.
 
-## Architecture (Next.js 15 monolith — frontend + backend in one Node process, deploys to Railway)
+## Hard rails (always apply — details in the linked notes)
+
+1. **Kapruka MCP calls go through `src/lib/kapruka/shield.ts` ONLY**, args nested under `params` → [[mcp-shield]], [[params-wrapper]]. The 60 req/min limit is per shared egress IP → [[rate-limits]].
+2. **Canonical LKR:** server-side prices are always LKR; display conversion is client-only; convert per-line BEFORE summing — never blind-sum `item.price` → [[currency-lkr]], [[why-canonical-lkr]].
+3. **`create_order` is the only side-effecting tool** — triple confirm gate; never bypass; one idempotent retry max → [[create-order]].
+4. **System prompt stays byte-stable** (prompt caching) — never interpolate dynamic data; per-turn data goes in async `buildTurnContext` → [[system-prompt]].
+5. **Tools are defined twice** (JSON-schema `tools.ts` + zod `engine-sdk.ts`) with labels/steps once in `steps.ts` — adding a tool touches all three, on BOTH engines → [[tool-registry]], [[dual-engine]].
+6. **`stock_level` is untrustworthy** — never render urgency from it → [[stock-level]].
+7. **Never `Date.parse` `track_order.progress[]` timestamps** (SL wall-clock, no TZ) → [[track-order]].
+8. **`get_product` 500s on all `EF_PC_*` ids** — every new surface needs the search-summary fallback → [[get-product-500s]].
+9. **Payloads are hostile:** money objects, plain-text errors despite `response_format:json`, opaque case-varying ids → normalize via `normalize.ts` → [[payload-normalizing]].
+10. The **සිං/த/EN toggle is authoritative** for reply language → [[i18n]]. Persona forbids product tables — use compare blocks → [[blocks]].
+11. Bump the `CACHE` version in `public/sw.js` on asset changes → [[pwa-mobile]].
+
+## Architecture (30-second map)
+
+Next.js 15 monolith — frontend + backend in one Node process, Railway ([[why-monolith-railway]]).
 
 ```
 Browser (PWA, SSE) → /api/chat ─┐
-Telegram (private+groups) ──────┤→ SAME agent core → MCP Shield → mcp.kapruka.com
-      /api/telegram (webhook)   │   /api/tts · /api/stt · /api/scan (vision)
+Telegram /api/telegram ─────────┤→ SAME agent core → MCP Shield → mcp.kapruka.com
+Schedules runner (60s tick) ────┘   /api/tts · /api/stt · /api/scan
 ```
-Telegram channel (`src/lib/telegram/*`): tg_<chatId> sessions reuse the store/tools/memory; blocks render as photos + inline keyboards (➕ Add, confirm gate, pay button); voice notes → Whisper; photos → vision scan; groups wake only on @mention or reply-to-bot and share ONE basket per group. Dormant without `TELEGRAM_BOT_TOKEN`. Local testing: `node scripts/tg-poll.mjs` (long-polls and forwards to localhost — no public URL needed); prod: setWebhook to `<domain>/api/telegram` with `TELEGRAM_WEBHOOK_SECRET`.
 
-### Dual agent engine — `src/lib/agent/loop.ts` picks by credential
-- `ANTHROPIC_API_KEY` → **Messages API manual loop** (`runTurnApi`, streaming + prompt caching). Use for the hosted demo.
-- `ANTHROPIC_AUTH_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` (subscription OAuth, `sk-ant-oat...`) → **Claude Agent SDK engine** (`engine-sdk.ts`). Subscription tokens are REJECTED by the raw Messages API (opaque 429, no ratelimit headers) but work through the Claude Code harness. Force with `KAPU_ENGINE=api|agent-sdk`.
-- Both engines share: system prompt, the **27 tools** (commerce 8 + `kapruka_help` KB lookup + `get_recommendations` taste-engine picks + `propose_order` confirm gate + `create_order`/`track_order` + memory 6: `remember_recipient`/`get_recipients`/`forget_recipient`/`save_occasion`/`get_upcoming_occasions`/`get_my_orders` + `say`/`suggest_replies`), session store, SSE event shape. Keep them in sync when adding tools (tool defs exist twice: JSON-schema in `tools.ts`, zod in `engine-sdk.ts`; tool labels + per-call step lines live ONCE in `steps.ts` (also feeds the persisted thinking-steps timeline: `detail` on tool SSE events → `UiTurn.steps` → collapsible `ThinkingSteps` in KapuApp)). `buildTurnContext` is ASYNC (loads people/occasions) — both engines await it.
+| Area | Where | Brain note |
+|---|---|---|
+| Engine picked by credential (API key ↔ OAuth) | `src/lib/agent/loop.ts`, `engine-sdk.ts` | [[dual-engine]] |
+| 27 tools + executors → UiBlocks | `src/lib/agent/tools.ts`, `steps.ts` | [[tool-registry]] |
+| Persona + turn context | `src/lib/agent/system-prompt.ts` | [[system-prompt]] |
+| MCP choke point (cache/coalesce/bucket) | `src/lib/kapruka/shield.ts` | [[mcp-shield]] |
+| Payload normalizers | `src/lib/kapruka/normalize.ts` | [[payload-normalizing]] |
+| Shared cart (tool + instant `/api/cart`) | `src/lib/kapruka/cart.ts` | [[cart-system]] |
+| Sessions (web / `tg_` / `sched_`), optional Mongo | `src/lib/session/store.ts` | [[session-store]] |
+| Schedules (standing wishes, order watch) | `src/lib/schedules/` | [[schedules]] |
+| Telegram channel | `src/lib/telegram/*` | [[telegram]] |
+| KB → Chroma + `kapruka_help` | `src/lib/kb/` | [[kb-chroma]] |
+| Taste engine + rails | `src/lib/reco/store.ts`, `/api/discover`, `/api/extras` | [[taste-engine]], [[discover-rails]], [[extras-promos]] |
+| People/occasions + festivals | `src/lib/agent/memory.ts`, `src/lib/festivals.ts` | [[memory-festivals]] |
+| Specialist Kapus | `src/lib/client/agents.ts`, `/api/agents` | [[specialist-agents]] |
+| Auth (guest-first Google) | `src/lib/auth/` | [[auth]] |
+| Voice loop (STT/TTS/canvas) | `/api/stt`, `/api/tts`, KapuApp | [[voice-loop]] |
+| Snap-a-list vision | `/api/scan`, `src/lib/client/scan.ts` | [[scan-vision]] |
+| App shell / blocks / streaming / i18n / PWA | `src/components/*`, `src/lib/client/i18n.tsx` | [[app-shell]], [[blocks]], [[streaming]], [[i18n]], [[pwa-mobile]] |
+| Design tokens & icons | `globals.css`, `src/components/icons.tsx` | [[design-system]] |
 
-### Kapu Schedules (autonomous standing wishes)
-- `src/lib/schedules/store.ts` (owner=Google sub, SL-time cadence math, TG link codes) + `runner.ts` (60s tick started by `src/instrumentation.ts`; kinds: `task` = full agent run in persistent `sched_<id>` session, `watch_order` = LLM-free tracking poll → TG on change, auto-stops on delivered).
-- Standing consent: `allowOrder` on the schedule → `mode: scheduled | standing_consent:` in turn context; money still only moves via the human-paid link. Tools: create/list/cancel_schedule (auth-gated via `signed_in` context).
-- TG delivery: user sends `/link` to the bot → 6-digit code → web Schedules sheet binds `tgChatId` on the user record (`/api/telegram-link`).
+## Env
 
-### Key modules
-| Path | Role |
-|---|---|
-| `src/lib/kapruka/shield.ts` | THE ONLY place that calls the Kapruka MCP. LRU cache per tool, in-flight coalescing, 50 rpm token bucket (limit is 60/min **per IP** — all users share Railway's egress IP). |
-| `src/lib/agent/system-prompt.ts` | Kapu persona (byte-stable for prompt caching — NEVER interpolate dynamic data) + `buildTurnContext()` (per-turn: date, currency, reply_language, cart count, mode). |
-| `src/lib/agent/tools.ts` | Tool definitions + executors. Tools return compact JSON for the model AND emit `UiBlock`s for the frontend. |
-| `src/lib/kapruka/normalize.ts` | Defensive payload normalizers (`money()`, `toSummary/toDetail`, `resizeImage()` — the static2 image proxy is width-tunable). |
-| `src/lib/kapruka/cart.ts` | Shared cart mutation used by BOTH the `cart_update` tool and `/api/cart` (instant steppers, no LLM round-trip). |
-| `src/lib/session/store.ts` | In-memory sessions (history + cart + `ui` transcript for reload/recent-wish rehydration + title), optional Mongo persistence (`src/lib/db/mongo.ts`, no-op without `MONGODB_URI`). |
-| `src/components/KapuApp.tsx` | App shell: sidebar (first-run) → icon rail (chat) + live basket panel (xl), recent wishes (localStorage registry + `/api/session` rehydration), deliver-to chip, SSE consumption, voice canvas, edge-state cards, popovers/sheets. |
-| `src/components/blocks.tsx` | UiBlock renderers: product rails (KAPU'S PICK), cake-moment hero (icing input + date pills), compare duel (winner ticks + Kapu's verdict), delivery card, basket, order_summary confirm gate, pay link (price-lock countdown), rich order timeline (+proof panel), no_results, chips. |
-| `src/components/icons.tsx` | The 1.6px stroke icon set + official `KapuMark` (from `assets/brand/`). |
-| `src/app/api/{chat,cart,cities,session,tts,stt,health}/route.ts` | API surface. `/api/chat` streams SSE; `/api/cart` = instant basket ops; `/api/cities` = deliver-to typeahead (Kapruka cities + vernacular aliases — NOT Google Places, no key needed); `/api/session` = transcript rehydration. `/preview` = unlinked block gallery for visual QA. |
-| `src/lib/kb/` | Kapruka knowledge base — `pages.ts` crawls ~25 NON-product kapruka.com pages (policies, ~15 category FAQs, about/contact/B2B; robots.txt grants `ai-input=yes` for RAG-with-citations; JSON-LD FAQPage preferred, container-sliced prose fallback; `/faq/*` slugs 404 upstream — excluded) → `store.ts` embeds (OpenAI @512d) into **ChromaDB** via its v2 REST API directly (`CHROMA_URL`; cosine space — server default is l2!) with in-process + Mongo `KapuKbChunk` fallback (rails philosophy). Powers the `kapruka_help` tool (persona: policy answers ONLY from excerpts, cite source link). Ingest: boot +15s via instrumentation, weekly refresh, `/api/kb?ingest=1` forced (10-min cooldown); `/api/kb?q=` = QA route. Local Chroma: `docker run -d --name kapu-chroma -p 8000:8000 -v kapu-chroma-data:/data chromadb/chroma`. |
-| `src/lib/reco/store.ts` | Taste engine — in-process vector store (OpenAI text-embedding-3-small @512d, globalThis-stashed for Next dev HMR). Captures search queries (w1) / product opens (w2) / cart adds (w3) in tools.ts+cart.ts; taste vector = decayed weighted mean; serves `/api/recs` ("Picked for you" hero rail, keyed by the device's wish-session ids + userSub) and the `get_recommendations` tool (incl. `product_id` → "more like this"). In-memory only (rebuilds on deploy); dormant without `OPENAI_API_KEY`. `/api/discover` = hero Trending / Under-Rs-2,500 / Hot-deals tabs (4 shield-cached searches + a kapruka.com/online/promotions scrape — server-rendered catalogueV2 tiles with real strikethrough prices; every tile has an "Out of Stock" HTML COMMENT, strip comments before stock-testing — / 15 min, seeds rotate daily). `/api/similar` = modal "More like this" (vector neighbors + distilled-name search). |
-| `src/lib/agent/memory.ts` + `src/lib/festivals.ts` | People/occasion memory (consent-first; account-backed when signed in, session-backed for guests; surfaced in turn context as `people:`/`upcoming:`) and the SL festival calendar (`next_festival` context + hero countdown chip; `approx:true` dates render "~"). |
-| `src/lib/client/agents.ts` + `/api/agents` | **Specialist Kapus** — 7 preset hats (wedding/diaspora/pooja/corporate/budget/romance/party, each with instructions+examples) + user-built customs (signed-in, cap 6, `KapuUser.agents` in Mongo). The ACTIVE agent's name+instructions ride EACH /api/chat request inline (`ChatRequest.agent`, clamped 40/400 chars) → `session.agentSpec` → `specialist:` in turn context — zero extra lookups, subordinate to all core rails (persona line). UI: hero story-bubble rail (under composer), composer hat button (left of input), topbar gold pill, sidebar entry, picker sheet + builder form. Active pick = localStorage `kapu_agent`. |
-| `src/lib/client/i18n.tsx` | FULL trilingual UI chrome (~110 keys si/ta/en) — `LangProvider` wraps the app; blocks use `useT()`. The සිං/த/EN toggle localizes everything, not just placeholders. QA: `/preview?lang=si\|ta&dark=1`. |
-| `src/lib/auth/` + `src/app/api/auth/*, /api/wishes` | Guest-first auth. Optional "Sign in with Google" (GIS button → ID token verified via Google tokeninfo → HMAC httpOnly cookie; NO client secret, NO extra deps). Signed-in users get their recent-wish list synced across devices (in-memory + Mongo `KapuUser`). Dormant without `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. First visit shows a welcome gate (Google / Continue as guest, `kapu_welcome` flag). |
-| `src/app/api/scan/route.ts` + `src/lib/client/scan.ts` | Snap-a-list (spec N2/G1): composer camera button → native capture input → client JPEG compression (~1280px) → vision OCR (prefers real `ANTHROPIC_API_KEY`/Claude, falls back to `OPENAI_API_KEY`/gpt-4o-mini) → {kind, items[query/quantity/original], caption} → auto-sends "I scanned my shopping list 📸 — …" so the NORMAL agent loop searches + fills the basket. Handles Sinhala/Tamil/Tanglish→English translation ("හාල්"→rice). |
-
-### Kapruka MCP gotchas (all verified live)
-- Every tool call nests args under `params`: `{"arguments": {"params": {...}}}`.
-- `price` and `compare_at_price` come as **objects** `{amount, currency}` (sometimes bare numbers/strings) — normalize via `money()` in tools.ts.
-- Search results use `image_url`; product detail uses `images[]`. `category` may be an object `{name}`.
-- Search returns `results[]`; default `in_stock_only: true`. Pagination caps at 3 pages — refine queries instead.
-- `create_order` is the ONLY side-effecting tool: triple-gated (propose_order renders the summary card → explicit user confirm → executor refuses without `confirmed=true`). Returns `checkout_url` + pre-payment `order_ref` + `expires_at` + `summary{items_total, delivery_fee, addons_total, grand_total}`; the trackable `order_number` arrives by email after payment. Idempotency key per call — one safe retry is sanctioned.
-- Product IDs are heterogeneous opaque strings; compare case-insensitively.
-- **`stock_level` is untrustworthy** (probe 4 Jul: constant "low" on everything) — never render urgency from it; only boolean `in_stock` is real.
-- **`track_order.progress[]` is the real journey** (probe 7 Jul): 8+ free-text steps ("Kapruka Warehouse, Order Prepared"…) whose names DON'T match the status enum, with pre-formatted SL wall-clock timestamps (no TZ marker — never `Date.parse` them for display). `status` can also be `out-for-delivery` (≈ shipped). `OrderTimeline` + the TG renderer show EVERY progress step; the canonical 4-step skeleton is only the empty-progress fallback. Docs example order `VIMP34456CB2` is live — handy for demos. Web app persists tracked numbers (`kapu_tracked`) + 5-min visibility-gated change watcher → notification panel + opt-in native Notification; Telegram watch = `watch_order` schedule (app-closed case).
-- Search-result `category` is a constant `General` stub — real category only from `get_product`.
-- Search `sort=bestseller`/`newest` are upstream NO-OPS (results ≡ relevance; verified 7 Jul) — only `price_asc`/`price_desc` actually reorder. Don't build "New in" surfaces on `newest`.
-- `image_url` is a resizable Cloudflare proxy (`width=330…` → rewrite via `resizeImage()`).
-- Server rate-limit headers (`ratelimit-remaining`) exist on every response — future shield improvement: header-driven backoff (bucket is shared per IP with strangers).
-- **`get_product` 500s consistently on the whole `EF_PC_*` marketplace family** (ELEC + CHOC verified, probe 7 Jul) — hero/compare degrade to search-summary data; instant cart survives via the `known` payload.
-- `/api/extras` scrapes the server-rendered kapruka.com product page (~1s, 24h in-process cache, SSRF-guarded to /buyonline/ URLs) for what the MCP lacks: per-product rating + review count (JSON-LD Product block — NOT the sitewide 4.8/14k on the Organization block), Q&A (JSON-LD FAQPage), instalment tiles (regex on badgeText spans — the fragile bit), partner name. Works even for EF_PC_* items. Rendered in the product modal, labeled "live from kapruka.com". Instalments are NOT computable from price (KOKO/Sampath ratios drift per product; Sampath tile presence varies) AND are geo-variant: foreign IPs get the page with USD prices and NO instalment/mktprice markup (verified via prod debug probe — tiles/names/images still render; currency is pinned to IP geo, no cookie overrides it). `lib/kapruka/promos.ts` handles this: LKR variant parses directly (with strikethroughs); USD variant recovers real LKR prices + compare_at per tile via shield-cached MCP get_product (≤12 calls/15 min) — so Hot deals work from ANY egress. Instalment tiles in /api/extras remain LK-only. **Rail fallback chain** (seasonal/discover/deals — NEVER agent search): live MCP → in-process stale cache → Mongo `KapuRailCache` (72h cap, written on every good fetch) → empty. Taste engine persists likewise (`KapuRecoEvent` + lazy `hydrateReco`).
-- Even with `response_format:"json"`, no-results and upstream errors arrive as PLAIN TEXT ("No products found…", "Error: Kapruka API server error (HTTP 500)") — keep `parseJson` defensive.
-- `list_categories depth:2` (probe 7 Jul): 65 top-level categories with rich children + public kapruka.com `url` per category — but **they're browse-only: ALL tested slugs return 0 as search facets** (valentine/diwali/thaipongle/teachersday/Giftcert, verified) — the "category filters unreliable" rule is universal; use children as plain `q` keywords. `list_categories` now emits the tappable `category_tree` UiBlock. Gift vouchers are real via q "gift voucher"/"gift certificate" (prefix `GIFTV0*`) — in the persona for undecided gifters.
-- `ships_internationally` (search top-level; detail under `shipping{}`) → normalized as `ships_intl`, rendered as the hero's 🌍 badge (diaspora angle).
-
-## Language system
-- The UI toggle (සිං/த/EN) is AUTHORITATIVE: `reply_language` in each turn's context. si → Sinhala script replies, ta → Tamil script, en → mirror user style (English/Tanglish). Explicit in-chat request overrides.
-
-## Currency system — canonical LKR
-- The server NEVER asks the MCP to convert currency: search/get_product/cart/order totals are always LKR (`tools.ts` pins `currency = "LKR"`; so do `/api/product` and `cart.ts`). Display conversion is client-only: `/api/fx` rates (exchangerate-api, logic in `src/lib/fx.ts`) → `fxConvert` inside `fmt()`/`cartDisplayTotal()` in blocks.tsx. The agent quotes LKR as authoritative and gets a rate hint in turn context (`currency: USD (1 USD ≈ Rs 335 …)`) for approximate mentions.
-- Why: the MCP's own fx rates drift from /api/fx rates, and storing display-currency prices in the cart once produced the "Rs 3,103 item, Subtotal Rs 7" bug (a GBP 6.90 line summed raw and labeled Rs). `ensureCartLkr()` (cart.ts) reprices any legacy foreign-currency cart line — exact MCP price first, fx-approx fallback (EF_PC_* 500s) — and runs on cart reads/mutations and at the top of `buildTurnContext`. Basket subtotals must convert per-line BEFORE summing (`cartDisplayTotal`), never blind-sum `item.price`.
-- Voice mode (`mode: voice` in context): visible reply stays in script; model ALSO calls the `say` tool with a speech-optimized version — for Sinhala that's **romanized colloquial Sinhala**, because TTS engines read Latin-script Sinhala far more naturally than Sinhala orthography.
-
-## Voice loop (hands-free)
-- Input: Web Speech API (free; Chrome supports `si-LK`), fallback MediaRecorder → `/api/stt` (Whisper). iOS/iPadOS WebKit + Brave are routed STRAIGHT to the recorder (`webSpeechLikelyBroken()`) — iOS exposes `webkitSpeechRecognition` but it hangs (no result/end/error, verified on-device). The recorder is hands-free via VAD endpointing (AnalyserNode RMS; ~1.4s pause after speech auto-sends; "✓ Done" is the manual backup). A 12s hung-engine watchdog (`"hung"` onError) rescues mid-session hangs on other browsers.
-- Voice canvas renders the current turn's UiBlocks as animated cards (`voiceBlocks` in KapuApp → compact orb + scrollable card panel, `.voiceblock` entrance animation) — cards are interactive (➕ add works mid-conversation).
-- Output: `/api/tts` provider chain — si/ta: Azure → OpenAI; en: ElevenLabs → OpenAI → Azure; 204 → browser speechSynthesis. OpenAI uses `gpt-4o-mini-tts` + voice `coral` + per-language Sri Lankan delivery `instructions`.
-- Client state machine in KapuApp: listening → thinking → speaking → listening; barge-in stops playback; `speech` UiBlock (from `say`) overrides the spoken text and is never rendered.
-- Honest limit: truly natural Sinhala TTS exists only on Azure (`si-LK-ThiliniNeural`, free F0 tier) — owner declined Azure for now; romanized-speech trick is the current best.
-
-## UI conventions ("Kapu redesigned" system)
-- **Brand**: Kapruka purple `#402970` + gold CTA `#ffb800` (dark text on gold) + purple-tinted creams. Tokens in `globals.css` `@theme`: `leaf/gold/clay` + `cream/surface/card/line/edge/ink/ink-soft/ink-faint/leaf-soft/gold-soft/good/bubble`. Dark mode = same names under `html.dark` (page `#151022`, cards `#1e1633`, borders `#2b2046`; purple glows brighter via `leaf=#a78bfa`, gold stays gold).
-- **Type**: Instrument Serif (display/prices — `.font-display`, `.price-serif`) + Instrument Sans body + Noto Sans Sinhala/Tamil (all next/font, self-hosted). Editorial serif for headings and prices is the signature.
-- **Icons**: 1.6px stroke set in `src/components/icons.tsx` — NO emoji in chrome. Brand source-of-truth in `assets/` (also copied to `public/assets/`).
-- Markdown via react-markdown + remark-gfm; persona forbids product tables (visual compare_products instead).
-- PWA: `app/manifest.ts`, `public/sw.js` (network-first, bump `CACHE` version on asset changes), icons in `public/icons/` (official wish-tree mark from `assets/brand/`).
-- Mobile-first: `dvh`, safe-area insets, `.rail` carousels; basket = bottom sheet (<sm) / slide-over (sm+) / live panel (xl+).
-- ⚠️ Headless-Chrome screenshots on macOS clamp windows to ~500px min width — narrow-viewport "overflow" in screenshots is an artifact; verify true mobile via an embedded iframe.
-
-## Credentials / env (see `.env.example`)
-- Claude: `ANTHROPIC_API_KEY` (Messages engine) or `ANTHROPIC_AUTH_TOKEN` (Agent SDK engine). Owner currently uses a subscription OAuth token; **an API key is required before judging** (subscription pool is shared with his own Claude Code use → 429s).
-- Voice: `OPENAI_API_KEY` (TTS+Whisper, set), `OPENAI_TTS_MODEL=gpt-4o-mini-tts`, `OPENAI_TTS_VOICE=coral`; optional `ELEVENLABS_API_KEY`, `AZURE_SPEECH_KEY`.
-- `KAPU_MODEL=claude-sonnet-4-6` currently; `MONGODB_URI` optional; `CHROMA_URL` optional (KB primary store — Railway private-net service or local docker; falls back to in-proc+Mongo without it).
-- Auth (optional): `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (Google Cloud → OAuth Web client; authorized JS origins = `http://localhost:3100` + the Railway domain; no redirect URI / secret needed) + `KAPU_AUTH_SECRET` (cookie signing; without it sign-ins reset per deploy). Unset → guest-only, no Google script loads.
-
-## Remaining roadmap (from spec §15)
-Done 4 Jul: full UI redesign ✅, propose_order confirm gate ✅, instant cart API ✅, session rehydration + recent wishes ✅, voice canvas ✅, edge-state cards ✅, brand assets ✅.
-Done 5 Jul: guest+Google auth (welcome gate, wish sync) ✅, city typeahead via Kapruka aliases (`/api/cities`) ✅, Snap-a-list camera OCR + scene recreate (`/api/scan`) ✅, recipient/occasion memory + order history (D2/H1/H2, consent-first) ✅, festival calendar + hero countdown (C1/N9) ✅, recipe-to-cart + pirikara chips (N1/C3) ✅, hero variant picker (S7) ✅, FULL trilingual UI chrome (i18n.tsx) ✅.
-Phase 3 remaining: WhatsApp adapter, delivery-proof watcher. Backlog: Wish Bridge, price-drop watch, header-driven shield backoff, hamper canvas visual.
-**Before judging: switch to a real `ANTHROPIC_API_KEY`, set `MONGODB_URI` (sessions survive redeploys), register + email the live URL by 5 July EOD.**
+`ANTHROPIC_API_KEY` (or OAuth token → SDK engine), `OPENAI_API_KEY`, optional `MONGODB_URI` / `CHROMA_URL` / Google auth / Telegram — full inventory + dormancy map: [[env-credentials]]. **Before-judging checklist:** [[deployment]].
