@@ -66,6 +66,7 @@ export async function POST(req: Request): Promise<Response> {
       recipients,
       occasions,
       festival,
+      sessionId: (body.sessionId ?? "").slice(0, 64) || undefined,
     });
     if (suggestions === null) {
       return Response.json({ error: "No AI provider configured" }, { status: 501 });

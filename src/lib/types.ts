@@ -106,7 +106,7 @@ export type UiTurn =
 // ── SSE events streamed to the browser ────────────────────────────────
 export type StreamEvent =
   | { type: "text"; delta: string }
-  | { type: "tool"; name: string; status: "start" | "end"; label?: string; detail?: string }
+  | { type: "tool"; name: string; status: "start" | "end"; label?: string; detail?: string; error?: boolean }
   | { type: "block"; block: UiBlock }
   | { type: "cart"; cart: Cart }
   | { type: "done" }

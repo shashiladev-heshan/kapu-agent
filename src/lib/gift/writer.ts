@@ -5,6 +5,7 @@
 // the agent loop so an empty ANTHROPIC_API_KEY= line can't shadow a token.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { scoreTrace, usageDetails, withStandaloneTrace } from "@/lib/obs/langfuse";
 
 // Latency-sensitive (user taps a button and waits) → fastest tier by default.
 const MODEL = process.env.KAPU_GIFT_MODEL || "claude-haiku-4-5";
@@ -31,6 +32,8 @@ export interface GiftMessageInput {
   occasions?: { recipient: string; type: string; in_days: number }[];
   /** next SL festival when it's close — { name, days } */
   festival?: { name: string; days: number } | null;
+  /** groups the suggestion into the shopper's Langfuse session (tracing only) */
+  sessionId?: string;
 }
 
 const LIMITS: Record<GiftMessageKind, number> = { icing: 40, card: 120 };
@@ -113,19 +116,49 @@ export async function writeGiftMessages(input: GiftMessageInput): Promise<string
       next_festival: input.festival ?? undefined,
     },
   };
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 350,
-    system: SYSTEM,
-    messages: [{ role: "user", content: JSON.stringify(context) }],
-  });
-  const text = response.content
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("");
-  let suggestions = parseSuggestions(text, input.kind);
-  if (input.kind === "icing") {
-    // cake piping can't render emoji — strip rather than reject the line
-    suggestions = suggestions.map((s) => s.replace(PICTO, "").replace(/\s+/g, " ").trim()).filter((s) => s.length >= 2);
-  }
-  return suggestions.filter((s) => scriptOk(s, input.lang));
+  return withStandaloneTrace(
+    "gift-writer",
+    {
+      sessionId: input.sessionId,
+      tags: [`kind:${input.kind}`, `lang:${input.lang}`],
+      model: MODEL,
+      input: context,
+      modelParameters: { max_tokens: 350 },
+    },
+    async (generation) => {
+      const response = await client.messages.create({
+        model: MODEL,
+        max_tokens: 350,
+        system: SYSTEM,
+        messages: [{ role: "user", content: JSON.stringify(context) }],
+      });
+      const text = response.content
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("");
+      let suggestions = parseSuggestions(text, input.kind);
+      if (input.kind === "icing") {
+        // cake piping can't render emoji — strip rather than reject the line
+        suggestions = suggestions.map((s) => s.replace(PICTO, "").replace(/\s+/g, " ").trim()).filter((s) => s.length >= 2);
+      }
+      const kept = suggestions.filter((s) => scriptOk(s, input.lang));
+
+      generation?.update({
+        output: kept,
+        usageDetails: usageDetails(response.usage),
+        metadata: { raw: text, parsed: suggestions.length, kept: kept.length },
+      });
+      // The script gate is our deterministic quality signal on this model —
+      // haiku has been caught emitting a Chinese line on a Tamil request.
+      if (generation && suggestions.length) {
+        void scoreTrace({
+          traceId: generation.traceId,
+          name: "gift-script-gate",
+          value: kept.length / suggestions.length,
+          dataType: "NUMERIC",
+          comment: `${kept.length}/${suggestions.length} suggestions passed the ${input.lang} script gate`,
+        });
+      }
+      return kept;
+    }
+  );
 }

@@ -9,6 +9,7 @@ import { z } from "zod";
 import { TOOL_LABELS, stepFor } from "@/lib/agent/steps";
 import { buildTurnContext, KAPU_SYSTEM_PROMPT } from "@/lib/agent/system-prompt";
 import { executeTool } from "@/lib/agent/tools";
+import { startGeneration, startToolSpan, truncate, usageDetails } from "@/lib/obs/langfuse";
 import { saveSession, trimHistory, type Session } from "@/lib/session/store";
 import type { StreamEvent } from "@/lib/types";
 
@@ -33,18 +34,22 @@ function ensureSdkCredentials() {
 function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
   const run = (name: string) => async (args: Record<string, unknown>) => {
     send({ type: "tool", name, status: "start", label: TOOL_LABELS[name], detail: stepFor(name, args) ?? undefined });
+    const toolSpan = startToolSpan(name, args);
+    let failed = false;
     try {
       const result = await executeTool(name, args, session, (block) => send({ type: "block", block }));
+      toolSpan?.update({ output: truncate(result) }).end();
       return { content: [{ type: "text" as const, text: result }] };
     } catch (err) {
+      failed = true;
+      const text = `Tool failed: ${err instanceof Error ? err.message : String(err)}`;
+      toolSpan?.update({ output: text, level: "ERROR", statusMessage: text.slice(0, 500) }).end();
       return {
-        content: [
-          { type: "text" as const, text: `Tool failed: ${err instanceof Error ? err.message : String(err)}` },
-        ],
+        content: [{ type: "text" as const, text }],
         isError: true,
       };
     } finally {
-      send({ type: "tool", name, status: "end" });
+      send({ type: "tool", name, status: "end", ...(failed ? { error: true } : {}) });
     }
   };
 
@@ -341,6 +346,16 @@ export async function runTurnSdk(
     },
   });
 
+  // The real model calls happen inside the Claude Code subprocess, so we can't
+  // observe them individually — this one generation carries the harness's
+  // aggregate usage/cost from the final `result` message. (The API engine in
+  // loop.ts traces every call; that's the hosted-demo path.)
+  const generation = startGeneration(`claude-code-harness:${MODEL}`, {
+    model: MODEL,
+    input: prompt,
+    modelParameters: { max_turns: 16 },
+  });
+
   let finalText = "";
   for await (const msg of q) {
     if (msg.type === "system" && msg.subtype === "init") {
@@ -352,6 +367,13 @@ export async function runTurnSdk(
         send({ type: "text", delta: ev.delta.text });
       }
     } else if (msg.type === "result") {
+      generation?.update({
+        output: finalText,
+        usageDetails: usageDetails(msg.usage),
+        costDetails: { total: msg.total_cost_usd },
+        metadata: { subtype: msg.subtype, num_turns: msg.num_turns, duration_ms: msg.duration_ms },
+        ...(msg.subtype !== "success" ? { level: "ERROR", statusMessage: msg.subtype } : {}),
+      });
       if (msg.subtype !== "success") {
         send({
           type: "error",
@@ -360,6 +382,7 @@ export async function runTurnSdk(
       }
     }
   }
+  generation?.end();
 
   if (finalText) session.messages.push({ role: "assistant", content: finalText });
   saveSession(session);

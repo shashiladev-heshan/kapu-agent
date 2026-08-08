@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { TOOL_LABELS, stepFor } from "@/lib/agent/steps";
 import { buildTurnContext, KAPU_SYSTEM_PROMPT } from "@/lib/agent/system-prompt";
 import { TOOL_DEFINITIONS, executeTool } from "@/lib/agent/tools";
+import { startGeneration, startToolSpan, truncate, usageDetails, withTurnTrace } from "@/lib/obs/langfuse";
 import { trimHistory, saveSession, type Session } from "@/lib/session/store";
 import type { StreamEvent } from "@/lib/types";
 
@@ -59,21 +60,27 @@ export async function runTurn(
   send: (event: StreamEvent) => void
 ): Promise<void> {
   const sdkAvailable = hasAuthToken();
-  if (pickEngine() === "agent-sdk" || (sdkAvailable && Date.now() < billingFallbackUntil)) {
-    const { runTurnSdk } = await import("@/lib/agent/engine-sdk");
-    return runTurnSdk(session, userMessage, send);
-  }
-  try {
-    return await runTurnApi(session, userMessage, send);
-  } catch (err) {
-    if (sdkAvailable && isBillingError(err)) {
-      billingFallbackUntil = Date.now() + 10 * 60_000;
-      console.error("[engine] API key billing/auth failure — falling back to subscription engine for 10 min:", err instanceof Error ? err.message.slice(0, 120) : err);
+  const useSdk = pickEngine() === "agent-sdk" || (sdkAvailable && Date.now() < billingFallbackUntil);
+
+  // One Langfuse trace per turn. This is the choke point every channel goes
+  // through — web, Telegram and the schedules runner all call runTurn.
+  return withTurnTrace(session, userMessage, useSdk ? "agent-sdk" : "api", send, async (tracedSend) => {
+    if (useSdk) {
       const { runTurnSdk } = await import("@/lib/agent/engine-sdk");
-      return runTurnSdk(session, userMessage, send);
+      return runTurnSdk(session, userMessage, tracedSend);
     }
-    throw err;
-  }
+    try {
+      return await runTurnApi(session, userMessage, tracedSend);
+    } catch (err) {
+      if (sdkAvailable && isBillingError(err)) {
+        billingFallbackUntil = Date.now() + 10 * 60_000;
+        console.error("[engine] API key billing/auth failure — falling back to subscription engine for 10 min:", err instanceof Error ? err.message.slice(0, 120) : err);
+        const { runTurnSdk } = await import("@/lib/agent/engine-sdk");
+        return runTurnSdk(session, userMessage, tracedSend);
+      }
+      throw err;
+    }
+  });
 }
 
 async function runTurnApi(
@@ -89,6 +96,12 @@ async function runTurnApi(
   trimHistory(session);
 
   for (let i = 0; i < MAX_LOOP_ITERATIONS; i++) {
+    const generation = startGeneration(`claude:${MODEL}`, {
+      model: MODEL,
+      input: [...session.messages], // snapshot — the array is appended to below
+      modelParameters: { max_tokens: 4096 },
+    });
+
     const stream = client.messages.stream({
       model: MODEL,
       max_tokens: 4096,
@@ -103,9 +116,35 @@ async function runTurnApi(
       messages: session.messages,
     });
 
-    stream.on("text", (delta) => send({ type: "text", delta }));
+    // Time-to-first-token is the number that decides whether the demo feels alive.
+    let firstToken: Date | undefined;
+    stream.on("text", (delta) => {
+      firstToken ??= new Date();
+      send({ type: "text", delta });
+    });
 
-    const message = await stream.finalMessage();
+    let message: Anthropic.Message;
+    try {
+      message = await stream.finalMessage();
+    } catch (err) {
+      generation
+        ?.update({
+          level: "ERROR",
+          statusMessage: err instanceof Error ? err.message.slice(0, 500) : String(err),
+        })
+        .end();
+      throw err;
+    }
+
+    generation
+      ?.update({
+        output: message.content,
+        completionStartTime: firstToken,
+        usageDetails: usageDetails(message.usage),
+        metadata: { iteration: i, stop_reason: message.stop_reason },
+      })
+      .end();
+
     session.messages.push({ role: "assistant", content: message.content });
 
     if (message.stop_reason === "pause_turn") continue;
@@ -125,15 +164,27 @@ async function runTurnApi(
         label: TOOL_LABELS[tool.name],
         detail: stepFor(tool.name, input) ?? undefined,
       });
+      const toolSpan = startToolSpan(tool.name, input);
       let result: string;
       let isError = false;
+      let blocksRendered = 0;
       try {
-        result = await executeTool(tool.name, input, session, (block) => send({ type: "block", block }));
+        result = await executeTool(tool.name, input, session, (block) => {
+          blocksRendered++;
+          send({ type: "block", block });
+        });
       } catch (err) {
         isError = true;
         result = `Tool failed: ${err instanceof Error ? err.message : String(err)}`;
       }
-      send({ type: "tool", name: tool.name, status: "end" });
+      toolSpan
+        ?.update({
+          output: truncate(result),
+          metadata: { blocks_rendered: blocksRendered },
+          ...(isError ? { level: "ERROR", statusMessage: result.slice(0, 500) } : {}),
+        })
+        .end();
+      send({ type: "tool", name: tool.name, status: "end", ...(isError ? { error: true } : {}) });
       toolResults.push({
         type: "tool_result",
         tool_use_id: tool.id,

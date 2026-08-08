@@ -4,6 +4,9 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Langfuse first — the tracer provider must exist before any turn runs.
+    const { initTracing } = await import("@/lib/obs/langfuse");
+    await initTracing();
     const { startScheduler } = await import("@/lib/schedules/runner");
     startScheduler();
     // knowledge base: hydrate/crawl in the background at boot, re-check twice a day
