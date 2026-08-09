@@ -81,6 +81,30 @@ function stableStringify(obj: unknown): string {
     .join(",")}}`;
 }
 
+// The MCP reports BOTH "no results" and "rate limited" as plain text with
+// `isError: false` — i.e. as successes — despite response_format:json
+// ([[payload-normalizing]]). Verified live 9 Aug 2026: of 70 burst calls, 24
+// came back rate-limited and every one had isError:false. Left untranslated
+// that text reaches parseJson and surfaces to the model as a dead tool, and
+// callWithRetry below never fires because nothing ever throws.
+const RATE_LIMITED = /rate limit exceeded|too many requests/i;
+const NO_PRODUCTS = /^\s*no products found/i;
+
+function interpretPlainText(tool: string, text: string): string {
+  const head = text.trimStart()[0];
+  if (head === "{" || head === "[") return text; // the overwhelming majority
+  if (RATE_LIMITED.test(text)) {
+    // Throw so the retry below engages — this is transient, not a real answer.
+    throw new Error(`Kapruka MCP rate limit from ${tool}: ${text.trim().slice(0, 200)}`);
+  }
+  if (NO_PRODUCTS.test(text)) {
+    // An empty search is a RESULT, not a failure. Callers read
+    // products/results/items, and the executor already renders `no_results`.
+    return JSON.stringify({ count: 0, products: [] });
+  }
+  return text;
+}
+
 async function rawCall(tool: string, params: Record<string, unknown>): Promise<string> {
   await takeToken();
   const client = await getClient();
@@ -102,7 +126,7 @@ async function rawCall(tool: string, params: Record<string, unknown>): Promise<s
   if (result.isError) {
     throw new Error(`Kapruka MCP error from ${tool}: ${text.slice(0, 500)}`);
   }
-  return text;
+  return interpretPlainText(tool, text);
 }
 
 /** Rate-limit blips (shared per-IP bucket — busier on challenge day) are
