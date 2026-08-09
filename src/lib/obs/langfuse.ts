@@ -112,8 +112,9 @@ export function truncate(value: string, max = MAX_PAYLOAD): string {
 }
 
 /** Session id prefixes are the channel marker — see [[session-store]]. */
-function channelOf(sessionId: string): "telegram" | "scheduled" | "web" {
+function channelOf(sessionId: string): "telegram" | "whatsapp" | "scheduled" | "web" {
   if (sessionId.startsWith("tg_")) return "telegram";
+  if (sessionId.startsWith("wa_")) return "whatsapp";
   if (sessionId.startsWith("sched_")) return "scheduled";
   return "web";
 }

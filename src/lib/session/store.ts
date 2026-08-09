@@ -32,6 +32,8 @@ export interface Session {
   userSub?: string;
   /** transient: last quick-reply chips shown in Telegram (callback lookup) */
   tgChips?: string[];
+  /** transient: product ids behind the numbered list last sent on WhatsApp */
+  waPicks?: string[];
   /** transient: the user's ♥ favorites for this turn's context */
   favorites?: string[];
   /** transient: "My Kapu" standing rules (custom instructions) */
