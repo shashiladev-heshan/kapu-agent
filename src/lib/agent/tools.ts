@@ -392,19 +392,30 @@ export async function executeTool(
   switch (name) {
     case "search_products": {
       const query = String(input.q ?? "").slice(0, 200);
-      const res = parseJson(
-        await kapruka("kapruka_search_products", {
-          q: query,
-          ...(input.category ? { category: input.category } : {}),
-          ...(input.min_price != null ? { min_price: input.min_price } : {}),
-          ...(input.max_price != null ? { max_price: input.max_price } : {}),
-          ...(input.sort ? { sort: input.sort } : {}),
-          ...(input.in_stock_only != null ? { in_stock_only: input.in_stock_only } : {}),
-          limit: Math.min(Number(input.limit) || 8, 20),
-          currency,
-        })
-      );
-      const rawList = (res.products ?? res.results ?? res.items ?? []) as Record<string, unknown>[];
+      const searchArgs = (withCategory: boolean) => ({
+        q: query,
+        ...(withCategory && input.category ? { category: input.category } : {}),
+        ...(input.min_price != null ? { min_price: input.min_price } : {}),
+        ...(input.max_price != null ? { max_price: input.max_price } : {}),
+        ...(input.sort ? { sort: input.sort } : {}),
+        ...(input.in_stock_only != null ? { in_stock_only: input.in_stock_only } : {}),
+        limit: Math.min(Number(input.limit) || 8, 20),
+        currency,
+      });
+      const listOf = (r: Record<string, unknown>) =>
+        (r.products ?? r.results ?? r.items ?? []) as Record<string, unknown>[];
+
+      let res = parseJson(await kapruka("kapruka_search_products", searchArgs(true)));
+      let rawList = listOf(res);
+      // The category facet returns 0 even when the catalog plainly has matches
+      // (verified 9 Aug 2026: category="cakes" → 0 while the same q without it
+      // → cakes). Drop the facet and retry in place rather than let the model
+      // burn a whole round-trip re-searching — same recovery idiom as the
+      // get_product fallback chain.
+      if (!rawList.length && input.category) {
+        res = parseJson(await kapruka("kapruka_search_products", searchArgs(false)));
+        rawList = listOf(res);
+      }
       const products = rawList.map((p) => toSummary(p, currency));
       // KAPU'S PICK = the result that semantically MATCHES the query, not
       // blind rank 0 — Kapruka ranks accessories above the thing itself
