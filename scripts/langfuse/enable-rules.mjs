@@ -24,11 +24,18 @@ const auth =
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function api(method, path, body) {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: { Authorization: auth, "Content-Type": "application/json" },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (err) {
+    // A slow preflight can have the connection reset under it — retryable,
+    // not fatal.
+    return { ok: false, status: 599, json: { message: `network: ${err?.cause?.code || err.message}` } };
+  }
   const text = await res.text();
   let json;
   try {
