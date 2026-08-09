@@ -238,6 +238,55 @@ async function renderBlock(chat: string, session: Awaited<ReturnType<typeof getS
       );
       break;
     }
+    case "pay_link": {
+      // THE money step. Telegram gets a button; WhatsApp has none, so the URL
+      // goes out as bare text on its own line — WhatsApp auto-links it and it
+      // must never be wrapped in markdown, which it does not render.
+      const amount = block.total != null ? ` · ${fmt(block.total, block.currency || "LKR")}` : "";
+      await sendText(
+        chat,
+        `🎉 *Order created — wish granted!*\nRef: ${block.order_ref}\n\n🔒 *Pay securely${amount}*\n${block.pay_url}\n\n` +
+          `Prices are locked for about 60 minutes. After you pay, Kapruka emails your order number for tracking.`
+      );
+      break;
+    }
+    case "order_timeline": {
+      const steps = block.progress.filter((p) => p.step?.trim());
+      const lines = steps.length
+        ? steps.map((p) => `✓ ${p.step}${p.timestamp ? ` — ${p.timestamp}` : ""}`).join("\n")
+        : "_No steps recorded yet._";
+      const media = block.has_delivery_photo || block.has_delivery_video ? "\n📷 Delivery proof is available." : "";
+      await sendText(chat, `📦 *Order ${block.order_number}*\n${block.status_display || block.status}\n\n${lines}${media}`);
+      break;
+    }
+    case "import_quote": {
+      const line = (label: string, v: number | null | undefined) => (v != null ? `\n${label}: ${fmt(v, "LKR")}` : "");
+      await sendText(
+        chat,
+        `🌍 *Import from Amazon*\n*${block.product_name}*` +
+          line("Item", block.item_lkr) +
+          line("Shipping + duties", block.ship_duty_lkr) +
+          `\n\n*Landed in Sri Lanka: ${fmt(block.total_lkr ?? null, "LKR")}*  (${block.shipping})` +
+          (block.local_from_lkr != null ? `\n🇱🇰 Similar on Kapruka from ${fmt(block.local_from_lkr, "LKR")}` : "") +
+          `\n\n${block.checkout_url || block.handoff_url}`
+      );
+      break;
+    }
+    case "greeting_card":
+      await sendText(chat, `💌 *To ${block.to}*\n${block.message}${block.from ? `\n— ${block.from}` : ""}`);
+      break;
+    case "options_card":
+      await sendImage(chat, block.image_url, block.caption ?? "");
+      break;
+    case "account_card":
+      await sendText(chat, `👤 *${block.name}*\n${block.email}${block.new_customer ? "\n_Welcome to Kapruka!_" : ""}`);
+      break;
+    case "category_tree":
+      await sendText(
+        chat,
+        `🗂 *What you can shop*\n${block.categories.slice(0, 12).map((c) => `• ${c.name}`).join("\n")}\n\n_Just tell me what you're after._`
+      );
+      break;
     case "no_results":
       await sendText(chat, `😕 Nothing came up for "${block.query}". Want me to try different words?`);
       break;
@@ -248,6 +297,10 @@ async function renderBlock(chat: string, session: Awaited<ReturnType<typeof getS
       await sendText(chat, block.chips.map((c) => `• ${c}`).join("\n"));
       break;
     default:
+      // Never silently again: an unhandled block cost this channel its PAY
+      // LINK — Kapu told people to "tap the pay button above" and nothing was
+      // there. Anything new shows up in the logs instead of vanishing.
+      console.warn(`[whatsapp] unrendered block type: ${(block as { type: string }).type}`);
       break;
   }
 }
