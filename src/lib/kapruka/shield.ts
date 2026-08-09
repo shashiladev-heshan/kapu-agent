@@ -67,7 +67,21 @@ const TTL: Record<string, number> = {
   kapruka_get_product: 15 * 60_000,
   kapruka_list_delivery_cities: 24 * 60 * 60_000,
   kapruka_check_delivery: 5 * 60_000,
+  // Phase-2 account tools (read-only) — short TTLs; token injected below.
+  kapruka_customer_details: 10 * 60_000,
+  kapruka_customer_addresses: 10 * 60_000,
+  kapruka_order_history: 90_000,
 };
+
+// Phase-2 finalist customer tools require a group access_token, injected from
+// env just before the call so it never lands in cache keys, logs, or the model.
+const ACCOUNT_TOOLS = new Set(["kapruka_customer_details", "kapruka_order_history", "kapruka_customer_addresses"]);
+// Tools whose backend REJECTS response_format (pydantic extra_forbidden).
+const NO_RESPONSE_FORMAT = new Set(["kapruka_render_options_card"]);
+/** Whether the finalist account token is configured (env). */
+export function accountToolsReady(): boolean {
+  return Boolean(process.env.KAPRUKA_P2_TOKEN?.trim());
+}
 
 const cache = new LRUCache<string, string>({ max: 2000, ttl: 30 * 60_000 });
 const inflight = new Map<string, Promise<string>>();
@@ -151,9 +165,10 @@ async function callWithRetry(tool: string, params: Record<string, unknown>): Pro
  * calls share one request.
  */
 export async function kapruka(tool: string, params: Record<string, unknown>): Promise<string> {
-  const fullParams = { ...params, response_format: "json" };
+  const base = NO_RESPONSE_FORMAT.has(tool) ? { ...params } : { ...params, response_format: "json" };
   const cacheable = tool in TTL;
-  const key = `${tool}:${stableStringify(fullParams)}`;
+  // Cache key excludes the finalist token (constant, but keep it out of keys).
+  const key = `${tool}:${stableStringify(base)}`;
 
   if (cacheable) {
     const hit = cache.get(key);
@@ -161,6 +176,10 @@ export async function kapruka(tool: string, params: Record<string, unknown>): Pr
     const pending = inflight.get(key);
     if (pending) return pending;
   }
+
+  const fullParams = ACCOUNT_TOOLS.has(tool)
+    ? { ...base, access_token: process.env.KAPRUKA_P2_TOKEN?.trim() ?? "" }
+    : base;
 
   const promise = callWithRetry(tool, fullParams)
     .then((text) => {

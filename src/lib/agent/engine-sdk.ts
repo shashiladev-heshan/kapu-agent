@@ -264,6 +264,30 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         run("create_card")
       ),
       tool(
+        "account_profile",
+        "Look up the customer's Kapruka account profile (name/email/language) to greet a returning customer by name + prefill checkout. ONLY with an email they TYPED this chat — never guess. Once linked, account_orders/account_addresses need no email.",
+        { email: z.string().optional() },
+        run("account_profile")
+      ),
+      tool(
+        "account_orders",
+        "The customer's real Kapruka order history (refs, status, dates, recipients, items + product IDs) — 'where's my order?', 'what did I buy?', one-tap reorder. A row's ref → track_order; item IDs → cart_update. Needs the linked account or a customer-typed email.",
+        { email: z.string().optional(), limit: z.number().optional() },
+        run("account_orders")
+      ),
+      tool(
+        "account_addresses",
+        "The customer's saved Kapruka delivery addresses (book + recents) — 'send to my home/office' at checkout; prefill propose_order from the pick. Needs the linked account or a customer-typed email.",
+        { email: z.string().optional() },
+        run("account_addresses")
+      ),
+      tool(
+        "render_picks",
+        "Render 1-4 products as ONE shareable image card (photo + numbered badge + name + price) for WhatsApp/sharing. Assign a unique ref per product.",
+        { items: z.array(z.object({ product_id: z.string(), ref: z.number() })).min(1).max(4) },
+        run("render_picks")
+      ),
+      tool(
         "say",
         "VOICE MODE ONLY (mode: voice in context). The exact text the voice engine should SPEAK for this reply — short natural sentences, no formatting, prices in words; for Sinhala conversations use ROMANIZED colloquial Sinhala. Call exactly once, after your reply text.",
         { text: z.string().describe("The speakable version, 1-3 short sentences") },
@@ -305,6 +329,10 @@ const KAPU_TOOL_NAMES = [
   "list_schedules",
   "cancel_schedule",
   "create_card",
+  "account_profile",
+  "account_orders",
+  "account_addresses",
+  "render_picks",
   "say",
   "suggest_replies",
 ].map((t) => `mcp__kapu__${t}`);

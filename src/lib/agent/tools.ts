@@ -3,9 +3,10 @@
 // UiBlocks for the frontend as a side channel.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { kapruka, parseJson } from "@/lib/kapruka/shield";
+import { kapruka, parseJson, accountToolsReady } from "@/lib/kapruka/shield";
 import { getHotDeals } from "@/lib/kapruka/promos";
 import { importQuote, isAmazonUrl } from "@/lib/kapruka/globalshop";
+import { resolveAccountEmail, sniffError, normalizeCustomer, normalizeOrders, normalizeAddresses } from "@/lib/kapruka/account";
 import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
 import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normalize";
 import { listOrders, recordOrder } from "@/lib/db/mongo";
@@ -323,6 +324,49 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
         occasion: { type: "string", description: "e.g. 'birthday', 'Esala', 'Avurudu', 'Vesak', 'Christmas', 'Deepavali', 'love'" },
       },
       required: ["to", "message"],
+    },
+  },
+  {
+    name: "account_profile",
+    description:
+      "Look up the customer's Kapruka ACCOUNT profile (name, email, language) to greet a returning customer BY NAME and prefill checkout. ONLY call with an email the CUSTOMER TYPED in this chat — never guess or loop. Once linked, later account_orders / account_addresses need no email. Renders a recognition card.",
+    input_schema: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "The email on their Kapruka account — ONLY if they typed it this conversation (omit to use the already-linked account)" },
+      },
+    },
+  },
+  {
+    name: "account_orders",
+    description:
+      "The customer's real KAPRUKA order history (references, status, dates, recipients, items with product IDs) — for 'where's my order?', 'what did I buy last time?', and one-tap reorder. Renders an order-history card; a row's reference tracks via track_order; item product IDs rebuild the basket via cart_update. Different from get_my_orders (which is Kapu-placed orders only). Needs the linked account or a customer-typed email.",
+    input_schema: {
+      type: "object",
+      properties: { email: { type: "string" }, limit: { type: "number", description: "1-20, default 5" } },
+    },
+  },
+  {
+    name: "account_addresses",
+    description:
+      "The customer's saved KAPRUKA delivery addresses (address book + recent recipients). Use at checkout so they can say 'send it to my home / office' instead of typing — then prefill propose_order from the chosen one. Renders a tappable address picker. Needs the linked account or a customer-typed email.",
+    input_schema: { type: "object", properties: { email: { type: "string" } } },
+  },
+  {
+    name: "render_picks",
+    description:
+      "Render 1-4 products as ONE shareable image 'menu' card (each photo with a numbered badge + name + price) — perfect for WhatsApp/sharing or presenting a shortlist visually. Assign a unique ref number (1-99) per product.",
+    input_schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          minItems: 1,
+          maxItems: 4,
+          items: { type: "object", properties: { product_id: { type: "string" }, ref: { type: "number", description: "1-99, unique per card" } }, required: ["product_id", "ref"] },
+        },
+      },
+      required: ["items"],
     },
   },
   {
@@ -1024,6 +1068,77 @@ export async function executeTool(
         color_to: theme.to,
       });
       return JSON.stringify({ rendered: true, note: "Card shown with download & share buttons. Tell them they can attach the message to the order too." });
+    }
+
+    case "account_profile": {
+      if (!accountToolsReady()) return JSON.stringify({ error: "Account features aren't configured on this server." });
+      const email = resolveAccountEmail(session, typeof input.email === "string" ? input.email : undefined);
+      if (!email) return JSON.stringify({ error: "no_email", note: "Ask the customer for the email on their Kapruka account — they must TYPE it. Never guess or loop through emails." });
+      const raw = await kapruka("kapruka_customer_details", { email });
+      const err = sniffError(raw);
+      if (err) return JSON.stringify({ error: err.code ?? "error", message: err.message, note: err.code === "email_not_allowed" ? "No Kapruka account data for that email in this preview — say so gently." : "Say so honestly." });
+      const profile = normalizeCustomer(parseJson(raw));
+      if (!profile) return JSON.stringify({ error: "no_data" });
+      session.account = { email: profile.email || email, name: profile.name };
+      emit({ type: "account_card", name: profile.name, email: profile.email || email });
+      return JSON.stringify({ linked: true, name: profile.name, email: profile.email || email, language: profile.language, note: "Greet them warmly by FIRST name, once. Their saved orders/addresses are now available via account_orders / account_addresses (no email needed)." });
+    }
+
+    case "account_orders": {
+      if (!accountToolsReady()) return JSON.stringify({ error: "Account features aren't configured on this server." });
+      const email = resolveAccountEmail(session, typeof input.email === "string" ? input.email : undefined);
+      if (!email) return JSON.stringify({ error: "no_email", note: "Ask for the email on their Kapruka account (they must type it)." });
+      const raw = await kapruka("kapruka_order_history", { email, limit: Math.min(Number(input.limit) || 5, 20) });
+      const err = sniffError(raw);
+      if (err) return JSON.stringify({ error: err.code ?? "error", message: err.message, note: "Say so honestly." });
+      const orders = normalizeOrders(parseJson(raw));
+      if (!session.account) session.account = { email };
+      // A5: seed the taste engine with what they've actually bought → instant picks
+      void (async () => {
+        for (const o of orders)
+          for (const it of o.items)
+            if (it.product_id) await recoProductEvent([session.userSub, session.id], { id: it.product_id, name: it.name, price: it.price_lkr, currency, in_stock: true } as ProductSummary, 2).catch(() => {});
+      })().catch(() => {});
+      emit({
+        type: "account_orders",
+        orders: orders.map((o) => ({ ref: o.ref, status: o.status, when: o.when, delivery_date: o.delivery_date, total_lkr: o.total_lkr, recipient: o.recipient, city: o.city, greeting: o.greeting, items: o.items.map((i) => ({ name: i.name, qty: i.qty })) })),
+      });
+      return JSON.stringify({
+        count: orders.length,
+        orders: orders.map((o) => ({ ref: o.ref, status: o.status, when: o.when, delivery_date: o.delivery_date, total_lkr: o.total_lkr, recipient: o.recipient, city: o.city, items: o.items.map((i) => `${i.name} ×${i.qty}${i.product_id ? ` (${i.product_id})` : ""}`) })),
+        note: "Track any order by passing its ref to track_order. 'Buy again' → cart_update each item by its product_id. Avoid re-suggesting the exact same gift to the same recipient.",
+      });
+    }
+
+    case "account_addresses": {
+      if (!accountToolsReady()) return JSON.stringify({ error: "Account features aren't configured on this server." });
+      const email = resolveAccountEmail(session, typeof input.email === "string" ? input.email : undefined);
+      if (!email) return JSON.stringify({ error: "no_email", note: "Ask for the email on their Kapruka account (they must type it)." });
+      const raw = await kapruka("kapruka_customer_addresses", { email });
+      const err = sniffError(raw);
+      if (err) return JSON.stringify({ error: err.code ?? "error", message: err.message, note: "Say so honestly." });
+      const addresses = normalizeAddresses(parseJson(raw));
+      if (!session.account) session.account = { email };
+      emit({ type: "address_picker", addresses });
+      return JSON.stringify({
+        count: addresses.length,
+        addresses,
+        note: "When they pick one ('send to my home'), prefill propose_order with that recipient name/address/city/phone and confirm briefly — don't re-ask details you now have.",
+      });
+    }
+
+    case "render_picks": {
+      const rawItems = Array.isArray(input.items) ? input.items : [];
+      const items = rawItems
+        .slice(0, 4)
+        .map((it, i) => ({ product_id: String((it as { product_id?: unknown }).product_id ?? ""), ref: Number((it as { ref?: unknown }).ref) || i + 1 }))
+        .filter((it) => it.product_id);
+      if (items.length === 0) return JSON.stringify({ error: "Pass 1-4 {product_id, ref} items." });
+      const raw = await kapruka("kapruka_render_options_card", { items, currency });
+      const url = (/(https?:\/\/[^\s"')]+\.(?:jpe?g|png|webp))/i.exec(raw) ?? /(https?:\/\/[^\s"')]+)/.exec(raw))?.[1];
+      if (!url) return JSON.stringify({ error: "Couldn't render the card just now.", raw: raw.slice(0, 160) });
+      emit({ type: "options_card", image_url: url });
+      return JSON.stringify({ rendered: true, image_url: url, note: "A shareable image card of these picks — tell them they can save or share it (great for WhatsApp)." });
     }
 
     case "say": {

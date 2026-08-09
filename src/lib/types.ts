@@ -86,6 +86,24 @@ export type UiBlock =
   // All *_lkr are canonical LKR (Kapruka's own estimate); the card converts
   // per-line for display. local_from_lkr = cheapest comparable Kapruka SL item.
   | { type: "import_quote"; url: string; handoff_url: string; checkout_url?: string; product_name: string; product_image?: string | null; usd_price?: number | null; shipping: "Air" | "Sea"; weight_lb?: number | null; weight_estimated?: boolean; hs_code?: string | null; hs_text?: string | null; item_lkr?: number | null; ship_duty_lkr?: number | null; total_lkr?: number | null; usd_ship_duty?: number | null; usd_total?: number | null; local_from_lkr?: number | null }
+  // Phase-2 account tools — greet, order history, saved addresses, image card.
+  | { type: "account_card"; name: string; email: string; new_customer?: boolean }
+  | {
+      type: "account_orders";
+      orders: {
+        ref: string;
+        status: string;
+        when?: string | null;
+        delivery_date?: string | null;
+        total_lkr?: number | null;
+        recipient?: string | null;
+        city?: string | null;
+        greeting?: string | null;
+        items: { name: string; qty: number }[];
+      }[];
+    }
+  | { type: "address_picker"; addresses: { name: string; address: string; city?: string | null; phone?: string | null }[] }
+  | { type: "options_card"; image_url: string; caption?: string }
   | { type: "no_results"; query: string }
   | { type: "chips"; chips: string[] }
   // voice mode: the exact text the TTS should speak (may differ from the

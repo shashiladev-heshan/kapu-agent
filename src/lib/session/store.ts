@@ -21,6 +21,9 @@ export interface Session {
   /** guest memory: saved recipients + occasions (account memory when signed in) */
   recipients: Recipient[];
   occasions: Occasion[];
+  /** linked Kapruka account (Phase-2 tools) — greet by name, prefill, reorder.
+   *  Persisted so a returning customer is recognised across days. */
+  account?: { email: string; name?: string };
   /** Claude Agent SDK transcript id (agent-sdk engine only) */
   sdkSessionId?: string;
   /** transient: current turn arrived via the voice loop */

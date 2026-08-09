@@ -26,6 +26,10 @@ export const TOOL_LABELS: Record<string, string> = {
   save_occasion: "Saving the date…",
   get_upcoming_occasions: "Checking your calendar…",
   get_my_orders: "Looking at your orders…",
+  account_profile: "Recognising you…",
+  account_orders: "Looking up your Kapruka orders…",
+  account_addresses: "Finding your saved addresses…",
+  render_picks: "Making a shareable card…",
   create_schedule: "Setting up your standing wish…",
   list_schedules: "Checking your schedules…",
   cancel_schedule: "Cancelling…",
@@ -116,6 +120,16 @@ export function stepFor(name: string, input: Record<string, unknown>): string | 
       return "Checking upcoming occasions";
     case "get_my_orders":
       return "Looking through your past orders";
+    case "account_profile":
+      return "Recognising your Kapruka account";
+    case "account_orders":
+      return "Looking up your Kapruka orders";
+    case "account_addresses":
+      return "Finding your saved addresses";
+    case "render_picks": {
+      const n = Array.isArray(input.items) ? input.items.length : 0;
+      return n ? `Making a shareable card of ${n} pick${n > 1 ? "s" : ""}` : "Making a shareable card";
+    }
     case "create_schedule": {
       const t = clip(input.title, 44);
       return t ? `Setting up “${t}”` : "Setting up your standing wish";

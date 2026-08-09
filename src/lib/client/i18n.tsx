@@ -257,6 +257,16 @@ const STR = {
   shareWa: { en: "WhatsApp", si: "WhatsApp", ta: "WhatsApp" },
   shareOpen: { en: "Open", si: "අරින්න", ta: "திற" },
   shareFailed: { en: "Couldn't create a share link — try again.", si: "Share link එක හදන්න බැරි උනා — ආයෙ try කරන්න.", ta: "பகிர்வு இணைப்பை உருவாக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்." },
+  // ── Kapruka account (Phase-2) + shareable card ──────────────────────
+  acctGreet: { en: "Ayubowan, {name}! 👋 Welcome back", si: "ආයුබෝවන් {name}! 👋 නැවත සාදරයෙන්", ta: "ஆயுபோவன், {name}! 👋 மீண்டும் வரவேற்கிறோம்" },
+  acctNoOrders: { en: "No Kapruka orders on this account yet.", si: "මේ account එකේ තාම Kapruka orders නෑ.", ta: "இந்த கணக்கில் இன்னும் Kapruka ஆர்டர்கள் இல்லை." },
+  acctDeliver: { en: "delivery {d}", si: "බෙදාහැරීම {d}", ta: "டெலிவரி {d}" },
+  acctTrack: { en: "Track", si: "Track කරන්න", ta: "கண்காணி" },
+  acctReorder: { en: "Buy again", si: "ආයෙ ගන්න", ta: "மீண்டும் வாங்கு" },
+  acctNoAddr: { en: "No saved addresses on this account.", si: "මේ account එකේ save කරපු addresses නෑ.", ta: "இந்த கணக்கில் சேமித்த முகவரிகள் இல்லை." },
+  acctPickAddr: { en: "Send it to a saved address:", si: "Save කරපු address එකකට යවන්න:", ta: "சேமித்த முகவரிக்கு அனுப்பு:" },
+  acctSendHere: { en: "Send it to {who}: {addr} — use this as the delivery address", si: "{who}ට යවන්න: {addr} — මේක delivery address එක විදිහට use කරන්න", ta: "{who}க்கு அனுப்பு: {addr} — இதை டெலிவரி முகவரியாகப் பயன்படுத்து" },
+  openImage: { en: "Open image", si: "රූපය අරින්න", ta: "படத்தைத் திற" },
   cancel: { en: "Cancel", si: "නවත්තන්න", ta: "ரத்து" },
 
   // ── voice ────────────────────────────────────────────────────────────

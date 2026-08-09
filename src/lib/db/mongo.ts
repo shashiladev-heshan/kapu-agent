@@ -31,6 +31,7 @@ interface SessionDoc {
   title?: string;
   recipients: unknown[];
   occasions: unknown[];
+  account?: unknown;
   updatedAt: Date;
 }
 
@@ -80,6 +81,7 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
           title: String,
           recipients: Array,
           occasions: Array,
+          account: Object,
           updatedAt: Date,
         },
         { versionKey: false }
@@ -149,6 +151,7 @@ export function persistSession(s: {
   title?: string;
   recipients?: unknown[];
   occasions?: unknown[];
+  account?: unknown;
 }): Promise<void> {
   const prev = persistChains.get(s.id) ?? Promise.resolve();
   const next = prev.then(() => persistSessionNow(s));
@@ -177,6 +180,7 @@ async function persistSessionNow(s: Parameters<typeof persistSession>[0]): Promi
           ...(s.title ? { title: s.title } : {}),
           recipients: s.recipients ?? [],
           occasions: s.occasions ?? [],
+          ...(s.account ? { account: s.account } : {}),
           updatedAt: new Date(),
         },
       },
@@ -205,6 +209,8 @@ export interface PersistedSession {
   recipients: any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   occasions: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  account?: any;
   updatedAt: number;
 }
 
@@ -226,6 +232,7 @@ export async function loadSession(id: string): Promise<PersistedSession | null> 
       title: doc.title,
       recipients: doc.recipients ?? [],
       occasions: doc.occasions ?? [],
+      account: (doc as { account?: unknown }).account,
       updatedAt: Date.now(),
     };
   } catch {

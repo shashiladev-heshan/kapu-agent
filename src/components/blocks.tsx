@@ -1754,6 +1754,103 @@ export function ImportQuoteCard({ block, actions }: { block: Extract<UiBlock, { 
   );
 }
 
+// ── Phase-2 account tools: recognition · order history · addresses · card ──
+
+export function AccountCard({ block }: { block: Extract<UiBlock, { type: "account_card" }> }) {
+  const t = useT();
+  return (
+    <div className={`rise my-2 flex items-center gap-3 rounded-2xl p-3.5 ${CARD}`}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-leaf-soft text-leaf">
+        <IconCheckCircle size={20} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[13.5px] font-semibold">{t("acctGreet", { name: block.name })}</p>
+        <p className="truncate text-[11.5px] text-ink-soft">{block.email}</p>
+      </div>
+    </div>
+  );
+}
+
+export function AccountOrders({ block, actions }: { block: Extract<UiBlock, { type: "account_orders" }>; actions: BlockActions }) {
+  const t = useT();
+  if (!block.orders.length) return <div className={`rise my-2 rounded-2xl p-4 text-[13px] text-ink-soft ${CARD}`}>{t("acctNoOrders")}</div>;
+  return (
+    <div className="my-2 flex flex-col gap-2">
+      {block.orders.map((o, i) => (
+        <div key={i} className={`rounded-2xl p-3.5 ${CARD}`}>
+          <div className="flex items-center gap-2">
+            <IconReceipt size={16} className="shrink-0 text-leaf" />
+            <span className="font-mono text-[12px] font-semibold">{o.ref}</span>
+            <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">{o.status}</span>
+            {o.total_lkr != null && <span className="price-serif ml-auto text-[14px]">{fmt(o.total_lkr, "LKR")}</span>}
+          </div>
+          {o.items.length > 0 && <p className="mt-1.5 line-clamp-2 text-[12px] text-ink-soft">{o.items.map((it) => `${it.name} ×${it.qty}`).join(", ")}</p>}
+          <p className="mt-1 text-[11px] text-ink-faint">
+            {[o.recipient ? `→ ${o.recipient}` : null, o.city, o.delivery_date ? t("acctDeliver", { d: o.delivery_date }) : null].filter(Boolean).join(" · ")}
+          </p>
+          {!actions.readOnly && (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button onClick={() => actions.onAction(`Track my order ${o.ref}`)} className="flex items-center gap-1.5 rounded-full bg-leaf px-3 py-1.5 text-[11.5px] font-semibold text-white transition active:scale-95 dark:bg-[#402970]">
+                <IconTruck size={12} /> {t("acctTrack")}
+              </button>
+              {o.items.length > 0 && (
+                <button onClick={() => actions.onAction(`Order ${o.ref} again — add the same items to my basket`)} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[11.5px] font-semibold text-ink-soft transition active:scale-95">
+                  <IconTrolley size={12} /> {t("acctReorder")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AddressPicker({ block, actions }: { block: Extract<UiBlock, { type: "address_picker" }>; actions: BlockActions }) {
+  const t = useT();
+  if (!block.addresses.length) return <div className={`rise my-2 rounded-2xl p-4 text-[13px] text-ink-soft ${CARD}`}>{t("acctNoAddr")}</div>;
+  return (
+    <div className={`rise my-2 rounded-2xl p-3 ${CARD}`}>
+      <p className="mb-2 px-1 text-[12px] font-semibold text-ink-soft">{t("acctPickAddr")}</p>
+      <div className="flex flex-col gap-1.5">
+        {block.addresses.map((a, i) => (
+          <button
+            key={i}
+            disabled={actions.readOnly}
+            onClick={() => actions.onAction(t("acctSendHere", { who: a.name, addr: `${a.address}${a.city ? `, ${a.city}` : ""}${a.phone ? ` (${a.phone})` : ""}` }))}
+            className="flex items-start gap-2.5 rounded-[13px] border border-line bg-surface px-3 py-2.5 text-left transition hover:border-leaf/40 active:scale-[0.99] disabled:opacity-70"
+          >
+            <IconTruck size={15} className="mt-0.5 shrink-0 text-leaf" />
+            <span className="min-w-0">
+              <span className="block text-[12.5px] font-semibold">{a.name}</span>
+              <span className="block text-[11.5px] leading-snug text-ink-soft">{a.address}{a.city ? `, ${a.city}` : ""}</span>
+              {a.phone && <span className="block text-[10.5px] text-ink-faint">{a.phone}</span>}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function OptionsCard({ block }: { block: Extract<UiBlock, { type: "options_card" }> }) {
+  const t = useT();
+  return (
+    <div className={`rise my-2 overflow-hidden rounded-2xl ${CARD}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={block.image_url} alt={block.caption ?? "Kapu picks"} className="w-full" loading="lazy" />
+      <div className="flex gap-2 p-2.5">
+        <a href={block.image_url} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-line bg-card py-2 text-[12px] font-semibold text-ink-soft transition active:scale-[0.99]">
+          <IconExternal size={13} /> {t("openImage")}
+        </a>
+        <a href={`https://wa.me/?text=${encodeURIComponent(block.image_url)}`} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-line bg-card py-2 text-[12px] font-semibold text-ink-soft transition active:scale-[0.99]">
+          <span className="text-[#25D366]">🟢</span> {t("shareWa")}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; actions: BlockActions; deliverTo?: string }) {
   switch (block.type) {
     case "product_grid":
@@ -1778,6 +1875,14 @@ export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; a
       return <GreetingCard block={block} />;
     case "import_quote":
       return <ImportQuoteCard block={block} actions={actions} />;
+    case "account_card":
+      return <AccountCard block={block} />;
+    case "account_orders":
+      return <AccountOrders block={block} actions={actions} />;
+    case "address_picker":
+      return <AddressPicker block={block} actions={actions} />;
+    case "options_card":
+      return <OptionsCard block={block} />;
     case "no_results":
       return <NoResults query={block.query} />;
     case "chips":

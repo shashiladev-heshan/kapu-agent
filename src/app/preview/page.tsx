@@ -171,6 +171,21 @@ const blocks: UiBlock[] = [
     usd_ship_duty: 59.78,
     usd_total: 109.77,
   },
+  { type: "account_card", name: "Sandaru Perera", email: "sandaru.perera@gmail.com" },
+  {
+    type: "account_orders",
+    orders: [
+      { ref: "VCOD852B2299", status: "IN PROCESS", when: "Aug 3, 2026", delivery_date: "1 Mar 2027", total_lkr: 1530, recipient: "Ann Smith", city: "Hatton", items: [{ name: "Message In a Bottle", qty: 1 }] },
+      { ref: "VCODE5FAD635", status: "IN PROCESS", when: "Aug 3, 2026", delivery_date: "5 Feb 2027", total_lkr: 7750, recipient: "Sandaru Perera Office", city: "Maharagama", items: [{ name: "Kisonli C1085 HD USB Webcam", qty: 1 }] },
+    ],
+  },
+  {
+    type: "address_picker",
+    addresses: [
+      { name: "Sandaru Perera", address: "No.123, Udahamulla Road, Nugegoda.", city: "Nugegoda", phone: "0711111111" },
+      { name: "Sandaru Perera Office", address: "N0 5, Kapruka Office, Old Kottawa Road, Maharagama", city: "Maharagama", phone: "0722222222" },
+    ],
+  },
   { type: "no_results", query: "durian cake" },
   { type: "chips", chips: ["Compare the top two", "Only Samsung", "50,000ට යටින් instead"] },
 ];
