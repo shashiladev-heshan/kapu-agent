@@ -11,6 +11,16 @@ export function whatsappEnabled(): boolean {
   return Boolean(BASE);
 }
 
+/**
+ * Human pacing. A burst of messages landing in the same second is the most
+ * machine-shaped thing this channel can do — real people take a beat between
+ * sends, and WhatsApp's own heuristics notice. Jitter is randomised so the
+ * gaps are never a constant either.
+ */
+export function beat(min = 450, max = 1100): Promise<void> {
+  return new Promise((r) => setTimeout(r, min + Math.floor(Math.random() * (max - min))));
+}
+
 async function send(body: Record<string, unknown>): Promise<boolean> {
   if (!BASE) return false;
   try {
@@ -44,14 +54,23 @@ export function chunk(text: string, max = MAX): string[] {
   return out;
 }
 
-export async function sendText(to: string, text: string): Promise<void> {
-  for (const part of chunk(text)) await send({ to, text: part });
+export async function sendText(to: string, text: string, final = false): Promise<void> {
+  const parts = chunk(text);
+  for (let i = 0; i < parts.length; i++) {
+    if (i > 0) await beat();
+    await send({ to, text: parts[i], final: final && i === parts.length - 1 });
+  }
 }
 
-export async function sendImage(to: string, imageUrl: string, caption: string): Promise<void> {
-  const ok = await send({ to, image_url: imageUrl, caption: caption.slice(0, 900) });
+export async function sendImage(to: string, imageUrl: string, caption: string, final = false): Promise<void> {
+  const ok = await send({ to, image_url: imageUrl, caption: caption.slice(0, 900), final });
   // Never let a dead CDN image swallow the product — fall back to words.
-  if (!ok && caption) await sendText(to, caption);
+  if (!ok && caption) await sendText(to, caption, final);
+}
+
+/** Tells the sidecar this answer is done so it can drop the typing indicator. */
+export async function endTurn(to: string): Promise<void> {
+  await send({ to, final: true });
 }
 
 /**

@@ -515,11 +515,15 @@ const STR = {
     ta: "ஒரு வாக்கியத்தில் இருந்து வீடு வரை — தேடல், ஒப்பீடு, கூடை, கட்டணம்.",
   },
   landFeatTitle: { en: "An agent, not a search box", si: "Search box එකක් නෙමෙයි — agent කෙනෙක්", ta: "தேடல் பெட்டி அல்ல — ஒரு முகவர்" },
-  landTgTitle: { en: "The same brain on Telegram", si: "ඒ මොළේම Telegram එකේ", ta: "அதே மூளை Telegram-ல்" },
+  landTgTitle: {
+    en: "The same brain on Telegram & WhatsApp",
+    si: "ඒ මොළේම Telegram සහ WhatsApp එකේ",
+    ta: "அதே மூளை Telegram & WhatsApp-ல்",
+  },
   landTgSub: {
-    en: "Voice notes in Sinhala, photos of handwritten lists, and the family group with ONE shared basket — @mention to wake it.",
-    si: "සිංහල voice notes, අතේ ලියපු lists වල photos, family group එකට එක basket එකක් — @mention කරන්න.",
-    ta: "தமிழ்/சிங்கள குரல் குறிப்புகள், புகைப்படங்கள், குடும்ப குழு — ஒரே கூடை.",
+    en: "Voice notes in Sinhala, photos of handwritten lists, and the family group with ONE shared basket — @mention to wake it. Same 27 tools, same basket, same memory.",
+    si: "සිංහල voice notes, අතේ ලියපු lists වල photos, family group එකට එක basket එකක් — @mention කරන්න. එකම tools, එකම basket, එකම memory.",
+    ta: "தமிழ்/சிங்கள குரல் குறிப்புகள், புகைப்படங்கள், குடும்ப குழு — ஒரே கூடை. அதே 27 கருவிகள், அதே நினைவு.",
   },
   landPwaTitle: { en: "In your pocket, too.", si: "සාක්කුවෙත් ඉන්නවා.", ta: "உங்கள் பாக்கெட்டிலும்." },
   landPwaSub: {

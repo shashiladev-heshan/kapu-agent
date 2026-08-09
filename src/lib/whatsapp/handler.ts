@@ -13,7 +13,7 @@ import { resizeImage } from "@/lib/kapruka/normalize";
 import { getSession, saveSession } from "@/lib/session/store";
 import type { Cart, StreamEvent, UiBlock } from "@/lib/types";
 import { scanImage, scanToMessage } from "@/lib/vision/scan";
-import { mdToWhatsapp, sendImage, sendText } from "@/lib/whatsapp/api";
+import { beat, endTurn, mdToWhatsapp, sendImage, sendText } from "@/lib/whatsapp/api";
 
 const fmt = (n: number | null | undefined, currency = "LKR") => {
   if (n == null) return "—";
@@ -130,10 +130,10 @@ async function handleTurn(chat: string, phone: string, message: string): Promise
   session.voice = false;
   if (!session.title) session.title = message.slice(0, 60);
 
-  // No message editing on WhatsApp, so one honest "working on it" beats a
-  // ticker we can't update. Only for turns likely to take a while.
-  await sendText(chat, "🌳 On it — checking Kapruka…");
-
+  // No placeholder message here on purpose. The sidecar puts a real "typing…"
+  // indicator up the moment the message arrives, which is both what a human
+  // does and what WhatsApp expects — a byte-identical "On it…" on every single
+  // turn was the most bot-shaped thing in the whole channel.
   let text = "";
   const blocks: UiBlock[] = [];
   const send = (event: StreamEvent) => {
@@ -150,7 +150,12 @@ async function handleTurn(chat: string, phone: string, message: string): Promise
   }
 
   if (text.trim()) await sendText(chat, mdToWhatsapp(text));
-  for (const block of blocks) await renderBlock(chat, session, block);
+  for (const block of blocks) {
+    await beat();
+    await renderBlock(chat, session, block);
+  }
+  // Drops the typing indicator even when a turn produced no blocks at all.
+  await endTurn(chat);
   saveSession(session);
 }
 
@@ -174,6 +179,7 @@ async function renderBlock(chat: string, session: Awaited<ReturnType<typeof getS
       session.waPicks = shown.map((p) => p.id);
       let n = 0;
       for (const p of shown) {
+        if (n > 0) await beat(600, 1400); // photos arrive at human speed
         n++;
         const was =
           p.compare_at_price && p.price && p.compare_at_price > p.price ? ` ~${fmt(p.compare_at_price, p.currency)}~` : "";

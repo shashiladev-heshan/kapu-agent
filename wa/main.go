@@ -161,7 +161,69 @@ func handleEvent(evt any) {
 		return // sticker/location/etc — nothing Kapu handles yet
 	}
 
+	// Read it, then start typing — in that order, like a person.
+	go func() {
+		_ = client.MarkRead(context.Background(), []types.MessageID{v.Info.ID}, time.Now(), v.Info.Chat, v.Info.Sender)
+		startTyping(v.Info.Chat)
+	}()
 	go postToKapu(in)
+}
+
+// ── human presence ────────────────────────────────────────────────────
+//
+// A real person marks a chat read and shows "typing…" before answering.
+// Firing a burst of identical messages with no receipts and no presence is
+// the machine-shaped pattern, so we do what a person does instead — which is
+// also better UX than a canned "On it…" placeholder.
+//
+// WhatsApp expires a composing state after ~10s, so it has to be refreshed
+// for as long as the agent is still working.
+
+var (
+	typingMu   sync.Mutex
+	typingStop = map[string]chan struct{}{}
+)
+
+func startTyping(jid types.JID) {
+	key := jid.String()
+	typingMu.Lock()
+	if ch, ok := typingStop[key]; ok {
+		close(ch)
+	}
+	stop := make(chan struct{})
+	typingStop[key] = stop
+	typingMu.Unlock()
+
+	go func() {
+		ctx := context.Background()
+		_ = client.SendChatPresence(ctx, jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
+		t := time.NewTicker(8 * time.Second)
+		defer t.Stop()
+		// Cap it: if a turn dies we must not type forever.
+		deadline := time.After(3 * time.Minute)
+		for {
+			select {
+			case <-stop:
+				return
+			case <-deadline:
+				_ = client.SendChatPresence(ctx, jid, types.ChatPresencePaused, types.ChatPresenceMediaText)
+				return
+			case <-t.C:
+				_ = client.SendChatPresence(ctx, jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
+			}
+		}
+	}()
+}
+
+func stopTyping(jid types.JID) {
+	key := jid.String()
+	typingMu.Lock()
+	if ch, ok := typingStop[key]; ok {
+		close(ch)
+		delete(typingStop, key)
+	}
+	typingMu.Unlock()
+	_ = client.SendChatPresence(context.Background(), jid, types.ChatPresencePaused, types.ChatPresenceMediaText)
 }
 
 // ── outbound: Kapu → WhatsApp ─────────────────────────────────────────
@@ -171,6 +233,8 @@ type sendReq struct {
 	Text     string `json:"text,omitempty"`
 	ImageURL string `json:"image_url,omitempty"` // fetched and uploaded
 	Caption  string `json:"caption,omitempty"`
+	// Last part of this answer — stop the typing indicator once it lands.
+	Final bool `json:"final,omitempty"`
 }
 
 func parseJID(s string) (types.JID, error) {
@@ -242,6 +306,11 @@ func handleSend(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
+	// The reply is landing — drop the typing indicator. `final` lets Kapu keep
+	// it up between the parts of a multi-message answer.
+	if req.Final {
+		defer stopTyping(jid)
+	}
 
 	if req.ImageURL != "" {
 		if err := sendImage(ctx, jid, req.ImageURL, req.Caption); err != nil {
@@ -295,6 +364,36 @@ func handleQR(w http.ResponseWriter, r *http.Request) {
 	w.Write(png)
 }
 
+// Unlink the current number so a different one can be paired. Logout tells
+// WhatsApp to drop the linked device (so it disappears from the phone's
+// Linked devices list too) and clears the local store — then we reopen
+// pairing so /qr immediately serves a code for the new number.
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	if secret != "" && r.Header.Get("X-Kapu-Secret") != secret && r.URL.Query().Get("secret") != secret {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if client == nil || client.Store.ID == nil {
+		w.Write([]byte("not paired — /qr is already offering a code"))
+		return
+	}
+	was := client.Store.ID.String()
+	if err := client.Logout(context.Background()); err != nil {
+		// Even a failed unlink usually clears the local store; report honestly
+		// rather than pretending, and let the caller decide to retry.
+		log.Printf("[wa] logout error: %v", err)
+		http.Error(w, "logout failed: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	qrMu.Lock()
+	qrCode = ""
+	qrMu.Unlock()
+	log.Printf("[wa] logged out %s — reopening pairing", was)
+	go pairingLoop(context.Background())
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"ok": true, "logged_out": was, "next": "open /qr?secret=… to pair a new number"})
+}
+
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	paired, connected, jid := false, false, ""
 	if client != nil {
@@ -315,7 +414,15 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 // in the first couple of minutes after a deploy, and serves a DEAD code
 // afterwards — useless when a human pairs on their own schedule. So: whenever
 // the QR channel closes unpaired, reconnect and start a fresh one, forever.
+// Only ever one pairing loop at a time — /logout can otherwise start a second
+// while the first is still cycling codes, and they'd fight over qrCode.
+var pairingRunning sync.Mutex
+
 func pairingLoop(ctx context.Context) {
+	if !pairingRunning.TryLock() {
+		return
+	}
+	defer pairingRunning.Unlock()
 	for {
 		if client.Store.ID != nil {
 			log.Printf("[wa] paired as %s", client.Store.ID)
@@ -395,6 +502,7 @@ func main() {
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/qr", handleQR)
 	http.HandleFunc("/send", handleSend)
+	http.HandleFunc("/logout", handleLogout)
 	log.Printf("[wa] listening on :%s (webhook → %s)", port, webhookURL)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

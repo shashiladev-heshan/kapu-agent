@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Kapu (කපූ) — Sri Lanka's wish-granting shopping agent",
     description:
-      "Whisper a wish in සිංහල, தமிழ், English or Tanglish — voice, photo or text — and Kapu shops all of Kapruka for you. Web · PWA · Telegram.",
+      "Whisper a wish in සිංහල, தமிழ், English or Tanglish — voice, photo or text — and Kapu shops all of Kapruka for you. Web · PWA · Telegram · WhatsApp.",
     url: "https://kapuwa.shop",
     siteName: "Kapu",
     images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "Kapu — the wish tree" }],

@@ -368,7 +368,16 @@ export default function KapuApp() {
   const [tourStep, setTourStep] = useState(-1); // -1 = closed
   const [tgBot, setTgBot] = useState<{ username: string; link: string } | null>(null);
   const [waBot, setWaBot] = useState<{ number: string; link: string } | null>(null);
+  // Header controls scroll on phones; park them at the right end so the basket
+  // and account — the ones people actually tap — are what's on screen, and the
+  // channel pills are one swipe left. Re-runs as the row grows, because the
+  // Telegram/WhatsApp pills arrive from async fetches AFTER first paint.
+  const headerRailRef = useRef<HTMLDivElement>(null);
   const [favs, setFavs] = useState<Record<string, ProductSummary>>({});
+  useEffect(() => {
+    const rail = headerRailRef.current;
+    if (rail) rail.scrollLeft = rail.scrollWidth;
+  }, [tgBot, waBot]);
   const [favOpen, setFavOpen] = useState(false);
   // specialist Kapus — active hat (per device) + the user's custom library
   const [agent, setAgent] = useState<SpecialKapu | null>(null);
@@ -2566,7 +2575,8 @@ export default function KapuApp() {
             <KapuMark size={34} radius={11} />
             <span className="text-left leading-tight">
               <span className="font-display block text-[17px] leading-none text-leaf">Kapu</span>
-              <span className="mt-0.5 block max-w-[6.5rem] truncate text-[10px] text-ink-soft sm:max-w-40">
+              {/* the tagline is the first thing to go when the row is tight */}
+              <span className="mt-0.5 hidden max-w-[6.5rem] truncate text-[10px] text-ink-soft min-[420px]:block sm:max-w-40">
                 {empty ? `කපූ · ${t("yourWishTree")}` : currentTitle ?? t("yourWishTree")}
               </span>
             </span>
@@ -2606,7 +2616,19 @@ export default function KapuApp() {
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          {/* Phones can't fit the channel + utility buttons alongside the logo,
+              so below sm this row scrolls horizontally (.rail hides the bar).
+              The scroller and the flex row have to be SEPARATE elements:
+              `justify-end` on an overflowing flex container clips its start
+              edge and the browser won't let you scroll back to it. The inner
+              row is w-max (natural width) with ml-auto so it still sits right
+              when everything fits. From sm up, overflow is visible again —
+              the deliver-to dropdown is absolutely positioned inside. */}
+          <div
+            ref={headerRailRef}
+            className="rail ml-auto min-w-0 flex-1 overflow-x-auto overscroll-x-contain sm:flex-none sm:overflow-x-visible"
+          >
+            <div className="ml-auto flex w-max items-center gap-1.5 sm:gap-2">
             {tgBot && (
               <a
                 href={tgBot.link}
@@ -2631,8 +2653,10 @@ export default function KapuApp() {
                 <span className="hidden lg:inline">WhatsApp</span>
               </a>
             )}
-            {/* deliver-to chip (hidden on small screens until a chat starts) */}
-            <div className={`relative ${empty ? "hidden sm:block" : ""}`}>
+            {/* Deliver-to chip is the widest item in this row (~110px) and the
+                one with a home elsewhere (menu + the agent asks anyway), so on
+                phones it yields its space to the channel and basket buttons. */}
+            <div className="relative hidden sm:block">
               <button
                 onClick={() => {
                   setDeliverDraft(deliverTo);
@@ -2748,7 +2772,9 @@ export default function KapuApp() {
                 localStorage.setItem("kapu_panel_closed", "0");
                 setCartOpen((v) => !v);
               }}
-              className={`relative flex h-10 w-10 items-center justify-center rounded-full border border-cream-deep bg-card text-ink-soft transition hover:bg-cream hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90 ${
+              // xl-only: below xl the basketButton() at the end of this row is
+              // the basket, and rendering both put TWO baskets on every phone.
+              className={`relative hidden h-10 w-10 items-center justify-center rounded-full border border-cream-deep bg-card text-ink-soft transition hover:bg-cream hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90 xl:flex ${
                 cartPulse ? "scale-110 border-gold text-gold" : ""
               }`}
               aria-label={t("yourBasket")}
@@ -2813,7 +2839,8 @@ export default function KapuApp() {
             >
               {avatar(24)}
             </button>
-            {basketButton("xl:hidden")}
+              {basketButton("xl:hidden")}
+            </div>
           </div>
         </header>
 
@@ -5538,7 +5565,7 @@ function LandingShowcase({
       {/* ── act 4: stats + CTA ── */}
       <section className="py-10 text-center">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2">
-          {["27 agent tools", "7 specialist Kapus + yours", "Web · PWA · Telegram", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules", "policy answers with sources"].map((x) => (
+          {["27 agent tools", "7 specialist Kapus + yours", "Web · PWA · Telegram · WhatsApp", "සිංහල · தமிழ் · English", "islandwide delivery", "voice + vision", "autonomous schedules", "policy answers with sources"].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
             </span>
