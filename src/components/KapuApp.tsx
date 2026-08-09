@@ -379,6 +379,7 @@ export default function KapuApp() {
   const [productSimilar, setProductSimilar] = useState<ProductSummary[]>([]);
   const [trackOpen, setTrackOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   // PWA install — visible to everyone (that's the point: awareness), falling
   // back to per-platform instructions when the browser gives us no prompt
   const { canInstall, hasNativePrompt, platform, install } = useInstallPrompt();
@@ -2379,6 +2380,11 @@ export default function KapuApp() {
               <IconPackage size={16} className="text-ink-soft" />
               <span className="flex-1 text-[12.5px] font-medium">{t("trackOrder")}</span>
             </button>
+            <button onClick={() => setAccountOpen(true)} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left hover:bg-cream">
+              <IconReceipt size={16} className="text-ink-soft" />
+              <span className="flex-1 text-[12.5px] font-medium">{t("myAccount")}</span>
+              <span className="rounded-full bg-gold-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-gold-deep">{t("newTag")}</span>
+            </button>
             <button onClick={() => setImportOpen(true)} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left hover:bg-cream">
               <IconGlobe size={16} className="text-ink-soft" />
               <span className="flex-1 text-[12.5px] font-medium">{t("importTitle")}</span>
@@ -3373,6 +3379,11 @@ export default function KapuApp() {
                 <IconPackage size={16} className="text-ink-soft" />
                 <span className="flex-1 text-[12.5px] font-medium">{t("trackOrder")}</span>
               </button>
+              <button onClick={() => { setNavOpen(false); setAccountOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
+                <IconReceipt size={16} className="text-ink-soft" />
+                <span className="flex-1 text-[12.5px] font-medium">{t("myAccount")}</span>
+                <span className="rounded-full bg-gold-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-gold-deep">{t("newTag")}</span>
+              </button>
               <button onClick={() => { setNavOpen(false); setImportOpen(true); }} className="flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left">
                 <IconGlobe size={16} className="text-ink-soft" />
                 <span className="flex-1 text-[12.5px] font-medium">{t("importTitle")}</span>
@@ -3857,6 +3868,14 @@ export default function KapuApp() {
 
       {/* ══ Import from Amazon — Global Shop landed-cost front door ══ */}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSubmit={(url) => void send(url)} />}
+
+      {/* ══ My Kapruka account — link by email ══ */}
+      {accountOpen && (
+        <AccountModal
+          onClose={() => setAccountOpen(false)}
+          onSubmit={(email) => void send(`My Kapruka account email is ${email} — greet me and show my recent orders`)}
+        />
+      )}
 
       {/* ══ Install prompt — real native button when available, else steps ══ */}
       {installHintOpen && (
@@ -4696,6 +4715,53 @@ function ImportModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (ur
           </button>
         </div>
         <p className="mt-2 text-[10.5px] leading-snug text-ink-faint">{t("importSheetHint")}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── My Kapruka account — link by email to greet + orders + addresses ────
+
+function AccountModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (email: string) => void }) {
+  const t = useT();
+  const [value, setValue] = useState("");
+  const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
+  const go = () => {
+    if (!valid) return;
+    onSubmit(value.trim());
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-[#1d1233]/50 backdrop-blur-[2px]" />
+      <div className="sheet-in relative w-full overflow-y-auto rounded-t-[24px] bg-surface p-4 sm:max-w-lg sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-1.5 flex items-center gap-2">
+          <IconReceipt size={17} className="text-leaf" />
+          <p className="font-display text-[18px]">{t("myAccount")}</p>
+          <button onClick={onClose} className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft" aria-label={t("close")}>
+            <IconClose size={12} />
+          </button>
+        </div>
+        <p className="mb-3 text-[12px] leading-snug text-ink-soft">{t("accountSheetBlurb")}</p>
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            type="email"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && go()}
+            placeholder={t("accountSheetPlaceholder")}
+            className="min-w-0 flex-1 rounded-[13px] border-[1.5px] border-edge bg-card px-3.5 py-2.5 text-[13.5px] outline-none focus:border-leaf"
+          />
+          <button
+            onClick={go}
+            disabled={!valid}
+            className="rounded-[13px] bg-gold px-5 text-[13px] font-bold text-ink shadow-[0_4px_14px_rgba(255,184,0,0.35)] transition active:scale-95 disabled:opacity-40 dark:text-[#322b45]"
+          >
+            {t("accountSheetBtn")}
+          </button>
+        </div>
+        <p className="mt-2 text-[10.5px] leading-snug text-ink-faint">{t("accountSheetHint")}</p>
       </div>
     </div>
   );

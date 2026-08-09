@@ -267,6 +267,19 @@ const STR = {
   acctPickAddr: { en: "Send it to a saved address:", si: "Save කරපු address එකකට යවන්න:", ta: "சேமித்த முகவரிக்கு அனுப்பு:" },
   acctSendHere: { en: "Send it to {who}: {addr} — use this as the delivery address", si: "{who}ට යවන්න: {addr} — මේක delivery address එක විදිහට use කරන්න", ta: "{who}க்கு அனுப்பு: {addr} — இதை டெலிவரி முகவரியாகப் பயன்படுத்து" },
   openImage: { en: "Open image", si: "රූපය අරින්න", ta: "படத்தைத் திற" },
+  myAccount: { en: "My Kapruka account", si: "මගේ Kapruka account එක", ta: "எனது Kapruka கணக்கு" },
+  accountSheetBlurb: {
+    en: "Enter the email on your Kapruka account — I'll greet you, pull up your orders, and let you reuse saved addresses at checkout.",
+    si: "ඔයාගේ Kapruka account එකේ email එක දෙන්න — මම ඔයාව හඳුනගෙන, orders පෙන්නලා, checkout එකේදී save කරපු addresses පාවිච්චි කරන්න දෙන්නම්.",
+    ta: "உங்கள் Kapruka கணக்கின் மின்னஞ்சலை உள்ளிடுங்கள் — உங்களை வரவேற்று, ஆர்டர்களைக் காட்டி, சேமித்த முகவரிகளைப் பயன்படுத்த அனுமதிக்கிறேன்.",
+  },
+  accountSheetPlaceholder: { en: "your Kapruka account email", si: "ඔයාගේ Kapruka account email එක", ta: "உங்கள் Kapruka கணக்கு மின்னஞ்சல்" },
+  accountSheetBtn: { en: "Continue", si: "යන්න", ta: "தொடர்" },
+  accountSheetHint: {
+    en: "Read-only — Kapu never changes your account. Enter only your own email.",
+    si: "බලන්න විතරයි — Kapu ඔයාගේ account එක වෙනස් කරන්නේ නෑ. ඔයාගේම email එක විතරක් දෙන්න.",
+    ta: "பார்வைக்கு மட்டும் — Kapu உங்கள் கணக்கை மாற்றாது. உங்கள் சொந்த மின்னஞ்சலை மட்டும் உள்ளிடுங்கள்.",
+  },
   cancel: { en: "Cancel", si: "නවත්තන්න", ta: "ரத்து" },
 
   // ── voice ────────────────────────────────────────────────────────────
