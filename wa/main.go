@@ -280,7 +280,9 @@ func handleQR(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("already paired as " + client.Store.ID.String()))
 			return
 		}
-		w.Write([]byte("no pairing code yet — retry in a moment"))
+		// Between windows: the old code is dead and a new one is seconds away.
+		w.Header().Set("Refresh", "3")
+		w.Write([]byte("refreshing pairing code — this page reloads itself"))
 		return
 	}
 	png, err := qrcode.Encode(code, qrcode.Medium, 512)
@@ -308,6 +310,58 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// whatsmeow rotates a pairing code every ~20s and then gives up entirely after
+// about 2.5 minutes, closing the socket. Left alone that means /qr only works
+// in the first couple of minutes after a deploy, and serves a DEAD code
+// afterwards — useless when a human pairs on their own schedule. So: whenever
+// the QR channel closes unpaired, reconnect and start a fresh one, forever.
+func pairingLoop(ctx context.Context) {
+	for {
+		if client.Store.ID != nil {
+			log.Printf("[wa] paired as %s", client.Store.ID)
+			return
+		}
+		qrChan, err := client.GetQRChannel(ctx)
+		if err != nil {
+			log.Printf("[wa] qr channel: %v — retrying", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		if !client.IsConnected() {
+			if err := client.Connect(); err != nil {
+				log.Printf("[wa] connect: %v — retrying", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+		}
+		for evt := range qrChan {
+			switch evt.Event {
+			case "code":
+				qrMu.Lock()
+				qrCode = evt.Code
+				qrMu.Unlock()
+				log.Printf("[wa] pairing code ready — open /qr?secret=… to scan")
+			case "success":
+				qrMu.Lock()
+				qrCode = ""
+				qrMu.Unlock()
+				log.Printf("[wa] paired successfully")
+			case "timeout":
+				log.Printf("[wa] pairing window expired — starting a fresh one")
+			}
+		}
+		if client.Store.ID != nil {
+			return // paired during that window
+		}
+		// Stop serving a code that no longer works.
+		qrMu.Lock()
+		qrCode = ""
+		qrMu.Unlock()
+		client.Disconnect()
+		time.Sleep(2 * time.Second)
+	}
+}
+
 func main() {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -329,33 +383,9 @@ func main() {
 	client.AddEventHandler(handleEvent)
 
 	if client.Store.ID == nil {
-		// Not paired yet — surface the QR at /qr for scanning.
-		qrChan, _ := client.GetQRChannel(ctx)
-		if err := client.Connect(); err != nil {
-			log.Fatalf("connect: %v", err)
-		}
-		go func() {
-			for evt := range qrChan {
-				switch evt.Event {
-				case "code":
-					qrMu.Lock()
-					qrCode = evt.Code
-					qrMu.Unlock()
-					log.Printf("[wa] pairing code ready — open /qr?secret=… to scan")
-				case "success":
-					qrMu.Lock()
-					qrCode = ""
-					qrMu.Unlock()
-					log.Printf("[wa] paired successfully")
-				case "timeout":
-					log.Printf("[wa] pairing code expired; a new one will follow")
-				}
-			}
-		}()
-	} else {
-		if err := client.Connect(); err != nil {
-			log.Fatalf("connect: %v", err)
-		}
+		go pairingLoop(ctx)
+	} else if err := client.Connect(); err != nil {
+		log.Fatalf("connect: %v", err)
 	}
 
 	port := os.Getenv("PORT")
