@@ -53,6 +53,8 @@ export interface BlockActions {
   /** favorites (♥) */
   onToggleFav: (p: ProductSummary) => void;
   isFav: (id: string) => boolean;
+  /** read-only share view: hide all interactive controls (cart, fav, ask, chat) */
+  readOnly?: boolean;
 }
 
 const fmtIn = (v: number, c: string) =>
@@ -210,30 +212,34 @@ export function ProductCard({ p, actions, fluid }: { p: ProductSummary; actions:
     >
       {p.pick && <PickBadge />}
       {!p.pick && p.value && <ValueBadge />}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          actions.onToggleFav(p);
-        }}
-        aria-label={fav ? "Remove from favorites" : "Add to favorites"}
-        className={`absolute right-2 top-2 z-[1] flex h-7 w-7 items-center justify-center rounded-full bg-card/90 shadow-sm backdrop-blur transition active:scale-90 ${
-          fav ? "text-clay" : "text-ink-faint"
-        }`}
-      >
-        <IconHeart size={15} filled={fav} />
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          actions.onAction(`Tell me about "${p.name}" (${p.id}) — is it a good pick?`);
-        }}
-        aria-label={`Ask Kapu about ${p.name}`}
-        title="Ask Kapu 🌳"
-        className="absolute right-2 top-10 z-[1] flex h-7 w-7 items-center justify-center rounded-full bg-card/90 p-[3px] shadow-sm backdrop-blur transition duration-300 hover:scale-110 active:scale-90"
-      >
-        <KapuMark size={20} radius={10} />
-      </button>
-      <button onClick={() => actions.onOpenProduct(p)} className="relative overflow-hidden text-left" aria-label={`View ${p.name}`}>
+      {!actions.readOnly && (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              actions.onToggleFav(p);
+            }}
+            aria-label={fav ? "Remove from favorites" : "Add to favorites"}
+            className={`absolute right-2 top-2 z-[1] flex h-7 w-7 items-center justify-center rounded-full bg-card/90 shadow-sm backdrop-blur transition active:scale-90 ${
+              fav ? "text-clay" : "text-ink-faint"
+            }`}
+          >
+            <IconHeart size={15} filled={fav} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              actions.onAction(`Tell me about "${p.name}" (${p.id}) — is it a good pick?`);
+            }}
+            aria-label={`Ask Kapu about ${p.name}`}
+            title="Ask Kapu 🌳"
+            className="absolute right-2 top-10 z-[1] flex h-7 w-7 items-center justify-center rounded-full bg-card/90 p-[3px] shadow-sm backdrop-blur transition duration-300 hover:scale-110 active:scale-90"
+          >
+            <KapuMark size={20} radius={10} />
+          </button>
+        </>
+      )}
+      <button onClick={() => !actions.readOnly && actions.onOpenProduct(p)} className="relative overflow-hidden text-left" aria-label={`View ${p.name}`}>
         {save != null && (
           <span className="absolute bottom-2 left-2 z-[1] rounded-[7px] bg-gold px-1.5 py-0.5 text-[10px] font-bold text-ink shadow-[0_2px_8px_rgba(0,0,0,0.25)] dark:text-[#322b45]">
             {t("savePct", { n: save })}
@@ -258,14 +264,16 @@ export function ProductCard({ p, actions, fluid }: { p: ProductSummary; actions:
         </div>
         <div className="flex items-center justify-between gap-1">
           <StockBadge p={p} />
-          <button
-            onClick={() => actions.onCartAdd(p)}
-            disabled={p.in_stock === false}
-            className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gold text-ink shadow-[0_3px_8px_rgba(255,184,0,0.4)] transition active:scale-90 disabled:opacity-40 dark:text-[#322b45]"
-            aria-label={`Add ${p.name} to basket`}
-          >
-            <IconPlus size={13} />
-          </button>
+          {!actions.readOnly && (
+            <button
+              onClick={() => actions.onCartAdd(p)}
+              disabled={p.in_stock === false}
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gold text-ink shadow-[0_3px_8px_rgba(255,184,0,0.4)] transition active:scale-90 disabled:opacity-40 dark:text-[#322b45]"
+              aria-label={`Add ${p.name} to basket`}
+            >
+              <IconPlus size={13} />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -775,22 +783,24 @@ export function CompareGrid({ products, verdict, actions }: { products: ProductD
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 p-3">
-        {products.map((p, i) => (
-          <button
-            key={p.id}
-            onClick={() => actions.onCartAdd(p)}
-            disabled={p.in_stock === false}
-            className={`flex-1 whitespace-nowrap rounded-[12px] px-4 py-2 text-[12.5px] font-semibold transition active:scale-[0.98] disabled:opacity-40 ${
-              i === 0
-                ? "bg-gold text-ink shadow-[0_4px_14px_rgba(255,184,0,0.35)] dark:text-[#322b45]"
-                : "border border-edge bg-card text-ink"
-            }`}
-          >
-            {t("add")} {p.name.split(" ").slice(0, 2).join(" ")}
-          </button>
-        ))}
-      </div>
+      {!actions.readOnly && (
+        <div className="flex flex-wrap gap-2 p-3">
+          {products.map((p, i) => (
+            <button
+              key={p.id}
+              onClick={() => actions.onCartAdd(p)}
+              disabled={p.in_stock === false}
+              className={`flex-1 whitespace-nowrap rounded-[12px] px-4 py-2 text-[12.5px] font-semibold transition active:scale-[0.98] disabled:opacity-40 ${
+                i === 0
+                  ? "bg-gold text-ink shadow-[0_4px_14px_rgba(255,184,0,0.35)] dark:text-[#322b45]"
+                  : "border border-edge bg-card text-ink"
+              }`}
+            >
+              {t("add")} {p.name.split(" ").slice(0, 2).join(" ")}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -823,7 +833,7 @@ export function DeliveryCard({ block, actions }: { block: Extract<UiBlock, { typ
         </div>
         {block.available && <IconCheckCircle size={18} className="ml-auto shrink-0" />}
       </div>
-      {!block.available && block.next_available_date && (
+      {!actions.readOnly && !block.available && block.next_available_date && (
         <button
           onClick={() => {
             actions.onPreferDate(block.next_available_date!);
@@ -1709,12 +1719,14 @@ export function ImportQuoteCard({ block, actions }: { block: Extract<UiBlock, { 
         <span className="flex-1 rounded-full bg-leaf-soft px-3 py-2 text-center text-[12px] font-semibold text-leaf">
           {isSea ? `🚢 ${t("importSea")}` : `✈️ ${t("importAir")}`}
         </span>
-        <button
-          onClick={() => actions.onAction(t("importSwitch", { mode: otherLabel }))}
-          className="rounded-full border border-line px-3 py-2 text-[12px] font-medium text-ink-soft transition active:scale-95"
-        >
-          {otherLabel}
-        </button>
+        {!actions.readOnly && (
+          <button
+            onClick={() => actions.onAction(t("importSwitch", { mode: otherLabel }))}
+            className="rounded-full border border-line px-3 py-2 text-[12px] font-medium text-ink-soft transition active:scale-95"
+          >
+            {otherLabel}
+          </button>
+        )}
       </div>
 
       {block.local_from_lkr != null && (

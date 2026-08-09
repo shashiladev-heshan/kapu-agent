@@ -10,6 +10,7 @@ export interface WishMeta {
   id: string;
   title: string;
   at: number;
+  pinned?: boolean;
 }
 
 /** a user-built specialist Kapu (the presets live client-side in code) */
@@ -83,10 +84,18 @@ export async function mergeWishes(sub: string, incoming: WishMeta[]): Promise<Wi
     if (!w?.id || typeof w.title !== "string") continue;
     const prev = byId.get(w.id);
     if (!prev || (w.at ?? 0) > (prev.at ?? 0)) {
-      byId.set(w.id, { id: String(w.id).slice(0, 64), title: w.title.slice(0, 80), at: Number(w.at) || Date.now() });
+      byId.set(w.id, {
+        id: String(w.id).slice(0, 64),
+        title: w.title.slice(0, 80),
+        at: Number(w.at) || Date.now(),
+        ...(w.pinned ? { pinned: true } : {}),
+      });
     }
   }
-  user.wishes = [...byId.values()].sort((a, b) => b.at - a.at).slice(0, MAX_WISHES);
+  // pinned first, then newest — mirrors the client's sortWishes
+  user.wishes = [...byId.values()]
+    .sort((a, b) => (!!a.pinned !== !!b.pinned ? (a.pinned ? -1 : 1) : b.at - a.at))
+    .slice(0, MAX_WISHES);
   user.updatedAt = Date.now();
   users.set(sub, user);
   void persistUserDoc(user);

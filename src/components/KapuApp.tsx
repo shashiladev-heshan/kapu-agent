@@ -23,6 +23,10 @@ import {
   IconCopy,
   IconThumbUp,
   IconThumbDown,
+  IconDots,
+  IconShare,
+  IconTrash,
+  IconExternal,
   IconReceipt,
   IconLock,
   IconCapsule,
@@ -131,6 +135,17 @@ interface WishMeta {
   id: string;
   title: string;
   at: number;
+  /** pinned to the top of the list; pin/rename bump `at` so the change syncs */
+  pinned?: boolean;
+}
+
+/** Pinned wishes first (each group newest-first) — used before slicing so a
+ *  pinned-but-old wish is never truncated away. */
+function sortWishes(list: WishMeta[]): WishMeta[] {
+  return [...list].sort((a, b) => {
+    if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    return (b.at ?? 0) - (a.at ?? 0);
+  });
 }
 
 /** product-page extras the MCP doesn't carry — parsed live from kapruka.com */
@@ -210,9 +225,10 @@ function mergeWishLists(a: WishMeta[], b: WishMeta[]): WishMeta[] {
   for (const w of [...a, ...b]) {
     if (!w?.id || !w.title) continue;
     const prev = byId.get(w.id);
+    // newest `at` wins wholesale (carries title + pinned) — pin/rename bump at
     if (!prev || (w.at ?? 0) > (prev.at ?? 0)) byId.set(w.id, w);
   }
-  return [...byId.values()].sort((x, y) => y.at - x.at).slice(0, 12);
+  return sortWishes([...byId.values()]).slice(0, 12);
 }
 
 function newSessionId(): string {
@@ -264,6 +280,23 @@ function feedbackFromLS(its: ChatItem[], sid: string): Record<number, "up" | "do
     });
   }
   return out;
+}
+
+function WishMenuItem({ icon, label, onClick, danger }: { icon: ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[12.5px] font-medium transition hover:bg-cream ${
+        danger ? "text-clay" : "text-ink"
+      }`}
+    >
+      <span className={danger ? "text-clay" : "text-ink-soft"}>{icon}</span>
+      {label}
+    </button>
+  );
 }
 
 function itemsFromUi(ui: UiTurn[]): ChatItem[] {
@@ -350,6 +383,17 @@ export default function KapuApp() {
   const pendingEditResetRef = useRef<number | null>(null);
   // highlight-to-ask: floating "Ask Kapu" popup for a text selection in chat
   const [askSel, setAskSel] = useState<{ text: string; x: number; y: number } | null>(null);
+  // chat management: per-wish ⋯ menu, inline rename, and the share dialog
+  const [menuWishId, setMenuWishId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [shareState, setShareState] = useState<{ url: string; title: string } | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [toast, setToastState] = useState<string | null>(null);
+  const setToast = useCallback((msg: string) => {
+    setToastState(msg);
+    setTimeout(() => setToastState((m) => (m === msg ? null : m)), 2600);
+  }, []);
   const [trackPrefill, setTrackPrefill] = useState<string | null>(null);
   /** hero discovery: live trending/budget/deals rails (site-parity with kapruka.com) */
   const [discover, setDiscover] = useState<{ trending: ProductSummary[]; budget: ProductSummary[] } | null>(null);
@@ -612,14 +656,15 @@ export default function KapuApp() {
   }, []);
 
   const persistRecents = useCallback((next: WishMeta[]) => {
-    setRecents(next);
-    localStorage.setItem("kapu_wishes", JSON.stringify(next.slice(0, 12)));
+    const sorted = sortWishes(next).slice(0, 12);
+    setRecents(sorted);
+    localStorage.setItem("kapu_wishes", JSON.stringify(sorted));
     // signed in → mirror to the account so wishes follow across devices
     if (authUserRef.current) {
       void fetch("/api/wishes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wishes: next.slice(0, 12) }),
+        body: JSON.stringify({ wishes: sorted }),
       }).catch(() => {});
     }
   }, []);
@@ -2165,25 +2210,116 @@ export default function KapuApp() {
     </button>
   );
 
+  // ── chat management: pin · rename · share · delete ───────────────────
+  const togglePin = (id: string) => {
+    setMenuWishId(null);
+    const w = recents.find((x) => x.id === id);
+    if (!w) return;
+    persistRecents(recents.map((x) => (x.id === id ? { ...x, pinned: !x.pinned, at: Date.now() } : x)));
+  };
+  const startRename = (id: string, current: string) => {
+    setMenuWishId(null);
+    setRenamingId(id);
+    setRenameValue(current);
+  };
+  const commitRename = () => {
+    const id = renamingId;
+    const title = renameValue.trim().slice(0, 60);
+    setRenamingId(null);
+    if (!id || !title) return;
+    // currentTitle is derived from recents, so this rename reflects everywhere
+    persistRecents(recents.map((x) => (x.id === id ? { ...x, title, at: Date.now() } : x)));
+  };
+  const deleteWish = (id: string) => {
+    setMenuWishId(null);
+    persistRecents(recents.filter((x) => x.id !== id));
+    if (id === sessionIdRef.current) newWish();
+  };
+  const shareWish = async (id: string) => {
+    setMenuWishId(null);
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: id }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setToast(data.error || t("shareFailed"));
+        return;
+      }
+      const w = recents.find((x) => x.id === id);
+      setShareCopied(false);
+      setShareState({ url: `${window.location.origin}${data.url}`, title: w?.title ?? t("shareTitle") });
+    } catch {
+      setToast(t("shareFailed"));
+    }
+  };
+
   const recentList = (onPick: (id: string) => void) => (
     <div className="flex flex-col gap-0.5 px-2.5">
       {recents.slice(0, 8).map((w) => {
         const Icon = wishIcon(w.title);
         const active = w.id === sessionIdRef.current;
+        const renaming = renamingId === w.id;
         return (
-          <button
+          <div
             key={w.id}
-            onClick={() => void onPick(w.id)}
-            className={`flex items-center gap-2.5 rounded-[11px] px-2.5 py-2 text-left transition ${
-              active ? "bg-leaf-soft" : "hover:bg-cream"
-            }`}
+            className={`group/wish relative flex items-center rounded-[11px] pr-1 transition ${active ? "bg-leaf-soft" : "hover:bg-cream"}`}
           >
-            <Icon size={17} className={active ? "text-leaf" : "text-ink-soft"} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[12.5px] font-medium">{w.title}</span>
-              <span className="mt-0.5 block text-[10.5px] text-ink-faint">{timeAgo(w.at)}</span>
-            </span>
-          </button>
+            {renaming ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2">
+                <Icon size={17} className={active ? "text-leaf" : "text-ink-soft"} />
+                <input
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    else if (e.key === "Escape") setRenamingId(null);
+                  }}
+                  onBlur={commitRename}
+                  className="min-w-0 flex-1 rounded-md border border-leaf/50 bg-card px-1.5 py-0.5 text-[12.5px] font-medium outline-none"
+                />
+              </div>
+            ) : (
+              <button onClick={() => void onPick(w.id)} className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-left">
+                <Icon size={17} className={active ? "text-leaf" : "text-ink-soft"} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1">
+                    {w.pinned && <IconPin size={11} className="shrink-0 text-gold-deep" />}
+                    <span className="truncate text-[12.5px] font-medium">{w.title}</span>
+                  </span>
+                  <span className="mt-0.5 block text-[10.5px] text-ink-faint">{timeAgo(w.at)}</span>
+                </span>
+              </button>
+            )}
+            {!renaming && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuWishId((m) => (m === w.id ? null : w.id));
+                }}
+                aria-label={t("chatOptions")}
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-card hover:text-leaf ${
+                  menuWishId === w.id ? "bg-card text-leaf" : "opacity-100 sm:opacity-0 sm:group-hover/wish:opacity-100"
+                }`}
+              >
+                <IconDots size={16} />
+              </button>
+            )}
+            {menuWishId === w.id && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setMenuWishId(null)} />
+                <div className="absolute right-1 top-[46px] z-30 w-44 overflow-hidden rounded-[13px] border border-line bg-card p-1 shadow-[0_16px_44px_rgba(64,41,112,0.24)]">
+                  <WishMenuItem icon={<IconPin size={15} />} label={w.pinned ? t("unpin") : t("pin")} onClick={() => togglePin(w.id)} />
+                  <WishMenuItem icon={<IconPencil size={15} />} label={t("rename")} onClick={() => startRename(w.id, w.title)} />
+                  <WishMenuItem icon={<IconShare size={15} />} label={t("share")} onClick={() => void shareWish(w.id)} />
+                  <WishMenuItem icon={<IconTrash size={15} />} label={t("delete")} onClick={() => deleteWish(w.id)} danger />
+                </div>
+              </>
+            )}
+          </div>
         );
       })}
       {recents.length === 0 && <p className="px-2.5 py-2 text-[11.5px] text-ink-faint">{t("wishesEmpty")}</p>}
@@ -3724,6 +3860,65 @@ export default function KapuApp() {
           <KapuMark size={15} radius={5} />
           {t("askSelBtn")}
         </button>
+      )}
+
+      {/* ══ Share a conversation (read-only link) ══ */}
+      {shareState && (
+        <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={() => setShareState(null)}>
+          <div className="absolute inset-0 bg-[#1d1233]/50 backdrop-blur-[2px]" />
+          <div className="sheet-in relative w-full overflow-y-auto rounded-t-[24px] bg-surface p-4 sm:max-w-md sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-1.5 flex items-center gap-2">
+              <IconShare size={17} className="text-leaf" />
+              <p className="font-display text-[18px]">{t("shareTitle")}</p>
+              <button onClick={() => setShareState(null)} className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft" aria-label={t("close")}>
+                <IconClose size={12} />
+              </button>
+            </div>
+            <p className="mb-3 text-[12px] leading-snug text-ink-soft">{t("shareBlurb")}</p>
+            <div className="flex items-center gap-2 rounded-[13px] border border-line bg-card px-3 py-2.5">
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-soft">{shareState.url}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareState.url);
+                    setShareCopied(true);
+                    setTimeout(() => setShareCopied(false), 2000);
+                  } catch {
+                    /* clipboard blocked */
+                  }
+                }}
+                className="shrink-0 rounded-[10px] bg-gold px-3 py-1.5 text-[12px] font-bold text-ink dark:text-[#322b45]"
+              >
+                {shareCopied ? t("copiedShort") : t("copyLink")}
+              </button>
+            </div>
+            <div className="mt-2.5 flex gap-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${shareState.title} — shared on Kapu 🌳\n${shareState.url}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex flex-1 items-center justify-center gap-2 rounded-[13px] border border-line bg-card py-2.5 text-[12.5px] font-semibold text-ink-soft transition active:scale-[0.99]"
+              >
+                <span className="text-[#25D366]">🟢</span> {t("shareWa")}
+              </a>
+              <a
+                href={shareState.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex flex-1 items-center justify-center gap-2 rounded-[13px] border border-line bg-card py-2.5 text-[12.5px] font-semibold text-ink-soft transition active:scale-[0.99]"
+              >
+                <IconExternal size={13} /> {t("shareOpen")}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ transient toast ══ */}
+      {toast && (
+        <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="rounded-full bg-[#2a1c44] px-4 py-2 text-[12.5px] font-medium text-white shadow-[0_8px_24px_rgba(0,0,0,0.3)]">{toast}</div>
+        </div>
       )}
 
       {/* ══ Schedules — standing wishes (auth-gated) ══ */}

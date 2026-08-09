@@ -239,6 +239,24 @@ const STR = {
   cantRead: { en: "Couldn't read that one", si: "ඒක කියවගන්න බැරි වුණා", ta: "அதை படிக்க முடியவில்லை" },
   retake: { en: "Retake", si: "ආයෙ ගන්න", ta: "மீண்டும் எடு" },
   close: { en: "Close", si: "වහන්න", ta: "மூடு" },
+  // ── chat management: pin / rename / share / delete ──────────────────
+  chatOptions: { en: "Chat options", si: "chat විකල්ප", ta: "அரட்டை விருப்பங்கள்" },
+  pin: { en: "Pin", si: "පින් කරන්න", ta: "பின் செய்" },
+  unpin: { en: "Unpin", si: "පින් අයින් කරන්න", ta: "பின் நீக்கு" },
+  rename: { en: "Rename", si: "නම වෙනස් කරන්න", ta: "பெயர் மாற்று" },
+  share: { en: "Share", si: "Share කරන්න", ta: "பகிர்" },
+  delete: { en: "Delete", si: "මකන්න", ta: "நீக்கு" },
+  shareTitle: { en: "Share this chat", si: "මේ chat එක share කරන්න", ta: "இந்த அரட்டையைப் பகிர்" },
+  shareBlurb: {
+    en: "Anyone with this link can view this conversation — read-only, no chat.",
+    si: "මේ link එක තියෙන ඕනම කෙනෙක්ට මේ chat එක බලන්න පුළුවන් — බලන්න විතරයි, chat කරන්න බෑ.",
+    ta: "இந்த இணைப்பு உள்ள எவரும் இந்த உரையாடலைப் பார்க்கலாம் — பார்வைக்கு மட்டும், அரட்டை இல்லை.",
+  },
+  copyLink: { en: "Copy link", si: "Link copy", ta: "இணைப்பை நகலெடு" },
+  copiedShort: { en: "Copied ✓", si: "Copy උනා ✓", ta: "நகலெடுத்தது ✓" },
+  shareWa: { en: "WhatsApp", si: "WhatsApp", ta: "WhatsApp" },
+  shareOpen: { en: "Open", si: "අරින්න", ta: "திற" },
+  shareFailed: { en: "Couldn't create a share link — try again.", si: "Share link එක හදන්න බැරි උනා — ආයෙ try කරන්න.", ta: "பகிர்வு இணைப்பை உருவாக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்." },
   cancel: { en: "Cancel", si: "නවත්තන්න", ta: "ரத்து" },
 
   // ── voice ────────────────────────────────────────────────────────────
