@@ -62,6 +62,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
+        {/* PWA links MUST be here, not left to the metadata export. This
+            layout renders an explicit <head>, and Next then emits the
+            metadata tags into the <body> instead — where browsers ignore
+            `rel="manifest"` entirely. The manifest was therefore never
+            fetched and the app was never installable in ANY browser: no
+            address-bar install icon, no beforeinstallprompt. Verified via
+            CDP — Page.getAppManifest returned an empty url until this. */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         {/* Apply theme before first paint — Kapu defaults to DARK; an explicit
             light choice (toggle) wins. OS theme changes are followed live in
             KapuApp until the user picks one. */}
