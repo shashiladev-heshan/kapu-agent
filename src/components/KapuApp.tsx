@@ -2604,12 +2604,7 @@ export default function KapuApp() {
             </button>
             {canInstall && (
               <button
-                onClick={() => {
-                  // Native dialog when the browser offered one; otherwise tell
-                  // them where their browser hides it.
-                  if (hasNativePrompt) void install().then((ok) => { if (!ok) setInstallHintOpen(true); });
-                  else setInstallHintOpen(true);
-                }}
+                onClick={() => setInstallHintOpen(true)}
                 className="relative flex h-10 w-10 items-center justify-center rounded-full border border-leaf/30 bg-leaf/10 text-leaf transition hover:bg-leaf/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90"
                 aria-label={t("installApp")}
                 title={t("installApp")}
@@ -3727,14 +3722,14 @@ export default function KapuApp() {
       {/* ══ Import from Amazon — Global Shop landed-cost front door ══ */}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSubmit={(url) => void send(url)} />}
 
-      {/* ══ Install hint — for browsers that never offer a native prompt ══ */}
+      {/* ══ Install prompt — real native button when available, else steps ══ */}
       {installHintOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 p-4 pt-16 backdrop-blur-sm sm:pt-20"
           onClick={() => setInstallHintOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl border border-cream-deep bg-card p-6 text-center shadow-xl"
+            className="sheet-in w-full max-w-sm rounded-3xl border border-cream-deep bg-card p-6 text-center shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-leaf/10 text-leaf">
@@ -3742,12 +3737,24 @@ export default function KapuApp() {
             </div>
             <h3 className="text-[15px] font-bold text-ink">{t("installTitle")}</h3>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-soft">{t("installBlurb")}</p>
-            <p className="mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[12.5px] font-semibold text-ink">
-              {t(platform === "ios" ? "installIos" : platform === "android" ? "installAndroid" : "installDesktop")}
-            </p>
+            {hasNativePrompt ? (
+              <button
+                onClick={() => void install().then((ok) => { if (ok) setInstallHintOpen(false); })}
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gold text-[14px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.4)] transition hover:opacity-95 active:scale-95 dark:text-[#322b45]"
+              >
+                <IconInstall size={16} />
+                {t("installNow")}
+              </button>
+            ) : (
+              <p className="mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[12.5px] font-semibold text-ink">
+                {t(platform === "ios" ? "installIos" : platform === "android" ? "installAndroid" : "installDesktop")}
+              </p>
+            )}
             <button
               onClick={() => setInstallHintOpen(false)}
-              className="mt-4 h-10 w-full rounded-full bg-leaf text-[13px] font-semibold text-white transition hover:opacity-90 active:scale-95"
+              className={`mt-2.5 h-10 w-full rounded-full text-[13px] font-semibold transition active:scale-95 ${
+                hasNativePrompt ? "text-ink-soft hover:bg-cream" : "bg-leaf text-white hover:opacity-90"
+              }`}
             >
               {t("installLater")}
             </button>
