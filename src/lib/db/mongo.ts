@@ -3,6 +3,7 @@
 // persisted so carts survive redeploys and order refs are auditable.
 
 import mongoose, { Schema, type Model } from "mongoose";
+import type { UiTurn } from "@/lib/types";
 
 const URI = process.env.MONGODB_URI;
 
@@ -550,6 +551,102 @@ export async function recordFeedback(fb: Omit<FeedbackDoc, "at">): Promise<void>
   } catch {
     /* best-effort */
   }
+}
+
+// ── read-only thread shares (share a conversation, view-only) ──────────
+export interface ShareRecord {
+  _id: string;
+  title: string;
+  ui: UiTurn[];
+  currency: string;
+  language: string;
+  owner_sub?: string;
+  session_id: string;
+  at: Date;
+}
+
+function shareModel(): Model<ShareRecord> {
+  return (
+    (mongoose.models.KapuShare as Model<ShareRecord>) ??
+    mongoose.model<ShareRecord>(
+      "KapuShare",
+      new Schema<ShareRecord>(
+        {
+          _id: String,
+          title: String,
+          ui: Schema.Types.Mixed,
+          currency: String,
+          language: String,
+          owner_sub: String,
+          session_id: String,
+          at: Date,
+        },
+        { versionKey: false }
+      )
+    )
+  );
+}
+
+// in-memory mirror so sharing works even without MongoDB (dies on redeploy)
+const shareMem = new Map<string, ShareRecord>();
+const SHARE_MEM_MAX = 500;
+
+export async function createShare(s: Omit<ShareRecord, "at" | "_id"> & { id: string }): Promise<void> {
+  const doc: ShareRecord = {
+    _id: s.id,
+    title: s.title,
+    ui: s.ui,
+    currency: s.currency,
+    language: s.language,
+    session_id: s.session_id,
+    ...(s.owner_sub ? { owner_sub: s.owner_sub } : {}),
+    at: new Date(),
+  };
+  shareMem.set(s.id, doc);
+  if (shareMem.size > SHARE_MEM_MAX) {
+    const oldest = shareMem.keys().next().value;
+    if (oldest) shareMem.delete(oldest);
+  }
+  const conn = db();
+  if (!conn) return;
+  try {
+    await conn;
+    await shareModel().updateOne({ _id: s.id }, { $set: doc }, { upsert: true });
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function getShare(id: string): Promise<ShareRecord | null> {
+  const conn = db();
+  if (conn) {
+    try {
+      await conn;
+      const doc = await shareModel().findById(id).lean();
+      if (doc) return doc as unknown as ShareRecord;
+    } catch {
+      /* fall through to memory */
+    }
+  }
+  return shareMem.get(id) ?? null;
+}
+
+/** Revoke a share. Owner-scoped when the share was created by a signed-in user. */
+export async function deleteShare(id: string, ownerSub?: string): Promise<boolean> {
+  const existing = await getShare(id);
+  if (!existing) return false;
+  if (existing.owner_sub && ownerSub && existing.owner_sub !== ownerSub) return false;
+  shareMem.delete(id);
+  const conn = db();
+  if (conn) {
+    try {
+      await conn;
+      await shareModel().deleteOne({ _id: id });
+    } catch {
+      /* best-effort */
+    }
+  }
+  return true;
 }
 
 // ── knowledge-base chunks (kapruka.com policies/FAQs/company pages) ────

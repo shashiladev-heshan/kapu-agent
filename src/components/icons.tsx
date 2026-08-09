@@ -102,6 +102,29 @@ export const IconThumbDown = (p: P) => (
   </svg>
 );
 
+export const IconDots = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="4.5" cy="10" r="1.35" fill="currentColor" />
+    <circle cx="10" cy="10" r="1.35" fill="currentColor" />
+    <circle cx="15.5" cy="10" r="1.35" fill="currentColor" />
+  </svg>
+);
+
+export const IconShare = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="6" cy="10" r="2.1" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="14" cy="5" r="2.1" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="14" cy="15" r="2.1" stroke="currentColor" strokeWidth="1.5" />
+    <path d="m7.9 9 4.2-2.8M7.9 11l4.2 2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+export const IconTrash = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4.5 6h11M8 6V4.6A1.6 1.6 0 0 1 9.6 3h.8A1.6 1.6 0 0 1 12 4.6V6m2.2 0-.6 9.1A1.6 1.6 0 0 1 12 16.6H8A1.6 1.6 0 0 1 6.4 15.1L5.8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export const IconBasket = (p: P) => (
   <svg {...base(p)}>
     <path d="M4 8h12l-1 8.2a1.5 1.5 0 0 1-1.5 1.3h-7A1.5 1.5 0 0 1 5 16.2L4 8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
