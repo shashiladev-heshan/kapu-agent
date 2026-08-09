@@ -325,6 +325,8 @@ const STR = {
   signOut: { en: "Sign out", si: "Sign out", ta: "வெளியேறு" },
   guestModeNote: { en: "Guest mode — wishes stay on this device", si: "අමුත්තෙක් — පැතුම් මේ device එකේ", ta: "விருந்தினர் — இந்த சாதனத்தில் மட்டும்" },
   onTelegram: { en: "Also on Telegram", si: "Telegram එකෙනුත්", ta: "Telegram-லும்" },
+  onWhatsapp: { en: "Also on WhatsApp", si: "WhatsApp එකෙනුත්", ta: "WhatsApp-லும்" },
+  waChat: { en: "Chat on WhatsApp", si: "WhatsApp එකෙන් කතා කරන්න", ta: "WhatsApp-ல் பேசுங்கள்" },
   tgTitle: { en: "Kapu on Telegram", si: "Telegram එකේ Kapu", ta: "Telegram-ல் Kapu" },
   tgBlurb: {
     en: "Chat, send Sinhala voice notes, snap lists — and add Kapu to the family group (@mention to wake it; one shared basket).",

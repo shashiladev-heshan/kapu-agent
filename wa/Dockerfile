@@ -2,7 +2,7 @@
 # Deterministic multi-stage build; Railway's Go autodetect works too, but this
 # pins the toolchain so a Railway image bump can't silently change behaviour.
 
-FROM golang:1.23-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /src
 # Cache deps separately from source so code edits don't re-download the module graph.
 COPY go.mod go.sum ./

@@ -37,6 +37,19 @@ export async function POST(req: Request): Promise<Response> {
   return Response.json({ ok: true });
 }
 
+/**
+ * Advertises the channel to the UI. The number is set explicitly rather than
+ * read from the paired session: the sidecar knows its JID, but the UI should
+ * only show a wa.me link once a human has decided the number is public.
+ */
 export function GET(): Response {
-  return Response.json({ ok: true, channel: "whatsapp", configured: whatsappEnabled() });
+  const number = process.env.WA_PUBLIC_NUMBER?.replace(/\D/g, "") ?? "";
+  const enabled = whatsappEnabled() && Boolean(number);
+  return Response.json({
+    ok: true,
+    channel: "whatsapp",
+    enabled,
+    configured: whatsappEnabled(),
+    ...(enabled ? { number, link: `https://wa.me/${number}` } : {}),
+  });
 }

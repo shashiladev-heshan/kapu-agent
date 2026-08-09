@@ -53,6 +53,7 @@ import {
   IconStop,
   IconSun,
   IconTelegram,
+  IconWhatsapp,
   IconTrolley,
   IconUser,
   IconVolume,
@@ -366,6 +367,7 @@ export default function KapuApp() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [tourStep, setTourStep] = useState(-1); // -1 = closed
   const [tgBot, setTgBot] = useState<{ username: string; link: string } | null>(null);
+  const [waBot, setWaBot] = useState<{ number: string; link: string } | null>(null);
   const [favs, setFavs] = useState<Record<string, ProductSummary>>({});
   const [favOpen, setFavOpen] = useState(false);
   // specialist Kapus — active hat (per device) + the user's custom library
@@ -601,6 +603,17 @@ export default function KapuApp() {
         const res = await fetch("/api/telegram");
         const data = (await res.json()) as { enabled?: boolean; username?: string; link?: string };
         if (data.enabled && data.username && data.link) setTgBot({ username: data.username, link: data.link });
+      } catch {
+        /* stays hidden */
+      }
+    })();
+
+    // Is the WhatsApp channel live? (needs the sidecar AND a public number)
+    void (async () => {
+      try {
+        const res = await fetch("/api/whatsapp");
+        const data = (await res.json()) as { enabled?: boolean; number?: string; link?: string };
+        if (data.enabled && data.number && data.link) setWaBot({ number: data.number, link: data.link });
       } catch {
         /* stays hidden */
       }
@@ -2606,6 +2619,18 @@ export default function KapuApp() {
                 <span className="hidden lg:inline">@{tgBot.username}</span>
               </a>
             )}
+            {waBot && (
+              <a
+                href={waBot.link}
+                target="_blank"
+                rel="noreferrer"
+                title={`${t("onWhatsapp")} — +${waBot.number}`}
+                className="flex h-10 items-center gap-1.5 rounded-full bg-[#25D366] px-3.5 text-[11.5px] font-bold text-[#0b3d21] shadow-[0_3px_10px_rgba(37,211,102,0.32)] transition hover:-translate-y-0.5 active:scale-95"
+              >
+                <IconWhatsapp size={14} />
+                <span className="hidden lg:inline">WhatsApp</span>
+              </a>
+            )}
             {/* deliver-to chip (hidden on small screens until a chat starts) */}
             <div className={`relative ${empty ? "hidden sm:block" : ""}`}>
               <button
@@ -4269,6 +4294,7 @@ export default function KapuApp() {
               setAgentOpen(true);
             }}
             tgBot={tgBot}
+            waBot={waBot}
           />
           <KnowToast />
         </div>
@@ -5030,11 +5056,13 @@ function LandingShowcase({
   onTrack,
   onAgents,
   tgBot,
+  waBot,
 }: {
   onStart: () => void;
   onTrack: () => void;
   onAgents: () => void;
   tgBot: { username: string; link: string } | null;
+  waBot: { number: string; link: string } | null;
 }) {
   const t = useT();
 
@@ -5458,17 +5486,30 @@ function LandingShowcase({
             <li>👨‍👩‍👧 {t("tgCanGroup")}</li>
             <li>⏰ {t("landF3b")}</li>
           </ul>
-          {tgBot && (
-            <a
-              href={tgBot.link}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-[13px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
-            >
-              <IconTelegram size={15} />
-              @{tgBot.username}
-            </a>
-          )}
+          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            {tgBot && (
+              <a
+                href={tgBot.link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-[13px] font-bold text-ink shadow-[0_6px_18px_rgba(255,184,0,0.35)] transition hover:-translate-y-0.5 dark:text-[#322b45]"
+              >
+                <IconTelegram size={15} />
+                @{tgBot.username}
+              </a>
+            )}
+            {waBot && (
+              <a
+                href={waBot.link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-[13px] font-bold text-[#0b3d21] shadow-[0_6px_18px_rgba(37,211,102,0.35)] transition hover:-translate-y-0.5"
+              >
+                <IconWhatsapp size={15} />
+                {t("waChat")}
+              </a>
+            )}
+          </div>
         </div>
       </section>
 
@@ -5480,7 +5521,7 @@ function LandingShowcase({
           {[
             "Next.js 15", "React 19 · TypeScript", "Tailwind v4", "Claude — tool use + prompt caching",
             "Claude Agent SDK — dual-engine orchestrator", "Kapruka MCP", "kapruka.com live promos · ratings · Q&A",
-            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "ChromaDB — policy knowledge base (RAG)", "Specialist Kapus — 7 presets + build-your-own", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "Google Identity", "PWA",
+            "OpenAI — Whisper · TTS · embeddings", "Vector taste engine", "ChromaDB — policy knowledge base (RAG)", "Specialist Kapus — 7 presets + build-your-own", "Live FX — 6 display currencies", "Per-reply Listen (TTS)", "MongoDB — sessions · taste · rail fallback", "Railway · kapuwa.shop", "Web Speech API", "Telegram Bot API", "WhatsApp — whatsmeow (Go sidecar)", "Langfuse — tracing + LLM-as-a-judge evals", "Google Identity", "PWA",
           ].map((x) => (
             <span key={x} className="rounded-full border border-edge bg-card px-3.5 py-1.5 text-[11.5px] font-semibold text-ink-soft">
               {x}
