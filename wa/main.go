@@ -65,6 +65,38 @@ type inbound struct {
 	MediaB64  string `json:"media_b64,omitempty"`  // data URL for image, raw b64 for audio
 	MimeType  string `json:"mime_type,omitempty"`
 	MessageID string `json:"message_id"`
+	// Group wake signals. A real WhatsApp @mention carries the bot's JID in
+	// contextInfo rather than any recognisable text, so keyword matching alone
+	// silently misses it — which is why groups looked dead.
+	Mentioned bool `json:"mentioned,omitempty"`
+	ReplyToMe bool `json:"reply_to_me,omitempty"`
+}
+
+// Did this message @mention us, or reply to something we said?
+func addressedToUs(msg *waE2E.Message) (mentioned, replyToMe bool) {
+	if client == nil || client.Store.ID == nil {
+		return
+	}
+	var ci *waE2E.ContextInfo
+	if ext := msg.GetExtendedTextMessage(); ext != nil {
+		ci = ext.GetContextInfo()
+	} else if img := msg.GetImageMessage(); img != nil {
+		ci = img.GetContextInfo()
+	}
+	if ci == nil {
+		return
+	}
+	me := client.Store.ID.User // bare phone, no device suffix
+	for _, j := range ci.GetMentionedJID() {
+		if strings.HasPrefix(j, me) {
+			mentioned = true
+		}
+	}
+	// Participant is who wrote the message being replied to.
+	if p := ci.GetParticipant(); p != "" && strings.HasPrefix(p, me) {
+		replyToMe = true
+	}
+	return
 }
 
 func postToKapu(in inbound) {
@@ -110,12 +142,15 @@ func handleEvent(evt any) {
 		return
 	}
 
+	mentioned, replyToMe := addressedToUs(v.Message)
 	in := inbound{
 		From:      v.Info.Sender.User,
 		Chat:      v.Info.Chat.String(),
 		IsGroup:   v.Info.IsGroup,
 		PushName:  v.Info.PushName,
 		MessageID: v.Info.ID,
+		Mentioned: mentioned,
+		ReplyToMe: replyToMe,
 	}
 
 	msg := v.Message
@@ -161,11 +196,18 @@ func handleEvent(evt any) {
 		return // sticker/location/etc — nothing Kapu handles yet
 	}
 
-	// Read it, then start typing — in that order, like a person.
-	go func() {
-		_ = client.MarkRead(context.Background(), []types.MessageID{v.Info.ID}, time.Now(), v.Info.Chat, v.Info.Sender)
-		startTyping(v.Info.Chat)
-	}()
+	// Read receipts and typing only when we're actually going to answer —
+	// a bot that "reads" and types at every message in a busy family group is
+	// both rude and exactly the behaviour that gets a number reported.
+	if !in.IsGroup || mentioned || replyToMe {
+		go func() {
+			_ = client.MarkRead(context.Background(), []types.MessageID{v.Info.ID}, time.Now(), v.Info.Chat, v.Info.Sender)
+			startTyping(v.Info.Chat)
+		}()
+	}
+	// Unaddressed group messages still go to Kapu — it keeps them as thread
+	// context so a later "@kapu what about that one?" makes sense. Kapu owns
+	// the decision to reply; the sidecar just reports what happened.
 	go postToKapu(in)
 }
 

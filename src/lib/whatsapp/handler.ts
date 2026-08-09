@@ -14,6 +14,7 @@ import { getSession, saveSession } from "@/lib/session/store";
 import type { Cart, StreamEvent, UiBlock } from "@/lib/types";
 import { scanImage, scanToMessage } from "@/lib/vision/scan";
 import { beat, endTurn, mdToWhatsapp, sendImage, sendText } from "@/lib/whatsapp/api";
+import { rememberLine, threadContext } from "@/lib/whatsapp/thread";
 
 const fmt = (n: number | null | undefined, currency = "LKR") => {
   if (n == null) return "—";
@@ -31,9 +32,43 @@ export interface WaInbound {
   media_b64?: string;
   mime_type?: string;
   message_id?: string;
+  /** a real WhatsApp @mention of the bot's number */
+  mentioned?: boolean;
+  /** the message quotes something Kapu said */
+  reply_to_me?: boolean;
 }
 
-const sessionId = (phone: string) => `wa_${phone}`;
+/**
+ * Sessions key on the CHAT, not the sender — so a group shares ONE basket and
+ * one memory, exactly like the Telegram channel ([[telegram]]). Keying on the
+ * sender would give every participant their own private basket inside the
+ * same conversation, which is not what "add it to the basket" means in a
+ * family group.
+ */
+const sessionId = (chat: string) => `wa_${chat.replace(/[^a-zA-Z0-9]/g, "_")}`;
+
+/**
+ * Kapu speaks in a group ONLY when spoken to: a real @mention, a reply to one
+ * of its messages, or its name in the text. WhatsApp's true @mention carries
+ * the bot's JID in contextInfo and renders as a number, so keyword matching
+ * alone missed every properly-mentioned message — the reason groups looked
+ * completely dead.
+ */
+const NAME_HAIL = /\b(kapu|kapuwa|kapruka)\b|කපු|கபு/i;
+
+function isAddressed(msg: WaInbound): boolean {
+  if (!msg.is_group) return true; // 1:1 is always addressed
+  if (msg.mentioned || msg.reply_to_me) return true;
+  return NAME_HAIL.test(msg.text ?? "");
+}
+
+/** Strip the hail so the agent sees the request, not "@94712148820 ...". */
+function stripHail(text: string, botNumber?: string): string {
+  let out = text;
+  if (botNumber) out = out.replace(new RegExp(`@${botNumber}\\b`, "g"), " ");
+  out = out.replace(/@\d{8,15}\b/g, " ").replace(NAME_HAIL, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
 
 /** Voice notes → Whisper, reusing the same OpenAI path the web voice loop uses. */
 async function transcribe(b64: string, mime: string): Promise<string | null> {
@@ -68,16 +103,21 @@ function resolveNumberedReply(text: string, picks: string[] | undefined): string
 }
 
 export async function processInbound(msg: WaInbound): Promise<void> {
-  // Groups: stay quiet unless spoken to. A bot that replies to every group
-  // message gets reported, and reports are what get numbers banned.
-  if (msg.is_group && !/\bkapu\b/i.test(msg.text ?? "")) return;
-
   const phone = msg.from.replace(/\D/g, "");
   if (!phone) return;
   const chat = msg.chat || phone;
-  const session = await getSession(sessionId(phone));
+  const who = (msg.push_name || "").trim() || `+${phone}`;
+  const addressed = isAddressed(msg);
 
-  let text = (msg.text ?? "").trim();
+  // EVERY group message is remembered, answered or not — that's what makes a
+  // later "@kapu the second one" resolvable. Overheard lines never enter the
+  // model history, only the per-turn context block.
+  if (msg.is_group && msg.text?.trim()) rememberLine(chat, who, msg.text);
+  if (!addressed) return;
+
+  const session = await getSession(sessionId(chat));
+
+  let text = stripHail((msg.text ?? "").trim(), process.env.WA_PUBLIC_NUMBER?.replace(/\D/g, ""));
 
   if (msg.media_kind === "audio" && msg.media_b64) {
     const said = await transcribe(msg.media_b64, msg.mime_type ?? "audio/ogg");
@@ -101,6 +141,8 @@ export async function processInbound(msg: WaInbound): Promise<void> {
     }
   }
 
+  // "@kapu" with nothing else is still a greeting, not a no-op.
+  if (!text && addressed && msg.is_group) text = "hi";
   if (!text) return;
 
   // "2" → the second product we offered last turn.
@@ -122,13 +164,25 @@ export async function processInbound(msg: WaInbound): Promise<void> {
     }
   }
 
-  await handleTurn(chat, phone, text);
+  await handleTurn(chat, text, { isGroup: Boolean(msg.is_group), who });
 }
 
-async function handleTurn(chat: string, phone: string, message: string): Promise<void> {
-  const session = await getSession(sessionId(phone));
+async function handleTurn(
+  chat: string,
+  message: string,
+  ctx: { isGroup: boolean; who: string }
+): Promise<void> {
+  const session = await getSession(sessionId(chat));
   session.voice = false;
   if (!session.title) session.title = message.slice(0, 60);
+
+  // In a group the agent needs to know WHO is talking and what was said
+  // around it; in a 1:1 the turn is the whole story.
+  let turn = message;
+  if (ctx.isGroup) {
+    const thread = threadContext(chat, message);
+    turn = `${thread ? `${thread}\n\n` : ""}${ctx.who} is asking you: ${message}`;
+  }
 
   // No placeholder message here on purpose. The sidecar puts a real "typing…"
   // indicator up the moment the message arrives, which is both what a human
@@ -143,7 +197,7 @@ async function handleTurn(chat: string, phone: string, message: string): Promise
   };
 
   try {
-    await runTurn(session, message, send);
+    await runTurn(session, turn, send);
   } catch (err) {
     console.error("[whatsapp] turn failed:", err);
     text = text || "Aiyo, something went wrong on my side 💔 — try that again?";
