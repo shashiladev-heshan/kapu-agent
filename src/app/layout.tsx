@@ -70,6 +70,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `(function(){var t=null;try{t=localStorage.getItem("kapu_theme")}catch(e){}if(t!=="light"){document.documentElement.classList.add("dark");var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#151022")}})()`,
           }}
         />
+        {/* Chrome fires beforeinstallprompt during load — usually BEFORE React
+            hydrates, so a listener added in a useEffect misses it and the
+            install button never appears. Catch it here and park it on window
+            for useInstallPrompt() to pick up. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){window.__kapuInstall=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__kapuInstall=e;window.dispatchEvent(new Event("kapu:installready"))});window.addEventListener("appinstalled",function(){window.__kapuInstall=null;window.dispatchEvent(new Event("kapu:installed"))})})()`,
+          }}
+        />
       </head>
       <body className="bg-cream text-ink antialiased">{children}</body>
     </html>

@@ -360,6 +360,30 @@ const STR = {
   orderLine: { en: "Order {ref} — pay link ready", si: "Order {ref} — pay link එක ready", ta: "ஆர்டர் {ref} — கட்டண இணைப்பு" },
   openPay: { en: "Pay", si: "ගෙවන්න", ta: "செலுத்து" },
   notifications: { en: "Notifications", si: "දැනුම්දීම්", ta: "அறிவிப்புகள்" },
+  installApp: { en: "Install the app", si: "App එක install කරන්න", ta: "செயலியை நிறுவு" },
+  installTitle: { en: "Install Kapu", si: "Kapu install කරන්න", ta: "Kapu-வை நிறுவு" },
+  installBlurb: {
+    en: "Add Kapu to your phone or desktop — opens like a real app, works offline, and remembers your wishes.",
+    si: "Kapu ඔයාගේ phone එකට හෝ desktop එකට add කරන්න — app එකක් වගේ open වෙනවා, offline වැඩ කරනවා, ඔයාගේ wishes මතක තියාගන්නවා.",
+    ta: "Kapu-வை உங்கள் தொலைபேசி அல்லது கணினியில் சேர்க்கவும் — செயலி போல் திறக்கும், இணையம் இல்லாமலும் வேலை செய்யும்.",
+  },
+  installIos: {
+    en: "On iPhone: tap Share, then “Add to Home Screen”.",
+    si: "iPhone එකේ: Share tap කරලා “Add to Home Screen” තෝරන්න.",
+    ta: "iPhone-இல்: Share தட்டி, “Add to Home Screen” தேர்வு செய்யவும்.",
+  },
+  installAndroid: {
+    en: "On Android: tap ⋮ in your browser, then “Install app”.",
+    si: "Android එකේ: browser එකේ ⋮ tap කරලා “Install app” තෝරන්න.",
+    ta: "Android-இல்: உலாவியில் ⋮ தட்டி, “Install app” தேர்வு செய்யவும்.",
+  },
+  installDesktop: {
+    en: "On desktop Chrome or Edge: click the install icon at the right of the address bar.",
+    si: "Desktop Chrome/Edge එකේ: address bar එකේ දකුණු පැත්තේ install icon එක click කරන්න.",
+    ta: "டெஸ்க்டாப் Chrome/Edge-இல்: முகவரிப் பட்டியின் வலதுபுறம் உள்ள install ஐகானை கிளிக் செய்யவும்.",
+  },
+  installNow: { en: "Install", si: "Install කරන්න", ta: "நிறுவு" },
+  installLater: { en: "Not now", si: "පස්සේ", ta: "இப்போது இல்லை" },
   myKapu: { en: "My Kapu — teach it your rules", si: "මගේ Kapu — ඔයාගේ නීති කියලා දෙන්න", ta: "என் Kapu — உங்கள் விதிகள்" },
   rulesPlaceholder: {
     en: "e.g. Vegetarian household. Never suggest alcohol. Warn me over Rs 20,000. Talk to me like a friend.",

@@ -163,6 +163,13 @@ export const IconPackage = (p: P) => (
   </svg>
 );
 
+export const IconInstall = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M10 3v9m0 0 3.2-3.2M10 12 6.8 8.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 13.5v1.8A1.7 1.7 0 0 0 5.7 17h8.6a1.7 1.7 0 0 0 1.7-1.7v-1.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
+
 export const IconList = (p: P) => (
   <svg {...base(p)}>
     <path d="M4 5.5h12M4 10h12M4 14.5h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />

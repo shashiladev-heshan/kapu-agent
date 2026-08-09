@@ -16,6 +16,7 @@ import {
   IconArrowRight,
   IconBasket,
   IconBell,
+  IconInstall,
   IconCake,
   IconCamera,
   IconCheckCircle,
@@ -65,6 +66,7 @@ import {
 } from "@/lib/client/speech";
 import { setFx } from "@/lib/client/fx";
 import { gsiSignOutHint, renderGoogleButton } from "@/lib/client/gsi";
+import { useInstallPrompt } from "@/lib/client/install";
 import { KAPU_PRESETS, loadActiveAgent, saveActiveAgent, type SpecialKapu } from "@/lib/client/agents";
 import { HERO_PHRASES, LangProvider, makeT, useT, type StrKey } from "@/lib/client/i18n";
 import { fileToCompressedDataUrl, scanMessage, type ScanResult } from "@/lib/client/scan";
@@ -344,6 +346,10 @@ export default function KapuApp() {
   const [productSimilar, setProductSimilar] = useState<ProductSummary[]>([]);
   const [trackOpen, setTrackOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // PWA install — visible to everyone (that's the point: awareness), falling
+  // back to per-platform instructions when the browser gives us no prompt
+  const { canInstall, hasNativePrompt, platform, install } = useInstallPrompt();
+  const [installHintOpen, setInstallHintOpen] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Record<number, "up" | "down">>({});
   // edit/resend: user turns to keep before the re-sent message (read by send)
@@ -2596,6 +2602,22 @@ export default function KapuApp() {
             >
               <IconPackage size={17} />
             </button>
+            {canInstall && (
+              <button
+                onClick={() => {
+                  // Native dialog when the browser offered one; otherwise tell
+                  // them where their browser hides it.
+                  if (hasNativePrompt) void install().then((ok) => { if (!ok) setInstallHintOpen(true); });
+                  else setInstallHintOpen(true);
+                }}
+                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-leaf/30 bg-leaf/10 text-leaf transition hover:bg-leaf/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90"
+                aria-label={t("installApp")}
+                title={t("installApp")}
+              >
+                <IconInstall size={17} />
+                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gold" />
+              </button>
+            )}
             <button
               onClick={openNotifs}
               className="relative flex h-10 w-10 items-center justify-center rounded-full border border-cream-deep bg-card text-ink-soft transition hover:bg-cream hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf/40 active:scale-90 hidden sm:flex"
@@ -3704,6 +3726,34 @@ export default function KapuApp() {
 
       {/* ══ Import from Amazon — Global Shop landed-cost front door ══ */}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSubmit={(url) => void send(url)} />}
+
+      {/* ══ Install hint — for browsers that never offer a native prompt ══ */}
+      {installHintOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center"
+          onClick={() => setInstallHintOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-cream-deep bg-card p-6 text-center shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-leaf/10 text-leaf">
+              <IconInstall size={22} />
+            </div>
+            <h3 className="text-[15px] font-bold text-ink">{t("installTitle")}</h3>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-soft">{t("installBlurb")}</p>
+            <p className="mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[12.5px] font-semibold text-ink">
+              {t(platform === "ios" ? "installIos" : platform === "android" ? "installAndroid" : "installDesktop")}
+            </p>
+            <button
+              onClick={() => setInstallHintOpen(false)}
+              className="mt-4 h-10 w-full rounded-full bg-leaf text-[13px] font-semibold text-white transition hover:opacity-90 active:scale-95"
+            >
+              {t("installLater")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ══ Highlight-to-ask — floating "Ask Kapu" on a text selection ══ */}
       {askSel && (
