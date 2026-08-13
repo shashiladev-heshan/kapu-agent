@@ -143,8 +143,16 @@ func handleEvent(evt any) {
 	}
 
 	mentioned, replyToMe := addressedToUs(v.Message)
+	// WhatsApp's LID privacy can put an anonymous alias (…@lid) in Sender and
+	// the real phone JID in SenderAlt. Downstream needs the PHONE: an alias
+	// bound as a user's alert number makes every send fail with
+	// "no LID found for <alias>@s.whatsapp.net".
+	sender := v.Info.Sender
+	if sender.Server != types.DefaultUserServer && v.Info.SenderAlt.Server == types.DefaultUserServer {
+		sender = v.Info.SenderAlt
+	}
 	in := inbound{
-		From:      v.Info.Sender.User,
+		From:      sender.User,
 		Chat:      v.Info.Chat.String(),
 		IsGroup:   v.Info.IsGroup,
 		PushName:  v.Info.PushName,
