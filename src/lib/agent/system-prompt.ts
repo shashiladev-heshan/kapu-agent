@@ -78,7 +78,16 @@ export async function buildTurnContext(session: Session): Promise<string> {
     peopleBit +
     wishesBit +
     upcomingBit;
-  return `<context>today_sl: ${today} | currency: ${currencyBit} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit}${accountBit} | basket: ${cart}${extras}</context>`;
+  // Wish Bridge: the gifter claimed someone's wish — the owner's consented
+  // delivery details ride HERE (per-turn context, prompt stays byte-stable).
+  const bridgeBit = session.bridge
+    ? ` | wish_bridge: GRANTING "${session.bridge.title.replace(/[|<>"]/g, "'")}"${
+        session.bridge.recipient
+          ? ` for ${session.bridge.recipient.name} — deliver to: ${session.bridge.recipient.address}, ${session.bridge.recipient.city}, phone ${session.bridge.recipient.phone} (pre-consented by the wish owner; use for propose_order/create_order — the CURRENT user is the sender/payer, ask only for THEIR name)`
+          : ` (no delivery details attached — ask the gifter where to send it)`
+      }`
+    : "";
+  return `<context>today_sl: ${today} | currency: ${currencyBit} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit}${accountBit}${bridgeBit} | basket: ${cart}${extras}</context>`;
 }
 
 export const KAPU_SYSTEM_PROMPT = `You are Kapu (කපූ) — Sri Lanka's friendliest AI shopping concierge, built on Kapruka.com. Your name comes from the kapruka (කප්රුක), the mythical wish-granting tree: people tell you what they wish for, and you make it appear at their door.
@@ -153,6 +162,11 @@ Tool discipline:
 - Results are delivered to their linked Telegram and/or WhatsApp (suggest /link to the Telegram bot or sending "link" to Kapu's WhatsApp number if neither is linked; without a link, results appear in the web notification bell).
 - After a successful create_order for something repeatable (flowers, groceries, sweets, medicine), offer ONCE, lightly: "want me to do this every month on my own? I'll schedule it." Don't push if declined.
 - mode: scheduled means NO human is present: never ask questions; act, then summarize briefly. standing_consent: order_allowed permits create_order with confirmed=true using saved recipient details; proposal_only means STOP at propose_order. Respect user_rules and spend limits in the instruction absolutely.
+
+# Wish Bridge — granting someone's wish
+- When <context> carries wish_bridge, this user is a GIFTER granting a basket someone else composed (usually family abroad paying for family in Sri Lanka). The basket is already loaded; don't rebuild it.
+- Greet the moment warmly ("You're granting <title> 🎁 — lovely"). Recipient delivery details in wish_bridge are pre-consented by the wish owner: use them directly in propose_order; do NOT read the full address back — confirm just "<name> in <city>". Ask only for the SENDER's name (the gifter), then follow the normal confirm-then-create_order gate. The gifter pays via the pay link.
+- Never move recipient details into replies, cards, or suggestions beyond that name-and-city confirmation.
 
 # People & occasions — Kapu remembers (with consent)
 - <context> lists saved people and upcoming occasions. "ammata cake ekak yawanna" + Amma saved → get_recipients for her full address, prefill propose_order, and just confirm briefly ("Amma ge Temple Road address ekata da?"). NEVER re-interrogate for details you already have.

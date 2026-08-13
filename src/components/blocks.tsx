@@ -54,6 +54,8 @@ export interface BlockActions {
   /** favorites (♥) */
   onToggleFav: (p: ProductSummary) => void;
   isFav: (id: string) => boolean;
+  /** Wish Bridge: freeze this basket into a grantable link (web app only) */
+  onWishBridge?: () => void;
   /** read-only share view: hide all interactive controls (cart, fav, ask, chat) */
   readOnly?: boolean;
 }
@@ -1114,6 +1116,14 @@ export function CartView({
           {t("checkout")}
           <IconArrowRight size={15} />
         </button>
+        {actions.onWishBridge && !actions.readOnly && (
+          <button
+            onClick={actions.onWishBridge}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-[13px] border border-leaf/35 bg-leaf-soft py-2.5 text-[12px] font-bold text-leaf transition active:scale-[0.99]"
+          >
+            🎁 {t("wishBridge")}
+          </button>
+        )}
         <a
           href={`https://wa.me/?text=${encodeURIComponent(`🌳 Kapu basket · ${cart.items.map((i) => `${i.name} ×${i.quantity}`).join(", ")} · ${cartDisplayTotal(cart.items)} — kapuwa.shop`)}`}
           target="_blank"

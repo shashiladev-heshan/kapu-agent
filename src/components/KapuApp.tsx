@@ -390,6 +390,7 @@ export default function KapuApp() {
   const [productSimilar, setProductSimilar] = useState<ProductSummary[]>([]);
   const [trackOpen, setTrackOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [bridgeOpen, setBridgeOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   // PWA install — visible to everyone (that's the point: awareness), falling
   // back to per-platform instructions when the browser gives us no prompt
@@ -505,6 +506,16 @@ export default function KapuApp() {
   useEffect(() => {
     languageRef.current = language;
   }, [language]);
+
+  // ── arriving from a granted Wish Bridge (/bridge/<id> → claim → here):
+  // the basket is already loaded server-side; open it and tee up the ask.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("bridged") !== "1") return;
+    window.history.replaceState(null, "", "/");
+    setCartOpen(true);
+    setInput("I want to grant this wish 🎁 — help me check out");
+  }, []);
 
   // ── boot: session, prefs, rehydration, SW, online ────────────────────
   useEffect(() => {
@@ -1524,6 +1535,7 @@ export default function KapuApp() {
       },
       onToggleFav: (p) => toggleFav(p),
       isFav: (id) => Boolean(favs[id]),
+      onWishBridge: () => setBridgeOpen(true),
     }),
     [cartOp, openProduct, toggleFav, favs]
   );
@@ -3921,6 +3933,16 @@ export default function KapuApp() {
       {/* ══ Import from Amazon — Global Shop landed-cost front door ══ */}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSubmit={(url) => void send(url)} />}
 
+      {/* ══ Wish Bridge — freeze this basket into a grantable link ══ */}
+      {bridgeOpen && (
+        <BridgeSheet
+          sessionId={sessionIdRef.current}
+          defaultTitle={currentTitle || t("wishBridge")}
+          defaultCity={deliverTo}
+          onClose={() => setBridgeOpen(false)}
+        />
+      )}
+
       {/* ══ My Kapruka account — link by email ══ */}
       {accountOpen && (
         <AccountModal
@@ -4768,6 +4790,154 @@ function ImportModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (ur
           </button>
         </div>
         <p className="mt-2 text-[10.5px] leading-snug text-ink-faint">{t("importSheetHint")}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Wish Bridge sheet — freeze the basket into a grantable link ─────────
+// The delivery-details block is opt-in and explicit: the owner decides their
+// address travels with the wish. The public page shows name + city at most;
+// the full address only ever rides server-side into the gifter's checkout.
+
+function BridgeSheet({
+  sessionId,
+  defaultTitle,
+  defaultCity,
+  onClose,
+}: {
+  sessionId: string;
+  defaultTitle: string;
+  defaultCity: string;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const [title, setTitle] = useState(defaultTitle.slice(0, 80));
+  const [message, setMessage] = useState("");
+  const [withDeliv, setWithDeliv] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState(defaultCity);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const delivComplete = name.trim() && phone.trim() && address.trim() && city.trim();
+  const canCreate = !busy && title.trim().length >= 2 && (!withDeliv || delivComplete);
+
+  const create = async () => {
+    if (!canCreate) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/bridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          title: title.trim(),
+          ...(message.trim() ? { message: message.trim() } : {}),
+          ...(withDeliv && delivComplete
+            ? { recipient: { name: name.trim(), phone: phone.trim(), address: address.trim(), city: city.trim() } }
+            : {}),
+        }),
+      });
+      const d = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !d.url) {
+        setErr(d.error || "Couldn't create the link — try again?");
+        setBusy(false);
+        return;
+      }
+      setLink(`${window.location.origin}${d.url}`);
+      setBusy(false);
+    } catch {
+      setErr("Couldn't create the link — try again?");
+      setBusy(false);
+    }
+  };
+
+  const copy = () => {
+    if (!link) return;
+    void navigator.clipboard?.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const field = "w-full rounded-[13px] border-[1.5px] border-edge bg-card px-3.5 py-2.5 text-[13px] outline-none focus:border-leaf";
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-[#1d1233]/50 backdrop-blur-[2px]" />
+      <div
+        className="sheet-in relative max-h-[88dvh] w-full overflow-y-auto rounded-t-[24px] bg-surface p-4 sm:max-w-lg sm:rounded-[24px]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-[17px]">🎁</span>
+          <p className="font-display text-[18px]">{t("wishBridge")}</p>
+          <button onClick={onClose} className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft" aria-label="Close">
+            <IconClose size={12} />
+          </button>
+        </div>
+
+        {link ? (
+          <div>
+            <p className="text-[12.5px] text-ink-soft">{t("bridgeReady")}</p>
+            <p className="mt-2 break-all rounded-[13px] border border-line bg-card px-3.5 py-3 font-mono text-[12px] text-leaf">{link}</p>
+            <div className="mt-3 flex gap-2">
+              <button onClick={copy} className="flex-1 rounded-[13px] bg-gold py-2.5 text-[12.5px] font-bold text-ink shadow-sm transition active:scale-[0.98] dark:text-[#322b45]">
+                {copied ? t("bridgeCopied") : t("bridgeCopy")}
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`🎁 ${title.trim()} — ${link}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-[13px] border border-edge bg-card py-2.5 text-[12.5px] font-semibold text-ink-soft transition active:scale-[0.98]"
+              >
+                <span className="text-[#25D366]">🟢</span> WhatsApp
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            <input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 80))} className={field} placeholder="Amma's birthday wish 🎂" />
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value.slice(0, 280))}
+              rows={2}
+              className={`${field} resize-none`}
+              placeholder={t("bridgeMsgLabel")}
+            />
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-[13px] border border-leaf/25 bg-leaf-soft px-3.5 py-3">
+              <input type="checkbox" checked={withDeliv} onChange={(e) => setWithDeliv(e.target.checked)} className="mt-0.5 accent-[#402970]" />
+              <span>
+                <span className="block text-[12.5px] font-semibold leading-snug text-leaf">{t("bridgeDelivToggle")}</span>
+                <span className="mt-0.5 block text-[10.5px] leading-snug text-ink-faint">{t("bridgeDelivNote")}</span>
+              </span>
+            </label>
+            {withDeliv && (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input value={name} onChange={(e) => setName(e.target.value.slice(0, 60))} className={field} placeholder="Name" />
+                  <input value={phone} onChange={(e) => setPhone(e.target.value.slice(0, 24))} className={field} placeholder="Phone" inputMode="tel" />
+                </div>
+                <input value={address} onChange={(e) => setAddress(e.target.value.slice(0, 250))} className={field} placeholder="Address" />
+                <input value={city} onChange={(e) => setCity(e.target.value.slice(0, 60))} className={field} placeholder="City" />
+              </div>
+            )}
+            {err && <p className="text-[12px] font-semibold text-clay">{err}</p>}
+            <button
+              onClick={() => void create()}
+              disabled={!canCreate}
+              className="rounded-[13px] bg-gold py-3 text-[13.5px] font-bold text-ink shadow-[0_6px_20px_rgba(255,184,0,0.4)] transition active:scale-[0.99] disabled:opacity-40 dark:text-[#322b45]"
+            >
+              {busy ? "…" : t("bridgeCreate")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

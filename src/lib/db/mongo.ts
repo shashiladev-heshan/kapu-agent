@@ -32,6 +32,7 @@ interface SessionDoc {
   recipients: unknown[];
   occasions: unknown[];
   account?: unknown;
+  bridge?: unknown;
   updatedAt: Date;
 }
 
@@ -83,6 +84,9 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
           recipients: Array,
           occasions: Array,
           account: Object,
+          // mongoose strict mode silently DROPS fields missing from this list
+          // on $set — adding to the TS interfaces alone is not persistence
+          bridge: Object,
           updatedAt: Date,
         },
         { versionKey: false }
@@ -154,6 +158,7 @@ export function persistSession(s: {
   recipients?: unknown[];
   occasions?: unknown[];
   account?: unknown;
+  bridge?: unknown;
 }): Promise<void> {
   const prev = persistChains.get(s.id) ?? Promise.resolve();
   const next = prev.then(() => persistSessionNow(s));
@@ -183,8 +188,11 @@ async function persistSessionNow(s: Parameters<typeof persistSession>[0]): Promi
           recipients: s.recipients ?? [],
           occasions: s.occasions ?? [],
           ...(s.account ? { account: s.account } : {}),
+          ...(s.bridge ? { bridge: s.bridge } : {}),
           updatedAt: new Date(),
         },
+        // bridge is cleared after the grant — persist its ABSENCE too
+        ...(s.bridge ? {} : { $unset: { bridge: 1 } }),
       },
       { upsert: true }
     );
@@ -213,6 +221,8 @@ export interface PersistedSession {
   occasions: any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   account?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bridge?: any;
   updatedAt: number;
 }
 
@@ -235,6 +245,7 @@ export async function loadSession(id: string): Promise<PersistedSession | null> 
       recipients: doc.recipients ?? [],
       occasions: doc.occasions ?? [],
       account: (doc as { account?: unknown }).account,
+      bridge: (doc as { bridge?: unknown }).bridge,
       updatedAt: Date.now(),
     };
   } catch {
@@ -660,6 +671,133 @@ export async function deleteShare(id: string, ownerSub?: string): Promise<boolea
     }
   }
   return true;
+}
+
+// ── Wish Bridge — reverse gifting ───────────────────────────────────────
+// A frozen basket a relative abroad can open and GRANT: they claim the items
+// into their own session and pay through the normal triple-confirm checkout.
+// The owner's delivery details are stored here with explicit consent and are
+// NEVER returned by the public GET — they ride server-side into the gifter's
+// session at claim time.
+
+export interface BridgeItem {
+  product_id: string;
+  name: string;
+  price: number | null;
+  currency: string;
+  image?: string | null;
+  quantity: number;
+  icing_text?: string;
+}
+
+export interface BridgeRecipient {
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+}
+
+export interface BridgeRecord {
+  _id: string; // 12-char base64url
+  title: string;
+  message?: string;
+  items: BridgeItem[];
+  currency: string;
+  language: string;
+  owner_sub?: string;
+  session_id: string;
+  recipient?: BridgeRecipient;
+  granted_at?: Date;
+  granted_ref?: string;
+  at: Date;
+}
+
+function bridgeModel(): Model<BridgeRecord> {
+  return (
+    (mongoose.models.KapuBridge as Model<BridgeRecord>) ??
+    mongoose.model<BridgeRecord>(
+      "KapuBridge",
+      new Schema<BridgeRecord>(
+        {
+          _id: String,
+          title: String,
+          message: String,
+          items: Schema.Types.Mixed,
+          currency: String,
+          language: String,
+          owner_sub: String,
+          session_id: String,
+          recipient: Schema.Types.Mixed,
+          granted_at: Date,
+          granted_ref: String,
+          at: Date,
+        },
+        { versionKey: false }
+      )
+    )
+  );
+}
+
+// in-memory mirror so bridges work even without MongoDB (dies on redeploy)
+const bridgeMem = new Map<string, BridgeRecord>();
+const BRIDGE_MEM_MAX = 300;
+
+export async function createBridge(b: Omit<BridgeRecord, "at" | "_id"> & { id: string }): Promise<void> {
+  const doc: BridgeRecord = {
+    _id: b.id,
+    title: b.title,
+    ...(b.message ? { message: b.message } : {}),
+    items: b.items,
+    currency: b.currency,
+    language: b.language,
+    session_id: b.session_id,
+    ...(b.owner_sub ? { owner_sub: b.owner_sub } : {}),
+    ...(b.recipient ? { recipient: b.recipient } : {}),
+    at: new Date(),
+  };
+  bridgeMem.set(b.id, doc);
+  if (bridgeMem.size > BRIDGE_MEM_MAX) {
+    const oldest = bridgeMem.keys().next().value;
+    if (oldest) bridgeMem.delete(oldest);
+  }
+  const conn = db();
+  if (!conn) return;
+  try {
+    await conn;
+    await bridgeModel().updateOne({ _id: b.id }, { $set: doc }, { upsert: true });
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function getBridge(id: string): Promise<BridgeRecord | null> {
+  const conn = db();
+  if (conn) {
+    try {
+      await conn;
+      const doc = await bridgeModel().findById(id).lean();
+      if (doc) return doc as BridgeRecord;
+    } catch {
+      /* fall through to memory */
+    }
+  }
+  return bridgeMem.get(id) ?? null;
+}
+
+export async function markBridgeGranted(id: string, orderRef: string): Promise<void> {
+  const mem = bridgeMem.get(id);
+  if (mem) {
+    mem.granted_at = new Date();
+    mem.granted_ref = orderRef;
+  }
+  const conn = db();
+  if (!conn) return;
+  try {
+    await conn;
+    await bridgeModel().updateOne({ _id: id }, { $set: { granted_at: new Date(), granted_ref: orderRef } });
+  } catch {
+    /* best-effort */
+  }
 }
 
 // ── knowledge-base chunks (kapruka.com policies/FAQs/company pages) ────

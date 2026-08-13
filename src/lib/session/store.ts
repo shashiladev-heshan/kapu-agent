@@ -21,6 +21,10 @@ export interface Session {
   /** guest memory: saved recipients + occasions (account memory when signed in) */
   recipients: Recipient[];
   occasions: Occasion[];
+  /** Wish Bridge being granted in THIS session: set at claim, cleared after
+   *  create_order succeeds. recipient details are consented by the wish owner
+   *  and surface only in turn context — never in any API response. */
+  bridge?: { id: string; title: string; recipient?: { name: string; phone: string; address: string; city: string } };
   /** linked Kapruka account (Phase-2 tools) — greet by name, prefill, reorder.
    *  Persisted so a returning customer is recognised across days. */
   account?: { email: string; name?: string };

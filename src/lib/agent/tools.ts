@@ -11,7 +11,7 @@ import { importQuote, isAmazonUrl } from "@/lib/kapruka/globalshop";
 import { resolveAccountEmail, sniffError, normalizeCustomer, normalizeOrders, normalizeAddresses } from "@/lib/kapruka/account";
 import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
 import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normalize";
-import { listOrders, recordOrder } from "@/lib/db/mongo";
+import { listOrders, markBridgeGranted, recordOrder } from "@/lib/db/mongo";
 import { forgetRecipient, listPeople, rememberOccasion, rememberRecipient, upcomingOccasions } from "@/lib/agent/memory";
 import { queryKb } from "@/lib/kb/store";
 import { cancelSchedule, createSchedule, listSchedules } from "@/lib/schedules/store";
@@ -921,6 +921,12 @@ export async function executeTool(
           recipient: payload.recipient,
           delivery: payload.delivery,
         });
+        if (session.bridge) {
+          // the wish is granted — mark the bridge so its page shows it,
+          // and stop carrying the recipient details on this session
+          void markBridgeGranted(session.bridge.id, orderRef).catch(() => {});
+          session.bridge = undefined;
+        }
         session.cart = { items: [], currency };
         emit({ type: "cart", cart: session.cart });
       }
