@@ -3927,6 +3927,7 @@ export default function KapuApp() {
           tracked={tracked}
           onTracked={rememberTracked}
           initial={trackPrefill}
+          signedIn={Boolean(authUser)}
         />
       )}
 
@@ -4595,6 +4596,96 @@ function SchedulesSheet({
 
 // ── track order modal — direct MCP tracking, no LLM round-trip ──────────
 
+/** "Alert me on Telegram/WhatsApp" for one tracked order: creates the
+ *  watch_order schedule deterministically (no agent turn), shows linked
+ *  channels, and offers the test trigger (run_now + force = the current
+ *  status re-alerts through the REAL pipeline within a runner tick). */
+function TrackAlerts({ order }: { order: string }) {
+  const t = useT();
+  const [state, setState] = useState<{
+    loading: boolean;
+    watchId: string | null;
+    tg: boolean;
+    wa: boolean;
+    testing: boolean;
+    sent: boolean;
+    err: string | null;
+  }>({ loading: true, watchId: null, tg: false, wa: false, testing: false, sent: false, err: null });
+
+  useEffect(() => {
+    let alive = true;
+    void fetch("/api/schedules")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d) return setState((s) => ({ ...s, loading: false }));
+        const rows = (d.schedules ?? []) as { id: string; kind: string; order_number: string | null; active: boolean }[];
+        const hit = rows.find((r) => r.kind === "watch_order" && (r.order_number ?? "").toUpperCase() === order.toUpperCase() && r.active);
+        setState((s) => ({ ...s, loading: false, watchId: hit?.id ?? null, tg: Boolean(d.telegram_linked), wa: Boolean(d.whatsapp_linked) }));
+      })
+      .catch(() => alive && setState((s) => ({ ...s, loading: false })));
+    return () => {
+      alive = false;
+    };
+  }, [order]);
+
+  const watch = async () => {
+    setState((s) => ({ ...s, err: null }));
+    const res = await fetch("/api/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "watch_order", order_number: order }),
+    }).catch(() => null);
+    const d = (await res?.json().catch(() => ({}))) as { ok?: boolean; id?: string; error?: string };
+    if (d?.ok && d.id) setState((s) => ({ ...s, watchId: d.id! }));
+    else setState((s) => ({ ...s, err: d?.error ?? "Couldn't set the watch — try again?" }));
+  };
+
+  const test = async () => {
+    if (!state.watchId || state.testing) return;
+    setState((s) => ({ ...s, testing: true, sent: false }));
+    const res = await fetch("/api/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "run_now", id: state.watchId, force: true }),
+    }).catch(() => null);
+    setState((s) => ({ ...s, testing: false, sent: Boolean(res?.ok) }));
+  };
+
+  if (state.loading) return null;
+  return (
+    <div className="mt-3 rounded-[14px] border border-leaf/25 bg-leaf-soft px-3.5 py-3">
+      {state.watchId ? (
+        <div>
+          <p className="text-[12px] font-semibold text-leaf">✓ {t("trackWatching")}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10.5px] font-semibold">
+            <span className={`rounded-full px-2 py-0.5 ${state.tg ? "bg-good-soft text-good" : "bg-cream text-ink-faint"}`}>Telegram {state.tg ? "✓" : "—"}</span>
+            <span className={`rounded-full px-2 py-0.5 ${state.wa ? "bg-good-soft text-good" : "bg-cream text-ink-faint"}`}>WhatsApp {state.wa ? "✓" : "—"}</span>
+            <button
+              onClick={() => void test()}
+              disabled={state.testing}
+              className="ml-auto rounded-full border border-gold/50 bg-gold-soft px-2.5 py-1 text-[10.5px] font-bold text-gold-deep transition active:scale-95 disabled:opacity-50"
+            >
+              {state.testing ? "…" : t("trackTest")}
+            </button>
+          </div>
+          {state.sent && <p className="mt-1.5 text-[11px] font-semibold text-good">{t("trackTestSent")}</p>}
+          {!state.tg && !state.wa && <p className="mt-1.5 text-[10.5px] leading-snug text-ink-faint">{t("trackLinkHint")}</p>}
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={() => void watch()}
+            className="w-full rounded-[11px] bg-leaf py-2 text-[12px] font-bold text-white transition active:scale-[0.98] dark:bg-[#402970]"
+          >
+            {t("trackWatchBtn")}
+          </button>
+          {state.err && <p className="mt-1.5 text-[11px] font-semibold text-clay">{state.err}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TrackModal({
   onClose,
   actions,
@@ -4602,6 +4693,7 @@ function TrackModal({
   tracked,
   onTracked,
   initial,
+  signedIn,
 }: {
   onClose: () => void;
   actions: BlockActions;
@@ -4609,6 +4701,7 @@ function TrackModal({
   tracked: TrackedOrder[];
   onTracked: (snap: TrackSnapshot) => void;
   initial?: string | null;
+  signedIn: boolean;
 }) {
   const t = useT();
   const [value, setValue] = useState(initial ?? "");
@@ -4702,15 +4795,21 @@ function TrackModal({
         )}
         {error && <p className="mt-3 rounded-[12px] bg-clay-soft px-3 py-2 text-[12px] text-clay">{error}</p>}
         {result && <OrderTimeline block={result} actions={actions} />}
+        {/* Signed in → the deterministic watch + test-alert panel (no agent
+            turn). Guests keep the chat path, where Kapu explains sign-in. */}
+        {result && signedIn && <TrackAlerts order={result.order_number} />}
+        {result && !signedIn && <p className="mt-2 text-center text-[11px] font-semibold text-ink-faint">{t("trackSignIn")}</p>}
         {result && !TRACK_FINAL.has(result.status.toLowerCase()) && (
           <>
-            <button
-              onClick={() => actions.onAction(`Watch order ${result.order_number} and send me status updates on Telegram until it's delivered`)}
-              className="mt-1 flex w-full items-center justify-center gap-2 rounded-[13px] bg-leaf py-2.5 text-[12.5px] font-semibold text-white transition active:scale-[0.99] dark:bg-[#402970]"
-            >
-              <IconBell size={14} />
-              {t("watchOrder")}
-            </button>
+            {!signedIn && (
+              <button
+                onClick={() => actions.onAction(`Watch order ${result.order_number} and send me status updates on Telegram until it's delivered`)}
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-[13px] bg-leaf py-2.5 text-[12.5px] font-semibold text-white transition active:scale-[0.99] dark:bg-[#402970]"
+              >
+                <IconBell size={14} />
+                {t("watchOrder")}
+              </button>
+            )}
             {typeof Notification !== "undefined" && notifPerm !== "denied" && (
               <button
                 disabled={notifPerm === "granted"}

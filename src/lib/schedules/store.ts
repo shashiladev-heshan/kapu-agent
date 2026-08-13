@@ -42,12 +42,35 @@ export interface Schedule {
 
 const schedules = new Map<string, Schedule>();
 let hydrated = false;
+const MONGO = Boolean(process.env.MONGODB_URI?.trim());
 
 async function hydrate() {
   if (hydrated) return;
   hydrated = true;
-  const docs = await loadSchedules().catch(() => []);
+  const docs = (await loadSchedules().catch(() => null)) ?? [];
   for (const d of docs) schedules.set(d.id, d as Schedule);
+}
+
+/** Full resync from Mongo — adds AND removes, so the runner also drops
+ *  cancelled schedules. Exists because module instances are not shared across
+ *  route bundles (verified in dev; not guaranteed in prod either): a watch
+ *  created by /api/schedules must reach the runner's instance, and Mongo is
+ *  the only channel every instance shares. Every write here persists
+ *  immediately, so a wholesale replace is safe. */
+async function resync() {
+  if (!MONGO) {
+    await hydrate(); // single-instance fallback: memory is all there is
+    return;
+  }
+  const docs = await loadSchedules().catch(() => null);
+  if (!docs) return; // transient Mongo hiccup — keep the current view
+  const seen = new Set<string>();
+  for (const d of docs) {
+    schedules.set(d.id, d as Schedule);
+    seen.add(d.id);
+  }
+  for (const id of [...schedules.keys()]) if (!seen.has(id)) schedules.delete(id);
+  hydrated = true;
 }
 
 /** Sri-Lanka wall-clock parts for an epoch. */
@@ -112,7 +135,7 @@ export async function listSchedules(sub: string): Promise<Schedule[]> {
 }
 
 export async function dueSchedules(now = Date.now()): Promise<Schedule[]> {
-  await hydrate();
+  await resync(); // the runner's view must include watches created in other instances
   return [...schedules.values()].filter((s) => s.active && s.nextRun <= now);
 }
 
@@ -147,6 +170,22 @@ export async function cancelSchedule(sub: string, id: string): Promise<boolean> 
   schedules.delete(id);
   void removeSchedule(id);
   return true;
+}
+
+/** Pull a schedule forward to the next runner tick (≤60s). With force, the
+ *  watch's change-state clears so the CURRENT status re-alerts — the honest
+ *  "send me a test alert now" trigger: real poll, real send, no fake data. */
+export async function runScheduleNow(sub: string, id: string, force = false): Promise<Schedule | null> {
+  await hydrate();
+  const s = schedules.get(id);
+  if (!s || s.sub !== sub) return null;
+  s.nextRun = Date.now();
+  if (force) {
+    s.active = true; // a rested (delivered) watch may be re-fired for a test
+    if (s.kind === "watch_order") s.lastStatus = undefined;
+  }
+  void persistSchedule(s);
+  return s;
 }
 
 export async function toggleSchedule(sub: string, id: string): Promise<Schedule | null> {

@@ -133,7 +133,8 @@ async function runTask(s: Schedule): Promise<void> {
   }
 }
 
-const RETRY_NOTE = "Couldn't read the price this check — I'll try again at the next run.";
+// shared by price AND order watches — keep the copy neutral
+const RETRY_NOTE = "Couldn't check this time — I'll try again at the next run.";
 
 function tryParse(text: string): Record<string, unknown> | null {
   try {

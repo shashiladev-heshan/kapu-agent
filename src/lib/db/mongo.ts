@@ -366,17 +366,18 @@ export async function removeSchedule(id: string): Promise<void> {
   }
 }
 
+/** null = Mongo unavailable/errored (keep your current view); [] = truly empty. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadSchedules(): Promise<any[]> {
+export async function loadSchedules(): Promise<any[] | null> {
   const conn = db();
-  if (!conn) return [];
+  if (!conn) return null;
   try {
     await conn;
     const { Sched } = models();
     const docs = await Sched.find().lean();
     return docs.map((d) => d.data).filter(Boolean);
   } catch {
-    return [];
+    return null;
   }
 }
 

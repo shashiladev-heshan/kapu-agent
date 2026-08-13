@@ -114,6 +114,20 @@ const STR = {
   cakeMatches: { en: "Real cakes to make it 🎂", si: "ඇත්තටම හදලා එවන කේක් 🎂", ta: "உண்மையில் செய்யும் கேக்குகள் 🎂" },
   cakeAddWithIcing: { en: "Add with icing", si: "Icing එකත් එක්ක add", ta: "ஐசிங்குடன் சேர்" },
   cakeAdd: { en: "Add", si: "Add", ta: "சேர்" },
+  trackWatchBtn: { en: "🔔 Alert me on Telegram / WhatsApp", si: "🔔 Telegram / WhatsApp වලින් කියන්න", ta: "🔔 Telegram / WhatsApp-ல் அறிவி" },
+  trackWatching: { en: "Watching this order ✓ — you'll get every status change", si: "මේ order එක බලාගෙන ඉන්නවා ✓ — වෙනසක් වුණාම කියනවා", ta: "இந்த ஆர்டரை கண்காணிக்கிறேன் ✓ — மாற்றம் வந்ததும் அறிவிப்பேன்" },
+  trackTest: { en: "Send test alert", si: "Test alert එකක් එවන්න", ta: "சோதனை அறிவிப்பு அனுப்பு" },
+  trackTestSent: { en: "Test alert on its way — arrives within a minute 📲", si: "Test alert එක එනවා — විනාඩියක් ඇතුළත 📲", ta: "சோதனை அறிவிப்பு வருகிறது — ஒரு நிமிடத்தில் 📲" },
+  trackLinkHint: {
+    en: "No phone linked yet — link Telegram/WhatsApp in Schedules. Alerts also land in the web bell.",
+    si: "Phone එක link කරලා නෑ — Schedules වලින් Telegram/WhatsApp link කරන්න. Alerts web bell එකටත් එනවා.",
+    ta: "தொலைபேசி இணைக்கப்படவில்லை — Schedules-ல் இணைக்கவும். அறிவிப்புகள் web bell-லும் வரும்.",
+  },
+  trackSignIn: {
+    en: "Sign in (top right) to get delivery alerts on your phone",
+    si: "Phone එකට delivery alerts ගන්න sign in වෙන්න (උඩ දකුණේ)",
+    ta: "தொலைபேசியில் அறிவிப்புகள் பெற sign in செய்யவும்",
+  },
   wishBridge: { en: "Wish Bridge — let someone grant this", si: "Wish Bridge — කාට හරි මේක අරන් දෙන්න දෙන්න", ta: "Wish Bridge — யாராவது இதை வழங்கட்டும்" },
   bridgeMsgLabel: { en: "A note for them (optional)", si: "එයාලට note එකක් (අනිවාර්ය නෑ)", ta: "அவர்களுக்கு ஒரு குறிப்பு (விருப்பம்)" },
   bridgeDelivToggle: {
