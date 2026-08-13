@@ -4456,7 +4456,7 @@ function SchedulesSheet({
   onSignIn: () => void;
 }) {
   const t = useT();
-  const [data, setData] = useState<{ telegram_linked: boolean; schedules: SchedRow[] } | null>(null);
+  const [data, setData] = useState<{ telegram_linked: boolean; whatsapp_linked?: boolean; schedules: SchedRow[] } | null>(null);
   const [code, setCode] = useState("");
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
@@ -4529,10 +4529,12 @@ function SchedulesSheet({
           </div>
         ) : (
           <>
-            {data && !data.telegram_linked && tgBot && (
+            {/* Link box stays visible until BOTH channels are linked — a user
+                with Telegram bound must still be able to add WhatsApp. */}
+            {data && !(data.telegram_linked && data.whatsapp_linked) && (
               <div className="mt-3 rounded-2xl border border-line bg-card p-3.5">
                 <p className="text-[12px] font-semibold">{t("linkTg")}</p>
-                <p className="mt-1 text-[11px] text-ink-soft">{t("linkTgHint", { bot: tgBot })}</p>
+                <p className="mt-1 text-[11px] text-ink-soft">{t("linkTgHint", { bot: tgBot ?? "KapuLKBot" })}</p>
                 <div className="mt-2 flex gap-2">
                   <input
                     value={code}
@@ -4542,13 +4544,22 @@ function SchedulesSheet({
                     className="w-28 rounded-[11px] border-[1.5px] border-edge bg-surface px-3 py-2 text-center text-[14px] font-bold tracking-[0.2em] outline-none focus:border-leaf"
                   />
                   <button onClick={() => void link()} disabled={code.length < 6 || linking} className="rounded-[11px] bg-leaf px-4 text-[12px] font-semibold text-white disabled:opacity-40 dark:bg-[#402970]">
-                    {linking ? "…" : t("open")}
+                    {linking ? "…" : t("linkSubmit")}
                   </button>
                 </div>
                 {linkErr && <p className="mt-1.5 text-[11px] text-clay">{linkErr}</p>}
               </div>
             )}
-            {data?.telegram_linked && <p className="mt-3 rounded-[12px] bg-good-soft px-3 py-2 text-[11.5px] font-medium text-good">{t("linkTgDone")}</p>}
+            {data && (data.telegram_linked || data.whatsapp_linked) && (
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[10.5px] font-semibold">
+                <span className={`rounded-full px-2.5 py-1 ${data.telegram_linked ? "bg-good-soft text-good" : "bg-cream text-ink-faint dark:bg-cream-deep"}`}>
+                  Telegram {data.telegram_linked ? "✓" : "—"}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 ${data.whatsapp_linked ? "bg-good-soft text-good" : "bg-cream text-ink-faint dark:bg-cream-deep"}`}>
+                  WhatsApp {data.whatsapp_linked ? "✓" : "—"}
+                </span>
+              </div>
+            )}
 
             {!data ? (
               <div className="skeleton mt-3 h-20 rounded-2xl" />

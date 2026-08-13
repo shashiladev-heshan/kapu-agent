@@ -505,6 +505,7 @@ const STR = {
     ta: "Telegram-ல் @{bot}க்கு /link, அல்லது WhatsApp-ல் Kapu-க்கு “link” அனுப்பி — குறியீட்டை உள்ளிடவும்:",
   },
   linkTgDone: { en: "Telegram linked ✓ — schedule updates go there", si: "Telegram link වුණා ✓", ta: "Telegram இணைக்கப்பட்டது ✓" },
+  linkSubmit: { en: "Link", si: "Link කරන්න", ta: "இணை" },
   tryIt: { en: "Try: ", si: "Try කරන්න: ", ta: "முயற்சி: " },
   signIn: { en: "Sign in with Google", si: "Google එකෙන් sign in වෙන්න", ta: "Google மூலம் உள்நுழை" },
 
