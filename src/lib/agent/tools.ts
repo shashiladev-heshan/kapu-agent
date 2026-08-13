@@ -282,7 +282,7 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
     name: "create_schedule",
     description:
-      "Create a standing wish that runs AUTONOMOUSLY on a schedule (signed-in users only — check signed_in in context). Restate the plan and get a yes first. Results go to the user's linked Telegram (or the web bell). kind 'watch_order' polls an order until delivered.",
+      "Create a standing wish that runs AUTONOMOUSLY on a schedule (signed-in users only — check signed_in in context). Restate the plan and get a yes first. Results go to the user's linked Telegram/WhatsApp (or the web bell). kind 'watch_order' polls an order until delivered — and keeps watching for the delivery-proof photo.",
     input_schema: {
       type: "object",
       properties: {

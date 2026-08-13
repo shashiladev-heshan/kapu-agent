@@ -1,11 +1,13 @@
 // The autonomous heart of Kapu Schedules: a 60s in-process tick (the Railway
 // monolith is a long-running Node server) that executes due schedules through
-// the SAME agent core, then delivers results to the owner's linked Telegram
-// chat. Two kinds:
+// the SAME agent core, then delivers results to the owner's linked channels —
+// Telegram and/or WhatsApp. Kinds:
 //  · task        — a full agent run in a persistent per-schedule session
 //                  (recurring runs keep memory of previous ones)
 //  · watch_order — deterministic tracking poll, messages only on change,
-//                  celebrates delivery + auto-stops (no LLM cost)
+//                  celebrates delivery, then keeps watching briefly for the
+//                  delivery-proof photo before resting (no LLM cost)
+//  · watch_price — price poll, one alert on a ≥2% drop, then rests
 // Safety: create_order only mints a pay link; the human always pays. Even
 // that requires the standing consent recorded on the schedule (allowOrder).
 
@@ -17,6 +19,8 @@ import { getSession, saveSession } from "@/lib/session/store";
 import { dueSchedules, computeNextRun, updateSchedule, type Schedule } from "@/lib/schedules/store";
 import { esc, mdToTelegram, sendMessage, telegramEnabled } from "@/lib/telegram/api";
 import { deliverBlocks } from "@/lib/telegram/handler";
+import { mdToWhatsapp, sendText, whatsappEnabled } from "@/lib/whatsapp/api";
+import { deliverBlocksWa } from "@/lib/whatsapp/handler";
 import type { StreamEvent, UiBlock } from "@/lib/types";
 
 let started = false;
@@ -67,9 +71,24 @@ async function tick(): Promise<void> {
   }
 }
 
-async function tgChatFor(s: Schedule): Promise<number | null> {
+async function ownerChannels(s: Schedule): Promise<{ tgChatId: number | null; waPhone: string | null }> {
   const user = await getUser(s.sub);
-  return user?.tgChatId ?? null;
+  return { tgChatId: user?.tgChatId ?? null, waPhone: user?.waPhone ?? null };
+}
+
+/** One alert, every linked channel. Returns true if anything was delivered. */
+async function notifyOwner(s: Schedule, html: string, plain: string): Promise<boolean> {
+  const { tgChatId, waPhone } = await ownerChannels(s);
+  let sent = false;
+  if (tgChatId && telegramEnabled()) {
+    await sendMessage(tgChatId, html);
+    sent = true;
+  }
+  if (waPhone && whatsappEnabled()) {
+    await sendText(waPhone, plain);
+    sent = true;
+  }
+  return sent;
 }
 
 async function runTask(s: Schedule): Promise<void> {
@@ -103,10 +122,14 @@ async function runTask(s: Schedule): Promise<void> {
   s.lastResult = text.slice(0, 400) || "Done.";
   await updateSchedule(s);
 
-  const chatId = await tgChatFor(s);
-  if (chatId && telegramEnabled()) {
-    await sendMessage(chatId, `⏰ <b>${esc(s.title)}</b>\n${mdToTelegram(text).slice(0, 3500)}`);
-    await deliverBlocks(chatId, blocks.slice(0, 4));
+  const { tgChatId, waPhone } = await ownerChannels(s);
+  if (tgChatId && telegramEnabled()) {
+    await sendMessage(tgChatId, `⏰ <b>${esc(s.title)}</b>\n${mdToTelegram(text).slice(0, 3500)}`);
+    await deliverBlocks(tgChatId, blocks.slice(0, 4));
+  }
+  if (waPhone && whatsappEnabled()) {
+    await sendText(waPhone, `⏰ *${s.title}*\n${mdToWhatsapp(text).slice(0, 3500)}`);
+    await deliverBlocksWa(waPhone, blocks.slice(0, 4));
   }
 }
 
@@ -163,13 +186,16 @@ async function runPriceWatch(s: Schedule): Promise<void> {
   }
   s.lastResult = `Rs ${Math.round(price).toLocaleString()} (was Rs ${Math.round(s.baselinePrice).toLocaleString()})`;
   const dropped = price < s.baselinePrice * 0.98; // ≥2% real drop
-  const chatId = await tgChatFor(s);
-  if (dropped && chatId && telegramEnabled()) {
-    await sendMessage(
-      chatId,
-      `📉 <b>Price drop!</b> ${esc(s.title)}\nRs ${Math.round(s.baselinePrice).toLocaleString()} → <b>Rs ${Math.round(price).toLocaleString()}</b> (−${Math.round((1 - price / s.baselinePrice) * 100)}%)\nGrab it in Kapu before it climbs back 🌳`
+  if (dropped) {
+    const was = Math.round(s.baselinePrice).toLocaleString();
+    const now = Math.round(price).toLocaleString();
+    const pct = Math.round((1 - price / s.baselinePrice) * 100);
+    const sent = await notifyOwner(
+      s,
+      `📉 <b>Price drop!</b> ${esc(s.title)}\nRs ${was} → <b>Rs ${now}</b> (−${pct}%)\nGrab it in Kapu before it climbs back 🌳`,
+      `📉 *Price drop!* ${s.title}\nRs ${was} → *Rs ${now}* (−${pct}%)\nGrab it in Kapu before it climbs back 🌳`
     );
-    s.active = false; // one good alert, then rest
+    if (sent) s.active = false; // one good alert, then rest
   }
   if (price < s.baselinePrice) s.baselinePrice = price;
   await updateSchedule(s);
@@ -180,25 +206,51 @@ async function runOrderWatch(s: Schedule): Promise<void> {
   const status = String(res.status ?? "unknown");
   const changed = status !== s.lastStatus;
   const delivered = status.toLowerCase() === "delivered";
+  const proof = res.has_delivery_photo === true || res.has_delivery_video === true;
+  const kind = res.has_delivery_video === true ? "video" : "photo";
   s.lastStatus = status;
   s.lastResult = `Status: ${res.status_display ?? status}`;
+  const ord = String(s.orderNumber);
 
-  const chatId = await tgChatFor(s);
-  if (chatId && telegramEnabled() && (changed || delivered)) {
-    if (delivered) {
-      const proof = res.has_delivery_photo || res.has_delivery_video;
-      await sendMessage(
-        chatId,
-        `🎉 <b>Delivered!</b> Order <code>${esc(String(s.orderNumber))}</code> reached its home.` +
-          (proof ? `\n📸 Delivery proof is on your Kapruka order page — see it arrive!` : "")
-      );
-    } else {
-      await sendMessage(
-        chatId,
-        `📦 Order <code>${esc(String(s.orderNumber))}</code>: <b>${esc(String(res.status_display ?? status))}</b>`
+  if (!delivered) {
+    if (changed) {
+      await notifyOwner(
+        s,
+        `📦 Order <code>${esc(ord)}</code>: <b>${esc(String(res.status_display ?? status))}</b>`,
+        `📦 Order ${ord}: *${String(res.status_display ?? status)}*`
       );
     }
+    await updateSchedule(s);
+    return;
   }
-  if (delivered) s.active = false;
+
+  // Delivered. The courier's proof photo/video lands on the order page some
+  // time AFTER the status flips — the old behaviour rested immediately, so
+  // the "see it arrive" moment was never actually delivered. Celebrate now,
+  // then keep polling (≤8 checks ≈ 24h at the 3h interval) just for the proof.
+  if (changed) {
+    const tail = proof
+      ? `\n📸 Delivery proof is on your Kapruka order page — see it arrive!`
+      : `\n📷 I'll ping you the moment the delivery ${kind} is up.`;
+    await notifyOwner(
+      s,
+      `🎉 <b>Delivered!</b> Order <code>${esc(ord)}</code> reached its home.${tail}`,
+      `🎉 *Delivered!* Order ${ord} reached its home.${tail}`
+    );
+  } else if (proof && (s.proofWait ?? 0) > 0) {
+    await notifyOwner(
+      s,
+      `📸 <b>Delivery ${kind} is up!</b> Order <code>${esc(ord)}</code> — see it arrive on your Kapruka order page.`,
+      `📸 *Delivery ${kind} is up!* Order ${ord} — see it arrive on your Kapruka order page.`
+    );
+  }
+
+  if (proof || (s.proofWait ?? 0) >= 8) {
+    s.active = false;
+    s.lastResult = proof ? "Delivered ✓ · proof captured 📸" : "Delivered ✓";
+  } else {
+    s.proofWait = (s.proofWait ?? 0) + 1;
+    s.lastResult = "Delivered ✓ · watching for the proof photo";
+  }
   await updateSchedule(s);
 }

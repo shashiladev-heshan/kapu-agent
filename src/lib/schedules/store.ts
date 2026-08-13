@@ -35,6 +35,8 @@ export interface Schedule {
   lastRun?: number;
   lastResult?: string;
   lastStatus?: string; // watch_order change detection
+  /** watch_order: post-delivery checks spent waiting for the proof photo */
+  proofWait?: number;
   createdAt: number;
 }
 
@@ -171,4 +173,22 @@ export function redeemLinkCode(code: string): number | null {
   if (!hit || hit.expires < Date.now()) return null;
   linkCodes.delete(code.trim());
   return hit.chatId;
+}
+
+// ── WhatsApp linking (web account ↔ WA number) ─────────────────────────
+// Same shape as Telegram's: the phone says "link", gets a code, the signed-in
+// web user redeems it. Separate map — a code must never bind the wrong channel.
+const waLinkCodes = new Map<string, { phone: string; expires: number }>();
+
+export function issueWaLinkCode(phone: string): string {
+  const code = crypto.randomInt(100000, 999999).toString();
+  waLinkCodes.set(code, { phone, expires: Date.now() + 10 * 60_000 });
+  return code;
+}
+
+export function redeemWaLinkCode(code: string): string | null {
+  const hit = waLinkCodes.get(code.trim());
+  if (!hit || hit.expires < Date.now()) return null;
+  waLinkCodes.delete(code.trim());
+  return hit.phone;
 }

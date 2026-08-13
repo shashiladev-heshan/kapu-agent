@@ -1,10 +1,12 @@
 // POST /api/telegram-link {code} — bind the signed-in user's account to the
-// Telegram chat that issued the code via /link. Scheduled-run results are
-// then delivered to that chat.
+// chat that issued the code: Telegram (/link to the bot) or WhatsApp ("link"
+// to the Kapu number). Scheduled-run results are then delivered there. One
+// endpoint for both — the codes live in separate maps, so a code can only
+// ever bind the channel that issued it.
 
 import { readUser } from "@/lib/auth/session";
 import { getUser, saveUser } from "@/lib/auth/users";
-import { redeemLinkCode } from "@/lib/schedules/store";
+import { redeemLinkCode, redeemWaLinkCode } from "@/lib/schedules/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,8 +15,15 @@ export async function POST(req: Request): Promise<Response> {
   const auth = readUser(req);
   if (!auth) return Response.json({ error: "sign-in required" }, { status: 401 });
   const body = (await req.json().catch(() => ({}))) as { code?: string };
-  const chatId = body.code ? redeemLinkCode(String(body.code)) : null;
-  if (!chatId) return Response.json({ error: "Invalid or expired code — send /link to the bot again." }, { status: 400 });
+  const code = String(body.code ?? "");
+  const chatId = code ? redeemLinkCode(code) : null;
+  const waPhone = !chatId && code ? redeemWaLinkCode(code) : null;
+  if (!chatId && !waPhone) {
+    return Response.json(
+      { error: "Invalid or expired code — send /link to the bot (or “link” on WhatsApp) again." },
+      { status: 400 }
+    );
+  }
   const user = (await getUser(auth.sub)) ?? {
     sub: auth.sub,
     email: auth.email,
@@ -26,7 +35,8 @@ export async function POST(req: Request): Promise<Response> {
     agents: [],
     updatedAt: Date.now(),
   };
-  user.tgChatId = chatId;
+  if (chatId) user.tgChatId = chatId;
+  if (waPhone) user.waPhone = waPhone;
   await saveUser(user);
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, channel: chatId ? "telegram" : "whatsapp" });
 }

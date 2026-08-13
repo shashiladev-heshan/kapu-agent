@@ -239,8 +239,9 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         {
           title: z.string(),
           instruction: z.string(),
-          kind: z.enum(["task", "watch_order"]).optional(),
+          kind: z.enum(["task", "watch_order", "watch_price"]).optional(),
           order_number: z.string().optional(),
+          product_id: z.string().optional().describe("watch_price only — alerts on a ≥2% drop, then stops"),
           cadence_kind: z.enum(["once", "daily", "weekly", "monthly", "yearly"]),
           at: z.string().optional().describe("HH:mm SL time"),
           date: z.string().optional().describe("once: YYYY-MM-DD · yearly: MM-DD"),

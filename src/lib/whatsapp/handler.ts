@@ -10,6 +10,7 @@
 import { runTurn } from "@/lib/agent/loop";
 import { applyCartUpdate } from "@/lib/kapruka/cart";
 import { resizeImage } from "@/lib/kapruka/normalize";
+import { issueWaLinkCode } from "@/lib/schedules/store";
 import { getSession, saveSession } from "@/lib/session/store";
 import type { Cart, StreamEvent, UiBlock } from "@/lib/types";
 import { scanImage, scanToMessage } from "@/lib/vision/scan";
@@ -145,6 +146,17 @@ export async function processInbound(msg: WaInbound): Promise<void> {
   if (!text && addressed && msg.is_group) text = "hi";
   if (!text) return;
 
+  // "link" — bind this WhatsApp number to a signed-in web account so
+  // standing-wish alerts arrive here (mirrors Telegram's /link).
+  if (!msg.is_group && /^\/?link$/i.test(text)) {
+    const code = issueWaLinkCode(phone);
+    await sendText(
+      chat,
+      `🔗 Your link code: *${code}*\n\nIn the Kapu web app (kapuwa.shop), open *Standing wishes* and enter this code — your schedule alerts will arrive here too. It expires in 10 minutes.`
+    );
+    return;
+  }
+
   // "2" → the second product we offered last turn.
   const picked = resolveNumberedReply(text, session.waPicks);
   if (picked) {
@@ -211,6 +223,16 @@ async function handleTurn(
   // Drops the typing indicator even when a turn produced no blocks at all.
   await endTurn(chat);
   saveSession(session);
+}
+
+/** Deliver blocks outside a chat turn (scheduled runs) — chips skipped. */
+export async function deliverBlocksWa(chat: string, blocks: UiBlock[]): Promise<void> {
+  const session = await getSession(sessionId(chat));
+  for (const b of blocks) {
+    if (b.type === "chips" || b.type === "speech") continue;
+    await beat();
+    await renderBlock(chat, session, b);
+  }
 }
 
 async function sendCart(chat: string, cart: Cart): Promise<void> {

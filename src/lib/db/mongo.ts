@@ -56,6 +56,7 @@ interface UserDoc {
   occasions: unknown[];
   agents: unknown[];
   tgChatId?: number;
+  waPhone?: string;
   updatedAt: Date;
 }
 
@@ -120,6 +121,7 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
           occasions: Array,
           agents: Array,
           tgChatId: Number,
+          waPhone: String,
           updatedAt: Date,
         },
         { versionKey: false }
@@ -250,6 +252,7 @@ export async function persistUserDoc(u: {
   occasions?: unknown[];
   agents?: unknown[];
   tgChatId?: number;
+  waPhone?: string;
 }): Promise<void> {
   const conn = db();
   if (!conn) return;
@@ -268,6 +271,7 @@ export async function persistUserDoc(u: {
           occasions: u.occasions ?? [],
           agents: u.agents ?? [],
           ...(u.tgChatId ? { tgChatId: u.tgChatId } : {}),
+          ...(u.waPhone ? { waPhone: u.waPhone } : {}),
           updatedAt: new Date(),
         },
       },
@@ -292,6 +296,7 @@ export async function loadUserDoc(sub: string): Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agents: any[];
   tgChatId?: number;
+  waPhone?: string;
   updatedAt: number;
 } | null> {
   const conn = db();
@@ -311,6 +316,7 @@ export async function loadUserDoc(sub: string): Promise<{
       occasions: doc.occasions ?? [],
       agents: doc.agents ?? [],
       tgChatId: doc.tgChatId,
+      waPhone: doc.waPhone,
       updatedAt: Date.now(),
     };
   } catch {

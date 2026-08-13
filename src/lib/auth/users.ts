@@ -28,6 +28,8 @@ export interface UserRecord extends AuthUser {
   occasions: Occasion[];
   agents: CustomAgent[];
   tgChatId?: number;
+  /** linked WhatsApp number (digits, e.g. 94771234567) — schedule alerts */
+  waPhone?: string;
   updatedAt: number;
 }
 
