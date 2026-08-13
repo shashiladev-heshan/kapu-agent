@@ -4529,9 +4529,10 @@ function SchedulesSheet({
           </div>
         ) : (
           <>
-            {/* Link box stays visible until BOTH channels are linked — a user
-                with Telegram bound must still be able to add WhatsApp. */}
-            {data && !(data.telegram_linked && data.whatsapp_linked) && (
+            {/* The link box is ALWAYS available — linking is also RE-linking
+                (new phone, or overwriting a number that went bad), so hiding
+                it once channels are bound locks users out of fixing them. */}
+            {data && (
               <div className="mt-3 rounded-2xl border border-line bg-card p-3.5">
                 <p className="text-[12px] font-semibold">{t("linkTg")}</p>
                 <p className="mt-1 text-[11px] text-ink-soft">{t("linkTgHint", { bot: tgBot ?? "KapuLKBot" })}</p>
