@@ -1144,6 +1144,15 @@ export async function executeTool(
         suggestions = undefined;
       }
 
+      // Remember the design so checkout can pass it to the bakery as a
+      // decoration request via the order's real `instructions` field.
+      session.cakeDesign = {
+        flavour: flavour.label,
+        style: style.key,
+        ...(typeof input.occasion === "string" ? { occasion: input.occasion.slice(0, 40) } : {}),
+        ...(icing ? { icing } : {}),
+      };
+
       emit({
         type: "cake_design",
         title: typeof input.title === "string" ? input.title.slice(0, 60) : undefined,

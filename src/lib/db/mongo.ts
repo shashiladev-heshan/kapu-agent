@@ -33,6 +33,7 @@ interface SessionDoc {
   occasions: unknown[];
   account?: unknown;
   bridge?: unknown;
+  cakeDesign?: unknown;
   updatedAt: Date;
 }
 
@@ -87,6 +88,7 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
           // mongoose strict mode silently DROPS fields missing from this list
           // on $set — adding to the TS interfaces alone is not persistence
           bridge: Object,
+          cakeDesign: Object,
           updatedAt: Date,
         },
         { versionKey: false }
@@ -159,6 +161,7 @@ export function persistSession(s: {
   occasions?: unknown[];
   account?: unknown;
   bridge?: unknown;
+  cakeDesign?: unknown;
 }): Promise<void> {
   const prev = persistChains.get(s.id) ?? Promise.resolve();
   const next = prev.then(() => persistSessionNow(s));
@@ -189,6 +192,7 @@ async function persistSessionNow(s: Parameters<typeof persistSession>[0]): Promi
           occasions: s.occasions ?? [],
           ...(s.account ? { account: s.account } : {}),
           ...(s.bridge ? { bridge: s.bridge } : {}),
+          ...(s.cakeDesign ? { cakeDesign: s.cakeDesign } : {}),
           updatedAt: new Date(),
         },
         // bridge is cleared after the grant — persist its ABSENCE too
@@ -223,6 +227,8 @@ export interface PersistedSession {
   account?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   bridge?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cakeDesign?: any;
   updatedAt: number;
 }
 
@@ -246,6 +252,7 @@ export async function loadSession(id: string): Promise<PersistedSession | null> 
       occasions: doc.occasions ?? [],
       account: (doc as { account?: unknown }).account,
       bridge: (doc as { bridge?: unknown }).bridge,
+      cakeDesign: (doc as { cakeDesign?: unknown }).cakeDesign,
       updatedAt: Date.now(),
     };
   } catch {

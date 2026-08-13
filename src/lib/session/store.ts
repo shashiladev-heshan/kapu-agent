@@ -21,6 +21,9 @@ export interface Session {
   /** guest memory: saved recipients + occasions (account memory when signed in) */
   recipients: Recipient[];
   occasions: Occasion[];
+  /** last Cake Studio design — folded into the order's `instructions` as a
+   *  decoration request when a cake from the studio is checked out */
+  cakeDesign?: { flavour: string; style: string; occasion?: string; icing?: string };
   /** Wish Bridge being granted in THIS session: set at claim, cleared after
    *  create_order succeeds. recipient details are consented by the wish owner
    *  and surface only in turn context — never in any API response. */

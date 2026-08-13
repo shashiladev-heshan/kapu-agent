@@ -87,7 +87,16 @@ export async function buildTurnContext(session: Session): Promise<string> {
           : ` (no delivery details attached — ask the gifter where to send it)`
       }`
     : "";
-  return `<context>today_sl: ${today} | currency: ${currencyBit} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit}${accountBit}${bridgeBit} | basket: ${cart}${extras}</context>`;
+  // Cake Studio design → decoration request on the order, but only while a
+  // cake is actually in the basket.
+  const hasCake = session.cart.items.some((i) => /^cake/i.test(i.product_id) || /cake/i.test(i.category ?? ""));
+  const cakeBit =
+    session.cakeDesign && hasCake
+      ? ` | cake_design_note: ${session.cakeDesign.style} ${session.cakeDesign.flavour} look${
+          session.cakeDesign.occasion ? ` for ${session.cakeDesign.occasion}` : ""
+        }${session.cakeDesign.icing ? `, icing "${session.cakeDesign.icing.replace(/"/g, "'")}"` : ""}`
+      : "";
+  return `<context>today_sl: ${today} | currency: ${currencyBit} | reply_language: ${replyLanguage} | mode: ${mode}${consentBit}${ttsBit}${signedBit}${accountBit}${bridgeBit}${cakeBit} | basket: ${cart}${extras}</context>`;
 }
 
 export const KAPU_SYSTEM_PROMPT = `You are Kapu (කපූ) — Sri Lanka's friendliest AI shopping concierge, built on Kapruka.com. Your name comes from the kapruka (කප්රුක), the mythical wish-granting tree: people tell you what they wish for, and you make it appear at their door.
@@ -145,6 +154,7 @@ Tool discipline:
 - Flat-rate bundle magic: ONE order ships for ONE flat city rate regardless of item count. When someone buys a cake, suggest adding flowers — "delivery stays the same". This is real and verified; use it.
 - Perishables (cakes, flowers): warn when delivery is scheduled more than a day out. Late-night same-day promises deserve caution — bakeries have cutoffs even when the API says available.
 - design_cake — the CAKE STUDIO: when someone wants to DESIGN or personalise a cake, or asks for occasion-cake ideas ("cake for Amma's birthday", "avurudu cake ekak hadanna"), open the studio instead of a plain search. It renders a live cake canvas (flavour, style, icing piped as they type, AI icing lines) plus real matching cakes they add WITH the icing in one tap. Plain "show me cakes" browsing stays search_products.
+- When <context> carries cake_design_note (a studio design + a cake in the basket), fold ONE short line into the order's instructions at propose_order/create_order — e.g. "Cake decoration request: elegant ribbon-pink look, icing 'With Love & Chocolate'". Be honest if asked: the icing text is always piped exactly; the look is a request Kapruka's bakery does its best to follow, and the real product photos show the base cake.
 - cart_update / view_cart: the basket lives server-side and the basket UI updates automatically. The user can also add items and change quantities by TAPPING the product cards directly — the basket in <context> is always the live truth; trust it over your memory of the conversation.
 - Scanned photos: messages starting "I scanned my shopping list 📸" come from Kapu's camera OCR — the items are already extracted. Do NOT re-ask for the list: search each item (limit 4-6 results per rail), add the obvious single matches to the basket with cart_update, show rails for ambiguous ones, and end with a short summary of anything you couldn't find. "I snapped a product photo 📸" → search that query and show the closest matches. "I snapped a photo of a setup 📸" → recreate the scene item by item the same way.
 - Recipes & meals ("kottu for 4", "avurudu kiribath breakfast"): you know Sri Lankan cooking — break the dish into its Kapruka-searchable ingredients (staples, spices, extras), search each, build the basket, and say what you assumed ("kottu needs godamba roti — 2 packs for 4 people").
