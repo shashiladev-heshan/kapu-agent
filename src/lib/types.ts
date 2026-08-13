@@ -104,6 +104,23 @@ export type UiBlock =
     }
   | { type: "address_picker"; addresses: { name: string; address: string; city?: string | null; phone?: string | null }[] }
   | { type: "options_card"; image_url: string; caption?: string }
+  // Cake Studio: an interactive designer canvas — deterministic palette from
+  // src/lib/cake.ts (the model supplies semantics, never hex), live icing
+  // preview, plus REAL matching Kapruka cakes to add with that icing.
+  | {
+      type: "cake_design";
+      title?: string;
+      occasion?: string;
+      glyph: string;
+      flavour: string;
+      style: "classic" | "playful" | "elegant" | "festive";
+      tiers: number;
+      palette: { base: string; cream: string; accent: string; deep: string };
+      icing_text?: string;
+      to?: string;
+      suggestions?: string[];
+      products: ProductSummary[];
+    }
   | { type: "no_results"; query: string }
   | { type: "chips"; chips: string[] }
   // voice mode: the exact text the TTS should speak (may differ from the

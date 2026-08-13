@@ -493,6 +493,20 @@ async function renderBlock(chatId: number, session: Awaited<ReturnType<typeof ge
       );
       break;
     }
+    case "cake_design": {
+      // The live designer canvas is web-only — describe the design, then
+      // reuse the product-grid rendering for the orderable matches.
+      await sendMessage(
+        chatId,
+        `${block.glyph} <b>Cake Studio</b> — ${esc(block.flavour)} · ${esc(block.style)}` +
+          (block.icing_text ? `\n✍️ <i>“${esc(block.icing_text)}”</i>` : "") +
+          `\n🌳 <i>design it live in the Kapu web app — here are real cakes that match:</i>`
+      );
+      if (block.products.length) {
+        await renderBlock(chatId, session, { type: "product_grid", products: block.products.slice(0, 4) });
+      }
+      break;
+    }
 
     case "chips": {
       session.tgChips = block.chips.slice(0, 6);

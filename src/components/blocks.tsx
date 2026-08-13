@@ -5,7 +5,8 @@
 // golden pay link, rich order timelines. Styled to the "Kapu redesigned" spec:
 // Instrument Serif display, 1.6px stroke icons, purple/gold, soft cream cards.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CAKE_FLAVOURS, CAKE_STYLES, type CakePalette } from "@/lib/cake";
 import { fxConvert } from "@/lib/client/fx";
 import { useLang, useT } from "@/lib/client/i18n";
 import type { Cart, CartItem, OrderSummaryData, ProductDetail, ProductSummary, UiBlock } from "@/lib/types";
@@ -1601,6 +1602,364 @@ export function GreetingCard({ block }: { block: Extract<UiBlock, { type: "greet
   );
 }
 
+// ── Cake Studio — the live designer canvas ──────────────────────────────
+// One SVG drawing serves both the on-screen preview (re-themed instantly as
+// the user taps flavours/styles) and the downloadable PNG (the SVG node is
+// serialized onto a canvas). Every colour comes from src/lib/cake.ts — the
+// model only ever picked semantics.
+
+const TIER_GEOM: Record<number, { w: number; h: number }[]> = {
+  1: [{ w: 212, h: 116 }],
+  2: [{ w: 224, h: 78 }, { w: 164, h: 66 }],
+  3: [{ w: 228, h: 60 }, { w: 176, h: 54 }, { w: 128, h: 48 }],
+};
+
+/** Scalloped icing cap along a tier top — deterministic organic drips. */
+function dripPath(x: number, y: number, w: number): string {
+  const depths = [15, 24, 13, 27, 18, 22, 11, 25];
+  const n = Math.max(4, Math.round(w / 34));
+  const seg = w / n;
+  let d = `M ${x} ${y}`;
+  for (let i = 0; i < n; i++) d += ` q ${(seg / 2).toFixed(1)} ${depths[i % depths.length]}, ${seg.toFixed(1)} 0`;
+  d += ` l 0 -13 L ${x} ${y - 13} Z`;
+  return d;
+}
+
+/** ≤2 lines of piped icing, split near the middle at a space. */
+function icingLines(s: string): string[] {
+  const t = s.trim();
+  if (t.length <= 16) return [t];
+  const mid = Math.floor(t.length / 2);
+  for (let off = 0; off < 10; off++) {
+    if (t[mid - off] === " ") return [t.slice(0, mid - off), t.slice(mid - off + 1)];
+    if (t[mid + off] === " ") return [t.slice(0, mid + off), t.slice(mid + off + 1)];
+  }
+  return [t];
+}
+
+function CakeSvg({
+  palette,
+  tiers,
+  style,
+  glyph,
+  icing,
+  svgRef,
+}: {
+  palette: CakePalette;
+  tiers: number;
+  style: "classic" | "playful" | "elegant" | "festive";
+  glyph: string;
+  icing: string;
+  svgRef: React.RefObject<SVGSVGElement | null>;
+}) {
+  const geom = TIER_GEOM[Math.min(Math.max(tiers, 1), 3)];
+  const plateY = 300;
+  // stack bottom-up: each entry gets its top-edge y
+  const stack: { w: number; h: number; x: number; top: number }[] = [];
+  let bottom = plateY;
+  for (const tier of geom) {
+    const top = bottom - tier.h;
+    stack.push({ ...tier, x: 180 - tier.w / 2, top });
+    bottom = top + 3; // slight overlap so tiers sit into each other
+  }
+  const topTier = stack[stack.length - 1];
+  const base = stack[0];
+  const candles = style === "playful" || style === "festive" || glyph === "🎂";
+  const glyphY = topTier.top - (candles ? 46 : 16);
+  const lines = icingLines(icing);
+  const longest = Math.max(...lines.map((l) => l.length), 1);
+  const fontSize = longest <= 12 ? 21 : longest <= 18 ? 17 : longest <= 26 ? 14 : 12;
+  const textY = base.top + base.h / 2 + (lines.length > 1 ? 2 : 6);
+
+  return (
+    <svg ref={svgRef} viewBox="0 0 360 340" width={360} height={340} className="h-auto w-full" role="img" aria-label="Cake preview">
+      {/* plate */}
+      <ellipse cx="180" cy={plateY + 12} rx="128" ry="15" fill="rgba(64,41,112,0.10)" />
+      <ellipse cx="180" cy={plateY + 8} rx="122" ry="13" fill="#ffffff" />
+      {/* tiers, bottom-up */}
+      {stack.map((s, i) => (
+        <g key={i}>
+          <rect x={s.x} y={s.top} width={s.w} height={s.h} rx="10" fill={palette.base} />
+          {/* soft side light + base shade */}
+          <rect x={s.x} y={s.top} width={s.w * 0.22} height={s.h} rx="10" fill="#ffffff" opacity="0.14" />
+          <rect x={s.x} y={s.top + s.h - 8} width={s.w} height="8" rx="4" fill="#000000" opacity="0.10" />
+          {style === "elegant" && <rect x={s.x + 6} y={s.top + s.h - 13} width={s.w - 12} height="4.5" rx="2" fill={palette.accent} opacity="0.65" />}
+          {/* icing cap + drips */}
+          <path d={dripPath(s.x, s.top + 12, s.w)} fill={palette.cream} />
+        </g>
+      ))}
+      {/* piped icing text on the widest tier */}
+      {lines.map((l, i) => (
+        <text
+          key={i}
+          x="180"
+          y={textY + (i - (lines.length - 1) / 2) * (fontSize + 4)}
+          textAnchor="middle"
+          fontStyle="italic"
+          fontFamily="'Instrument Serif','Noto Sans Sinhala','Noto Sans Tamil',serif"
+          fontSize={fontSize}
+          fill={palette.cream}
+          stroke={palette.deep}
+          strokeWidth="0.4"
+        >
+          {l}
+        </text>
+      ))}
+      {/* candles */}
+      {candles &&
+        [-26, 0, 26].map((dx) => (
+          <g key={dx}>
+            <rect x={177 + dx} y={topTier.top - 26} width="5" height="26" rx="2.2" fill={palette.accent} />
+            <rect x={177 + dx} y={topTier.top - 26} width="2.2" height="26" rx="1" fill="#ffffff" opacity="0.35" />
+            <ellipse cx={179.5 + dx} cy={topTier.top - 32} rx="3.4" ry="5.4" fill="#ffb800" />
+            <ellipse cx={179.5 + dx} cy={topTier.top - 31} rx="1.5" ry="2.6" fill="#fff6df" />
+          </g>
+        ))}
+      {/* topper */}
+      <text x="180" y={glyphY} textAnchor="middle" fontSize="34">
+        {glyph}
+      </text>
+      {/* style garnish */}
+      {style === "playful" &&
+        [
+          [96, 118, 3.4, palette.accent],
+          [258, 96, 2.8, "#ffb800"],
+          [72, 210, 2.6, "#a78bfa"],
+          [292, 186, 3.2, palette.accent],
+          [118, 74, 2.4, "#ffb800"],
+          [244, 226, 2.6, "#a78bfa"],
+        ].map(([cx, cy, r, fill], i) => <circle key={i} cx={cx as number} cy={cy as number} r={r as number} fill={fill as string} />)}
+      {style === "festive" &&
+        [
+          [86, 108],
+          [274, 88],
+          [300, 204],
+        ].map(([x, y], i) => (
+          <text key={i} x={x} y={y} fontSize="15" fill="#ffb800" textAnchor="middle">
+            ✦
+          </text>
+        ))}
+    </svg>
+  );
+}
+
+export function CakeStudio({ block, actions }: { block: Extract<UiBlock, { type: "cake_design" }>; actions: BlockActions }) {
+  const t = useT();
+  const lang = useLang();
+  const [flavourKey, setFlavourKey] = useState(block.flavour);
+  const [styleKey, setStyleKey] = useState(block.style);
+  const [icing, setIcing] = useState(block.icing_text ?? "");
+  const [sugs, setSugs] = useState<string[]>(block.suggestions ?? []);
+  const [sugsBusy, setSugsBusy] = useState(false);
+  const [added, setAdded] = useState<Record<string, boolean>>({});
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const flavour = CAKE_FLAVOURS.find((f) => f.key === flavourKey);
+  const palette = flavour?.palette ?? block.palette;
+  const tiers = CAKE_STYLES.find((s) => s.key === styleKey)?.tiers ?? block.tiers;
+  const ro = actions.readOnly === true;
+
+  const moreIdeas = async () => {
+    if (sugsBusy) return;
+    setSugsBusy(true);
+    const got = await fetchGiftSuggestions(`${flavour?.label ?? block.flavour} cake${block.to ? ` for ${block.to}` : ""}`, "cakes", lang);
+    if (got.length) setSugs(got);
+    setSugsBusy(false);
+  };
+
+  const exportPng = (share: boolean) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const xml = new XMLSerializer().serializeToString(svg);
+    const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const W = 1080;
+      const H = 1220;
+      const c = document.createElement("canvas");
+      c.width = W;
+      c.height = H;
+      const g = c.getContext("2d")!;
+      const grad = g.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, palette.cream);
+      grad.addColorStop(1, "#ffffff");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, W, H);
+      g.strokeStyle = "rgba(64,41,112,0.25)";
+      g.lineWidth = 6;
+      g.strokeRect(36, 36, W - 72, H - 72);
+      g.drawImage(img, 30, 80, 1020, 963);
+      g.textAlign = "center";
+      g.fillStyle = "#402970";
+      g.font = "600 34px 'Instrument Sans', system-ui";
+      g.fillText("🌳 designed with Kapu · kapuwa.shop", W / 2, H - 80);
+      c.toBlob(async (b) => {
+        if (!b) return;
+        const file = new File([b], "kapu-cake.png", { type: "image/png" });
+        if (share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text: icing || undefined }).catch(() => {});
+          return;
+        }
+        const u = URL.createObjectURL(b);
+        const a = document.createElement("a");
+        a.href = u;
+        a.download = "kapu-cake.png";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(u), 5000);
+      }, "image/png");
+    };
+    img.src = url;
+  };
+
+  return (
+    <div className={`rise my-2 max-w-[420px] overflow-hidden rounded-2xl ${CARD}`}>
+      {/* header */}
+      <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
+        <IconCake size={16} className="text-leaf" />
+        <p className="text-[13px] font-bold text-ink">{block.title || t("cakeStudio")}</p>
+        {block.occasion && (
+          <span className="ml-auto rounded-full bg-gold-soft px-2.5 py-0.5 text-[10px] font-bold text-gold-deep">
+            {block.glyph} {block.occasion}
+          </span>
+        )}
+      </div>
+
+      {/* the cake stage */}
+      <div className="px-6 pt-4" style={{ background: `linear-gradient(180deg, ${palette.cream}66, transparent)` }}>
+        <CakeSvg palette={palette} tiers={tiers} style={styleKey} glyph={block.glyph} icing={icing} svgRef={svgRef} />
+      </div>
+
+      <div className="flex flex-col gap-3 p-4">
+        {/* icing text — pipes onto the cake live */}
+        <div>
+          <div className="flex items-center gap-2 rounded-[13px] border-[1.5px] border-edge bg-surface px-3 focus-within:border-leaf">
+            <IconPencil size={13} className="shrink-0 text-ink-faint" />
+            <input
+              value={icing}
+              onChange={(e) => setIcing(e.target.value.slice(0, 40))}
+              placeholder={t("cakeIcingPh")}
+              disabled={ro}
+              className="w-full bg-transparent py-2 text-[13px] outline-none placeholder:text-ink-faint"
+            />
+            <span className="shrink-0 text-[10px] tabular-nums text-ink-faint">{icing.length}/40</span>
+          </div>
+          {!ro && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {sugs.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setIcing(s.slice(0, 40))}
+                  className="rounded-full border border-cream-deep bg-cream px-2.5 py-1 text-[11px] text-ink-soft transition hover:border-leaf hover:text-leaf"
+                >
+                  {s}
+                </button>
+              ))}
+              <button
+                onClick={() => void moreIdeas()}
+                disabled={sugsBusy}
+                className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-gold-deep transition active:scale-95"
+              >
+                <IconSparkle size={11} />
+                {sugsBusy ? "…" : t("aiWrite")}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* flavour + style */}
+        <div className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{t("cakeFlavourLabel")}</span>
+          <div className="flex gap-1.5">
+            {CAKE_FLAVOURS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => !ro && setFlavourKey(f.key)}
+                title={f.label}
+                aria-label={f.label}
+                disabled={ro}
+                className={`h-7 w-7 rounded-full border-2 transition active:scale-90 ${
+                  f.key === flavourKey ? "border-leaf ring-2 ring-leaf/30" : "border-white/60 dark:border-black/30"
+                }`}
+                style={{ background: `linear-gradient(135deg, ${f.palette.base}, ${f.palette.cream})` }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{t("cakeStyleLabel")}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {CAKE_STYLES.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => !ro && setStyleKey(s.key)}
+                disabled={ro}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition active:scale-95 ${
+                  s.key === styleKey ? "bg-leaf text-white" : "border border-cream-deep bg-cream text-ink-soft"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* real cakes that make the design orderable */}
+        {block.products.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{t("cakeMatches")}</p>
+            <div className="rail -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {block.products.map((p) => (
+                <div key={p.id} className="w-[136px] shrink-0 overflow-hidden rounded-[14px] border border-line bg-surface">
+                  <button onClick={() => !ro && actions.onOpenProduct(p)} className="block h-[92px] w-full overflow-hidden bg-cream" disabled={ro}>
+                    {p.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={resizeImage(p.image, 400) ?? p.image} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+                    )}
+                  </button>
+                  <div className="flex flex-col gap-1 p-2">
+                    <p className="line-clamp-2 min-h-[26px] text-[10.5px] leading-tight text-ink">{p.name}</p>
+                    <p className="price-serif text-[12.5px] font-bold text-ink">{fmt(p.price, p.currency)}</p>
+                    {!ro && (
+                      <button
+                        onClick={() => {
+                          actions.onCartAdd(p, icing.trim() ? { icing: icing.trim() } : undefined);
+                          setAdded((a) => ({ ...a, [p.id]: true }));
+                        }}
+                        className={`rounded-[9px] py-1.5 text-[10.5px] font-bold transition active:scale-[0.97] ${
+                          added[p.id] ? "bg-good-soft text-good" : "bg-gold text-ink shadow-sm dark:text-[#322b45]"
+                        }`}
+                      >
+                        {added[p.id] ? "✓" : icing.trim() ? t("cakeAddWithIcing") : t("cakeAdd")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* keep the design */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportPng(false)}
+            className="flex-1 rounded-[12px] border border-edge bg-card py-2 text-[11.5px] font-semibold text-leaf transition active:scale-[0.98]"
+          >
+            ⬇️ {t("cardDownload")}
+          </button>
+          <button
+            onClick={() => exportPng(true)}
+            className="flex-1 rounded-[12px] border border-edge bg-card py-2 text-[11.5px] font-semibold text-leaf transition active:scale-[0.98]"
+          >
+            📤 {t("cardShare")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── no results — always a path forward ─────────────────────────────────
 
 export function NoResults({ query }: { query: string }) {
@@ -1873,6 +2232,8 @@ export function BlockRenderer({ block, actions, deliverTo }: { block: UiBlock; a
       return <OrderTimeline block={block} actions={actions} />;
     case "greeting_card":
       return <GreetingCard block={block} />;
+    case "cake_design":
+      return <CakeStudio block={block} actions={actions} />;
     case "import_quote":
       return <ImportQuoteCard block={block} actions={actions} />;
     case "account_card":

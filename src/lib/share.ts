@@ -17,6 +17,7 @@ const SHAREABLE_BLOCKS: ReadonlySet<UiBlock["type"]> = new Set([
   "category_tree",
   "import_quote", // its checkout_url is a generic, shareable product quote
   "greeting_card",
+  "cake_design", // deterministic palette + public products; icing is the sharer's own words
   "no_results",
 ]);
 

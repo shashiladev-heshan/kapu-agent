@@ -34,6 +34,7 @@ export const TOOL_LABELS: Record<string, string> = {
   list_schedules: "Checking your schedules…",
   cancel_schedule: "Cancelling…",
   create_card: "Designing your card…",
+  design_cake: "Firing up the Cake Studio…",
   suggest_replies: "…",
 };
 
@@ -141,6 +142,11 @@ export function stepFor(name: string, input: Record<string, unknown>): string | 
     case "create_card": {
       const to = clip(input.to, 30);
       return to ? `Designing a card for ${to}` : "Designing your card";
+    }
+    case "design_cake": {
+      const f = clip(input.flavour, 24);
+      const to = clip(input.to, 24);
+      return `Designing a${f ? ` ${f}` : ""} cake${to ? ` for ${to}` : ""}`;
     }
     default:
       return TOOL_LABELS[name] ?? null;

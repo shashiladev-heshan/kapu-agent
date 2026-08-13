@@ -351,6 +351,20 @@ async function renderBlock(chat: string, session: Awaited<ReturnType<typeof getS
     case "greeting_card":
       await sendText(chat, `💌 *To ${block.to}*\n${block.message}${block.from ? `\n— ${block.from}` : ""}`);
       break;
+    case "cake_design": {
+      // Designer canvas is web-only — send the design summary, then the
+      // matches through the numbered product-grid path (waPicks and all).
+      await sendText(
+        chat,
+        `${block.glyph} *Cake Studio* — ${block.flavour} · ${block.style}` +
+          (block.icing_text ? `\n✍️ _"${block.icing_text}"_` : "") +
+          `\n🌳 _Design it live at kapuwa.shop — real cakes that match:_`
+      );
+      if (block.products.length) {
+        await renderBlock(chat, session, { type: "product_grid", products: block.products.slice(0, 4) });
+      }
+      break;
+    }
     case "options_card":
       await sendImage(chat, block.image_url, block.caption ?? "");
       break;

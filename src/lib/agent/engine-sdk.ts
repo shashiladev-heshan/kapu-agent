@@ -265,6 +265,20 @@ function buildKapuServer(session: Session, send: (e: StreamEvent) => void) {
         run("create_card")
       ),
       tool(
+        "design_cake",
+        "Open Kapu's CAKE STUDIO — live cake-designer canvas (flavour palette, style, icing piped live, AI icing suggestions) plus real matching Kapruka cakes to add with that icing. Use for design/personalise/occasion-cake intents, not plain browsing.",
+        {
+          occasion: z.string().optional(),
+          flavour: z.string().optional().describe("chocolate | vanilla | ribbon | red velvet | butterscotch | coffee — free text ok"),
+          style: z.enum(["classic", "playful", "elegant", "festive"]).optional(),
+          icing_text: z.string().optional().describe("≤40 chars, any script"),
+          to: z.string().optional(),
+          max_price: z.number().optional().describe("LKR budget cap for real-cake matches"),
+          title: z.string().optional(),
+        },
+        run("design_cake")
+      ),
+      tool(
         "account_profile",
         "Look up the customer's Kapruka account profile (name/email/language) to greet a returning customer by name + prefill checkout. ONLY with an email they TYPED this chat — never guess. Once linked, account_orders/account_addresses need no email.",
         { email: z.string().optional() },
@@ -330,6 +344,7 @@ const KAPU_TOOL_NAMES = [
   "list_schedules",
   "cancel_schedule",
   "create_card",
+  "design_cake",
   "account_profile",
   "account_orders",
   "account_addresses",

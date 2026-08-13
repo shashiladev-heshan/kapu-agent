@@ -3,6 +3,8 @@
 // UiBlocks for the frontend as a side channel.
 
 import type Anthropic from "@anthropic-ai/sdk";
+import { cakeFlavour, cakeStyle, occasionGlyph } from "@/lib/cake";
+import { writeGiftMessages } from "@/lib/gift/writer";
 import { kapruka, parseJson, accountToolsReady } from "@/lib/kapruka/shield";
 import { getHotDeals } from "@/lib/kapruka/promos";
 import { importQuote, isAmazonUrl } from "@/lib/kapruka/globalshop";
@@ -324,6 +326,23 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
         occasion: { type: "string", description: "e.g. 'birthday', 'Esala', 'Avurudu', 'Vesak', 'Christmas', 'Deepavali', 'love'" },
       },
       required: ["to", "message"],
+    },
+  },
+  {
+    name: "design_cake",
+    description:
+      "Open Kapu's CAKE STUDIO — a live, interactive cake-designer canvas. Call when the user wants to design/personalise/customise a cake or asks for cake ideas for an occasion ('cake for Amma's birthday', 'design me an avurudu cake') — NOT for plain browsing (that's search_products). Renders a designable cake preview (flavour palette, style, icing text piped live on the cake, AI icing suggestions) PLUS real matching Kapruka cakes the user can add with that icing in one tap. Pass whatever they specified; smart defaults fill the rest.",
+    input_schema: {
+      type: "object",
+      properties: {
+        occasion: { type: "string", description: "e.g. 'birthday', 'anniversary', 'valentine', 'avurudu', 'graduation'" },
+        flavour: { type: "string", description: "chocolate | vanilla | ribbon | red velvet | butterscotch | coffee (free text ok — fuzzy-matched)" },
+        style: { type: "string", enum: ["classic", "playful", "elegant", "festive"] },
+        icing_text: { type: "string", description: "Text to pipe on the cake, ≤40 chars, any script" },
+        to: { type: "string", description: "Who it's for, e.g. 'Amma' — personalises the icing suggestions" },
+        max_price: { type: "number", description: "Budget cap in LKR for the real-cake matches" },
+        title: { type: "string", description: "Short heading above the studio, in the user's language" },
+      },
     },
   },
   {
@@ -1068,6 +1087,77 @@ export async function executeTool(
         color_to: theme.to,
       });
       return JSON.stringify({ rendered: true, note: "Card shown with download & share buttons. Tell them they can attach the message to the order too." });
+    }
+
+    case "design_cake": {
+      const flavour = cakeFlavour(typeof input.flavour === "string" ? input.flavour : undefined);
+      const style = cakeStyle(typeof input.style === "string" ? input.style : undefined);
+      const glyph = occasionGlyph(typeof input.occasion === "string" ? input.occasion : undefined);
+      const icing = typeof input.icing_text === "string" ? input.icing_text.slice(0, 40).trim() : "";
+      const to = typeof input.to === "string" ? input.to.slice(0, 40) : undefined;
+
+      // Real cakes make the design orderable — same search + summary path as
+      // search_products, and a studio with no matches still renders.
+      let products: ProductSummary[] = [];
+      try {
+        const res = parseJson(
+          await kapruka("kapruka_search_products", {
+            q: flavour.q,
+            ...(typeof input.max_price === "number" ? { max_price: input.max_price } : {}),
+            limit: 8,
+            in_stock_only: true,
+            currency,
+          })
+        );
+        const rawList = (res.products ?? res.results ?? res.items ?? []) as Record<string, unknown>[];
+        products = rawList
+          .map((p) => toSummary(p, currency))
+          .filter((p) => p.price != null)
+          .slice(0, 6);
+        void recoSeen(products).catch(() => {});
+      } catch {
+        /* studio renders without matches */
+      }
+
+      // Personalised icing lines (haiku) — a bonus, never a dependency.
+      let suggestions: string[] | undefined;
+      try {
+        const people = await listPeople(session);
+        const occs = await upcomingOccasions(session, 45);
+        suggestions =
+          (await writeGiftMessages({
+            name: `${flavour.label} cake${to ? ` for ${to}` : ""}`,
+            category: "cakes",
+            lang: session.language === "si" || session.language === "ta" ? session.language : "en",
+            kind: "icing",
+            recipients: people.recipients.slice(0, 6).map((r) => ({ name: r.name, relationship: r.relationship })),
+            occasions: occs.map((o) => ({ recipient: o.recipient, type: o.type, in_days: o.in_days })),
+            sessionId: session.id,
+          })) ?? undefined;
+      } catch {
+        suggestions = undefined;
+      }
+
+      emit({
+        type: "cake_design",
+        title: typeof input.title === "string" ? input.title.slice(0, 60) : undefined,
+        occasion: typeof input.occasion === "string" ? input.occasion.slice(0, 40) : undefined,
+        glyph,
+        flavour: flavour.key,
+        style: style.key,
+        tiers: style.tiers,
+        palette: flavour.palette,
+        ...(icing ? { icing_text: icing } : {}),
+        ...(to ? { to } : {}),
+        ...(suggestions?.length ? { suggestions } : {}),
+        products,
+      });
+      return JSON.stringify({
+        studio: { flavour: flavour.key, style: style.key, occasion: input.occasion ?? null, icing_text: icing || null },
+        ...(suggestions?.length ? { icing_suggestions: suggestions } : {}),
+        matches: products.map(modelView),
+        note: "Cake Studio rendered — the user can retheme flavours, edit the piped icing live, and add a real cake WITH that icing in one tap. Keep the reply short; the canvas does the talking.",
+      });
     }
 
     case "account_profile": {

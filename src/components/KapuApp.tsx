@@ -6088,6 +6088,7 @@ const STEP_PAST: Record<string, string> = {
   list_schedules: "Checked schedules",
   cancel_schedule: "Cancelled a schedule",
   create_card: "Designed a card",
+  design_cake: "Designed a cake",
 };
 
 function ThinkingSteps({ steps, streaming, label }: { steps: AgentStep[]; streaming: boolean; label: string | null }) {
