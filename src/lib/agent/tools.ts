@@ -1021,12 +1021,26 @@ export async function executeTool(
         return JSON.stringify({ error: "Not signed in — schedules need a Google-signed-in account. Ask the user to sign in (top-right), then retry." });
       }
       try {
+        const kind = input.kind === "watch_order" ? "watch_order" : input.kind === "watch_price" ? "watch_price" : "task";
+        const orderNumber = input.order_number ? String(input.order_number).trim().toUpperCase().slice(0, 40) : undefined;
+        // Same idempotency as the Track-modal path: one active watch per order.
+        if (kind === "watch_order" && orderNumber) {
+          const existing = (await listSchedules(session.userSub)).find(
+            (s) => s.kind === "watch_order" && (s.orderNumber ?? "").toUpperCase() === orderNumber && s.active,
+          );
+          if (existing) {
+            return JSON.stringify({
+              already_watching: { id: existing.id, title: existing.title },
+              note: "This order already has an active watch — no duplicate created. Tell the user alerts are already on.",
+            });
+          }
+        }
         const sched = await createSchedule({
           sub: session.userSub,
           title: String(input.title ?? "").slice(0, 60) || "Standing wish",
           instruction: String(input.instruction ?? "").slice(0, 500),
-          kind: input.kind === "watch_order" ? "watch_order" : input.kind === "watch_price" ? "watch_price" : "task",
-          ...(input.order_number ? { orderNumber: String(input.order_number).slice(0, 40) } : {}),
+          kind,
+          ...(orderNumber ? { orderNumber } : {}),
           ...(input.product_id ? { productId: String(input.product_id).slice(0, 80) } : {}),
           cadence: {
             kind: (input.cadence_kind as "once" | "daily" | "weekly" | "monthly" | "yearly") ?? "once",
@@ -1038,12 +1052,15 @@ export async function executeTool(
           allowOrder: input.allow_order === true,
         });
         const { getUser } = await import("@/lib/auth/users");
-        const linked = Boolean((await getUser(session.userSub))?.tgChatId);
+        const user = await getUser(session.userSub);
+        const channels = [user?.tgChatId ? "Telegram" : null, user?.waPhone ? "WhatsApp" : null].filter((c): c is string => Boolean(c));
         return JSON.stringify({
           created: { id: sched.id, title: sched.title, next_run_sl: new Date(sched.nextRun).toLocaleString("en-GB", { timeZone: "Asia/Colombo" }) },
           standing_order_consent: sched.allowOrder,
-          telegram_linked: linked,
-          note: linked ? "Results will arrive on their Telegram." : "Telegram not linked — suggest sending /link to the bot and entering the code under Schedules; until then results land in the web bell.",
+          alert_channels: channels,
+          note: channels.length
+            ? `Results will arrive on their ${channels.join(" + ")}.`
+            : 'No alert channel linked — suggest linking Telegram or WhatsApp under Standing wishes (send /link to the Telegram bot, or the word "link" to the WhatsApp number, then enter the code shown); until then results land in the web bell.',
         });
       } catch (err) {
         return JSON.stringify({ error: err instanceof Error ? err.message : "Could not create schedule." });
