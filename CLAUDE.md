@@ -44,13 +44,14 @@ Next.js 15 monolith — frontend + backend in one Node process, Railway ([[why-m
 ```
 Browser (PWA, SSE) → /api/chat ─┐
 Telegram /api/telegram ─────────┤→ SAME agent core → MCP Shield → mcp.kapruka.com
-Schedules runner (60s tick) ────┘   /api/tts · /api/stt · /api/scan
+WhatsApp /api/whatsapp (kapu-wa)┤   /api/tts · /api/stt · /api/scan
+Schedules runner (60s tick) ────┘
 ```
 
 | Area | Where | Brain note |
 |---|---|---|
 | Engine picked by credential (API key ↔ OAuth) | `src/lib/agent/loop.ts`, `engine-sdk.ts` | [[dual-engine]] |
-| 27 tools + executors → UiBlocks | `src/lib/agent/tools.ts`, `steps.ts` | [[tool-registry]] |
+| 33 tools + executors → UiBlocks | `src/lib/agent/tools.ts`, `steps.ts` | [[tool-registry]] |
 | Persona + turn context | `src/lib/agent/system-prompt.ts` | [[system-prompt]] |
 | MCP choke point (cache/coalesce/bucket) | `src/lib/kapruka/shield.ts` | [[mcp-shield]] |
 | Payload normalizers | `src/lib/kapruka/normalize.ts` | [[payload-normalizing]] |
@@ -58,6 +59,7 @@ Schedules runner (60s tick) ────┘   /api/tts · /api/stt · /api/scan
 | Sessions (web / `tg_` / `sched_`), optional Mongo | `src/lib/session/store.ts` | [[session-store]] |
 | Schedules (standing wishes, order watch) | `src/lib/schedules/` | [[schedules]] |
 | Telegram channel | `src/lib/telegram/*` | [[telegram]] |
+| WhatsApp channel (Go sidecar `kapu-wa`) | `wa/`, `src/lib/whatsapp/*` | [[whatsapp]] |
 | KB → Chroma + `kapruka_help` | `src/lib/kb/` | [[kb-chroma]] |
 | Taste engine + rails | `src/lib/reco/store.ts`, `/api/discover`, `/api/extras` | [[taste-engine]], [[discover-rails]], [[extras-promos]] |
 | People/occasions + festivals | `src/lib/agent/memory.ts`, `src/lib/festivals.ts` | [[memory-festivals]] |
