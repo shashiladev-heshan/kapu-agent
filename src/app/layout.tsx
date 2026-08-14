@@ -1,19 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Sans, Instrument_Serif, Noto_Sans_Sinhala, Noto_Sans_Tamil } from "next/font/google";
 import "./globals.css";
-
-// Editorial serif for display/prices + Instrument Sans body, with Noto
-// Sinhala/Tamil so සිංහල/தமிழ் render crisply on every OS (judges may be
-// on Windows, whose Sinhala fallback is rough).
-const display = Instrument_Serif({
-  subsets: ["latin"],
-  variable: "--font-display-var",
-  weight: "400",
-  style: ["normal", "italic"],
-});
-const body = Instrument_Sans({ subsets: ["latin"], variable: "--font-body-var", weight: ["400", "500", "600", "700"] });
-const sinhala = Noto_Sans_Sinhala({ subsets: ["sinhala"], variable: "--font-sinhala-var", weight: ["400", "500", "600", "700"] });
-const tamil = Noto_Sans_Tamil({ subsets: ["tamil"], variable: "--font-tamil-var", weight: ["400", "500", "600", "700"] });
+// Fonts (Instrument Serif/Sans + Noto Sinhala/Tamil) are SELF-HOSTED:
+// public/fonts.css + public/fonts/*.woff2, linked raw in <head> below.
+// Two constraints force this shape: next/font/google fetches from
+// fonts.gstatic.com at BUILD time and a CDN outage killed two Railway
+// deploys on 14 Aug; and the app CSS pipeline's minifier strips
+// variable-weight `font-weight: 400 700` @font-face rules, so the file
+// must bypass it.
 
 export const metadata: Metadata = {
   title: "Kapu — Sri Lanka's AI Shopping Concierge",
@@ -56,11 +49,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${display.variable} ${body.variable} ${sinhala.variable} ${tamil.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* PWA links MUST be here, not left to the metadata export. This
             layout renders an explicit <head>, and Next then emits the
@@ -71,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             CDP — Page.getAppManifest returned an empty url until this. */}
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="stylesheet" href="/fonts.css?v=1" />
         {/* Apply theme before first paint — Kapu defaults to DARK; an explicit
             light choice (toggle) wins. OS theme changes are followed live in
             KapuApp until the user picks one. */}
