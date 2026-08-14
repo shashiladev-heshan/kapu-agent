@@ -22,7 +22,7 @@ Named after the mythical **kapruka** — the wish-granting tree. Tell Kapu what 
 ### 📸 Snap-a-list (vision)
 Photograph a handwritten shopping list — Sinhala, Tamil, or Tanglish scrawl — and Kapu reads it (Claude vision, GPT-4o-mini fallback), translates "හාල්" → rice, and fills the basket. Also understands **product photos** ("find me this") and **scene photos** ("recreate this birthday table"). Any shop-shelf or competitor screenshot becomes an honest **price-check**.
 
-### 🛍 Agentic commerce, visually rich (27 tools)
+### 🛍 Agentic commerce, visually rich (33 tools)
 - Streaming SSE chat with **UI blocks**, not walls of text: product rails with *KAPU'S PICK*, a **cake-moment hero** (inline icing-message field + delivery-date pills + variant picker), **compare duels** with per-row winners and Kapu's verdict, delivery cards, live basket, order timeline.
 - **Instant cart** — ➕ steppers hit `/api/cart` directly, no LLM round-trip.
 - **Click any product** → full-detail modal fetched straight from the MCP (gallery, variants, delivery quote) with an *"Ask Kapu about this"* handoff.
@@ -84,7 +84,7 @@ Works fully as a guest. Optional **Sign in with Google** (GIS ID-token → HMAC 
 
 ```
 Browser (PWA, SSE) ──► /api/chat ─┐
-Telegram (private + groups) ──────┤──► ONE agent core (27 tools) ──► MCP Shield ──► mcp.kapruka.com
+Telegram (private + groups) ──────┤──► ONE agent core (33 tools) ──► MCP Shield ──► mcp.kapruka.com
      /api/telegram (webhook)      │        │ system prompt · session store · memory
 Voice /api/stt · /api/tts ────────┘        │
 Vision /api/scan ──────────────────────────┘
@@ -154,7 +154,7 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-domain>/a
 Everything shipped, in order, across ~48 hours:
 
 - **UI**: implemented the 11-section "Kapu redesigned" spec — app shell (sidebar → icon rail + live basket panel), Instrument Serif design system, 1.6px stroke icons, dark mode, PWA
-- **Agent core**: 27 tools over the Kapruka MCP behind a caching/coalescing/rate-limited shield; dual Claude engines (Messages API + Agent SDK) with automatic billing fallback
+- **Agent core**: 33 tools over the Kapruka MCP (all 8 public + 3 finalist account tools) behind a caching/coalescing/rate-limited shield; dual Claude engines (Messages API + Agent SDK) with automatic billing fallback
 - **Blocks**: product rails with pick/value badges, cake-moment hero (icing + date pills + variants + live delivery quote), compare duels with verdicts, confirm-gate order summary, price-locked pay card, order timeline with delivery photo-proof
 - **Voice**: full hands-free loop (Web Speech si-LK + Whisper fallback), instant spoken acks, barge-in, iOS stall-finalizer, language cycling — and native **Thilini/Saranya** neural voices via Azure with automatic script switching
 - **Vision**: snap-a-list camera OCR (Sinhala handwriting → basket), scene recreation, price-check-anything
