@@ -37,9 +37,11 @@ export interface Session {
   voice?: boolean;
   /** transient: signed-in Google sub for this turn (account memory) */
   userSub?: string;
-  /** transient: last quick-reply chips shown in Telegram (callback lookup) */
+  /** last quick-reply chips shown in Telegram (callback lookup) — persisted
+   *  so a chip tapped after a redeploy still resolves */
   tgChips?: string[];
-  /** transient: product ids behind the numbered list last sent on WhatsApp */
+  /** product ids behind the numbered list last sent on WhatsApp — persisted
+   *  so "3" sent after a restart still means item 3 */
   waPicks?: string[];
   /** transient: the user's ♥ favorites for this turn's context */
   favorites?: string[];

@@ -98,7 +98,7 @@ async function transcribe(b64: string, mime: string): Promise<string | null> {
 /** A bare "2" means the second thing we last offered. */
 function resolveNumberedReply(text: string, picks: string[] | undefined): string | null {
   if (!picks?.length) return null;
-  const m = /^\s*([1-9])\s*$/.exec(text);
+  const m = /^\s*([1-9]\d?)\s*$/.exec(text);
   if (!m) return null;
   return picks[Number(m[1]) - 1] ?? null;
 }
@@ -123,7 +123,7 @@ export async function processInbound(msg: WaInbound): Promise<void> {
   if (msg.media_kind === "audio" && msg.media_b64) {
     const said = await transcribe(msg.media_b64, msg.mime_type ?? "audio/ogg");
     if (!said) {
-      await sendText(chat, "Aiyo, I couldn't hear that clearly 💔 — try typing it?");
+      await sendText(chat, "Aiyo, I couldn't hear that clearly 💔 — try typing it?", true);
       return;
     }
     text = said;
@@ -137,14 +137,17 @@ export async function processInbound(msg: WaInbound): Promise<void> {
       if (result) text = scanToMessage(result) || text;
     } catch (err) {
       console.error("[whatsapp] scan failed:", err instanceof Error ? err.message : err);
-      await sendText(chat, "I couldn't read that image, sorry — what are you looking for?");
+      await sendText(chat, "I couldn't read that image, sorry — what are you looking for?", true);
       return;
     }
   }
 
   // "@kapu" with nothing else is still a greeting, not a no-op.
   if (!text && addressed && msg.is_group) text = "hi";
-  if (!text) return;
+  if (!text) {
+    await endTurn(chat); // drop the typing indicator — nothing to answer
+    return;
+  }
 
   // "link" — bind this WhatsApp number to a signed-in web account so
   // standing-wish alerts arrive here (mirrors Telegram's /link).
@@ -152,7 +155,8 @@ export async function processInbound(msg: WaInbound): Promise<void> {
     const code = issueWaLinkCode(phone);
     await sendText(
       chat,
-      `🔗 Your link code: *${code}*\n\nIn the Kapu web app (kapuwa.shop), open *Standing wishes* and enter this code — your schedule alerts will arrive here too. It expires in 10 minutes.`
+      `🔗 Your link code: *${code}*\n\nIn the Kapu web app (kapuwa.shop), open *Standing wishes* and enter this code — your schedule alerts will arrive here too. It expires in 10 minutes.`,
+      true
     );
     return;
   }
@@ -160,7 +164,8 @@ export async function processInbound(msg: WaInbound): Promise<void> {
   // "2" → the second product we offered last turn.
   const picked = resolveNumberedReply(text, session.waPicks);
   if (picked) {
-    const existing = session.cart?.items?.find((i) => i.product_id === picked);
+    // ids case-vary between search results and the cart — match like cart.ts does
+    const existing = session.cart?.items?.find((i) => i.product_id.toLowerCase() === picked.toLowerCase());
     const result = await applyCartUpdate(session, {
       product_id: picked,
       quantity: (existing?.quantity ?? 0) + 1,
@@ -172,6 +177,7 @@ export async function processInbound(msg: WaInbound): Promise<void> {
     } else {
       await sendText(chat, "Added to your basket ✓");
       await sendCart(chat, session.cart);
+      await endTurn(chat); // drop the typing indicator — no agent turn follows
       return;
     }
   }
@@ -216,9 +222,19 @@ async function handleTurn(
   }
 
   if (text.trim()) await sendText(chat, mdToWhatsapp(text));
-  for (const block of blocks) {
+  // A turn that mutates the basket repeatedly emits a cart block per change —
+  // on WhatsApp only the final state is worth a message.
+  const lastCart = [...blocks].reverse().find((b) => b.type === "cart");
+  const toRender = blocks.filter((b) => b.type !== "cart" || b === lastCart);
+  // Numbered replies span the whole turn (grid 2 continues where grid 1 ended),
+  // so picks reset only when this turn offers new ones.
+  if (toRender.some((b) => b.type === "product_grid" || b.type === "product_hero" || b.type === "compare_grid")) {
+    session.waPicks = [];
+  }
+  const render: RenderCtx = { images: IMAGE_BUDGET };
+  for (const block of toRender) {
     await beat();
-    await renderBlock(chat, session, block);
+    await renderBlock(chat, session, block, render);
   }
   // Drops the typing indicator even when a turn produced no blocks at all.
   await endTurn(chat);
@@ -228,11 +244,16 @@ async function handleTurn(
 /** Deliver blocks outside a chat turn (scheduled runs) — chips skipped. */
 export async function deliverBlocksWa(chat: string, blocks: UiBlock[]): Promise<void> {
   const session = await getSession(sessionId(chat));
+  if (blocks.some((b) => b.type === "product_grid" || b.type === "product_hero" || b.type === "compare_grid")) {
+    session.waPicks = [];
+  }
+  const render: RenderCtx = { images: IMAGE_BUDGET };
   for (const b of blocks) {
     if (b.type === "chips" || b.type === "speech") continue;
     await beat();
-    await renderBlock(chat, session, b);
+    await renderBlock(chat, session, b, render);
   }
+  saveSession(session);
 }
 
 async function sendCart(chat: string, cart: Cart): Promise<void> {
@@ -247,15 +268,43 @@ async function sendCart(chat: string, cart: Cart): Promise<void> {
   await sendText(chat, `🧺 *Your basket*\n${lines}\n\nTotal: *${fmt(total, cart.items[0]?.currency ?? "LKR")}*`);
 }
 
-async function renderBlock(chat: string, session: Awaited<ReturnType<typeof getSession>>, block: UiBlock): Promise<void> {
+/** Per-delivery render state: a photo budget so one multi-list turn (e.g. a
+ *  scanned six-item grocery list) doesn't flood the chat with 20+ images —
+ *  grids past the budget arrive as compact numbered text instead. */
+type RenderCtx = { images: number };
+const IMAGE_BUDGET = 12;
+
+const numberHint = (start: number, count: number) =>
+  count === 1
+    ? `Reply *${start + 1}* to add it to your basket.`
+    : `Reply with a number (${start + 1}–${start + count}) to add it to your basket.`;
+
+async function renderBlock(
+  chat: string,
+  session: Awaited<ReturnType<typeof getSession>>,
+  block: UiBlock,
+  ctx: RenderCtx = { images: IMAGE_BUDGET }
+): Promise<void> {
   switch (block.type) {
     case "product_grid": {
       const shown = block.products.slice(0, 4);
-      // Remember what "1/2/3" will mean on the next turn.
-      session.waPicks = shown.map((p) => p.id);
-      let n = 0;
+      // Numbers continue across the turn's grids — "5" is item 5 overall.
+      const start = (session.waPicks ??= []).length;
+      session.waPicks.push(...shown.map((p) => p.id));
+      if (ctx.images < shown.length) {
+        const lines = shown
+          .map((p, i) => `${p.pick ? "⭐" : "▫️"} *${start + i + 1}. ${p.name}* — ${fmt(p.price, p.currency)}`)
+          .join("\n");
+        await sendText(
+          chat,
+          `${block.title ? `*${mdToWhatsapp(block.title)}*\n` : ""}${lines}\n\n_${numberHint(start, shown.length)}_`
+        );
+        break;
+      }
+      ctx.images -= shown.length;
+      let n = start;
       for (const p of shown) {
-        if (n > 0) await beat(600, 1400); // photos arrive at human speed
+        if (n > start) await beat(600, 1400); // photos arrive at human speed
         n++;
         const was =
           p.compare_at_price && p.price && p.compare_at_price > p.price ? ` ~${fmt(p.compare_at_price, p.currency)}~` : "";
@@ -266,23 +315,26 @@ async function renderBlock(chat: string, session: Awaited<ReturnType<typeof getS
         if (img) await sendImage(chat, img, caption);
         else await sendText(chat, caption);
       }
-      await sendText(chat, `_Reply with a number (1–${shown.length}) to add it to your basket._`);
+      await sendText(chat, `_${numberHint(start, shown.length)}_`);
       break;
     }
     case "product_hero": {
       const p = block.product;
-      session.waPicks = [p.id];
+      const start = (session.waPicks ??= []).length;
+      session.waPicks.push(p.id);
       const caption = `*${p.name}*\n${fmt(p.price, p.currency)}${p.summary ? `\n_${p.summary.slice(0, 140)}_` : ""}`;
       const img = resizeImage(p.image, 1200);
       if (img) await sendImage(chat, img, caption);
       else await sendText(chat, caption);
-      await sendText(chat, "_Reply *1* to add it to your basket._");
+      ctx.images -= 1;
+      await sendText(chat, `_${numberHint(start, 1)}_`);
       break;
     }
     case "compare_grid": {
-      session.waPicks = block.products.map((p) => p.id);
+      const start = (session.waPicks ??= []).length;
+      session.waPicks.push(...block.products.map((p) => p.id));
       const lines = block.products
-        .map((p, i) => `${i === 0 ? "⭐" : "▫️"} *${i + 1}. ${p.name}* — ${fmt(p.price, p.currency)}`)
+        .map((p, i) => `${i === 0 ? "⭐" : "▫️"} *${start + i + 1}. ${p.name}* — ${fmt(p.price, p.currency)}`)
         .join("\n");
       await sendText(
         chat,

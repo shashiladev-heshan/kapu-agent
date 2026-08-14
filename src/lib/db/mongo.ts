@@ -34,6 +34,8 @@ interface SessionDoc {
   account?: unknown;
   bridge?: unknown;
   cakeDesign?: unknown;
+  waPicks?: string[];
+  tgChips?: string[];
   updatedAt: Date;
 }
 
@@ -89,6 +91,10 @@ function models(): { Session: Model<SessionDoc>; Order: Model<OrderDoc>; User: M
           // on $set — adding to the TS interfaces alone is not persistence
           bridge: Object,
           cakeDesign: Object,
+          // numbered-reply / chip lookups survive restarts and deploys —
+          // a "3" sent after a redeploy must still mean item 3
+          waPicks: Array,
+          tgChips: Array,
           updatedAt: Date,
         },
         { versionKey: false }
@@ -162,6 +168,8 @@ export function persistSession(s: {
   account?: unknown;
   bridge?: unknown;
   cakeDesign?: unknown;
+  waPicks?: string[];
+  tgChips?: string[];
 }): Promise<void> {
   const prev = persistChains.get(s.id) ?? Promise.resolve();
   const next = prev.then(() => persistSessionNow(s));
@@ -178,6 +186,14 @@ async function persistSessionNow(s: Parameters<typeof persistSession>[0]): Promi
   try {
     await conn;
     const { Session } = models();
+    // cleared fields must persist their ABSENCE too (bridge after a grant,
+    // picks after a turn with no product list) — but $unset must be omitted
+    // entirely when empty, or Mongo rejects the whole update.
+    const unset: Record<string, 1> = {
+      ...(s.bridge ? {} : { bridge: 1 as const }),
+      ...(s.waPicks?.length ? {} : { waPicks: 1 as const }),
+      ...(s.tgChips?.length ? {} : { tgChips: 1 as const }),
+    };
     await Session.updateOne(
       { _id: s.id },
       {
@@ -193,10 +209,11 @@ async function persistSessionNow(s: Parameters<typeof persistSession>[0]): Promi
           ...(s.account ? { account: s.account } : {}),
           ...(s.bridge ? { bridge: s.bridge } : {}),
           ...(s.cakeDesign ? { cakeDesign: s.cakeDesign } : {}),
+          ...(s.waPicks?.length ? { waPicks: s.waPicks } : {}),
+          ...(s.tgChips?.length ? { tgChips: s.tgChips } : {}),
           updatedAt: new Date(),
         },
-        // bridge is cleared after the grant — persist its ABSENCE too
-        ...(s.bridge ? {} : { $unset: { bridge: 1 } }),
+        ...(Object.keys(unset).length ? { $unset: unset } : {}),
       },
       { upsert: true }
     );
@@ -229,6 +246,8 @@ export interface PersistedSession {
   bridge?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   cakeDesign?: any;
+  waPicks?: string[];
+  tgChips?: string[];
   updatedAt: number;
 }
 
@@ -253,6 +272,8 @@ export async function loadSession(id: string): Promise<PersistedSession | null> 
       account: (doc as { account?: unknown }).account,
       bridge: (doc as { bridge?: unknown }).bridge,
       cakeDesign: (doc as { cakeDesign?: unknown }).cakeDesign,
+      waPicks: (doc as { waPicks?: string[] }).waPicks,
+      tgChips: (doc as { tgChips?: string[] }).tgChips,
       updatedAt: Date.now(),
     };
   } catch {
