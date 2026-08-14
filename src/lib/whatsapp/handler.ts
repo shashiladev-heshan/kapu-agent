@@ -14,14 +14,30 @@ import { issueWaLinkCode } from "@/lib/schedules/store";
 import { getSession, saveSession } from "@/lib/session/store";
 import type { Cart, StreamEvent, UiBlock } from "@/lib/types";
 import { scanImage, scanToMessage } from "@/lib/vision/scan";
-import { beat, endTurn, mdToWhatsapp, sendImage, sendText } from "@/lib/whatsapp/api";
+import { beat, endTurn, mdToWhatsapp, sendAudio, sendImage, sendText } from "@/lib/whatsapp/api";
 import { rememberLine, threadContext } from "@/lib/whatsapp/thread";
+import { estimateSeconds, synthesizeVoiceNote } from "@/lib/voice/synth";
 
 const fmt = (n: number | null | undefined, currency = "LKR") => {
   if (n == null) return "—";
   if (currency === "LKR") return `Rs ${Math.round(n).toLocaleString("en-LK")}`;
   return new Intl.NumberFormat("en-LK", { style: "currency", currency, maximumFractionDigits: 2 }).format(n);
 };
+
+/** Strip markdown / emoji / URLs so a fallback spoken reply (a voice turn where
+ *  the model didn't emit a say() block) isn't read aloud with asterisks and
+ *  link noise. Mirrors the client's sanitizeForSpeech. */
+function forSpeech(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_#>`~|]/g, "")
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2190}-\u{21FF}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export interface WaInbound {
   from: string;
@@ -182,16 +198,22 @@ export async function processInbound(msg: WaInbound): Promise<void> {
     }
   }
 
-  await handleTurn(chat, text, { isGroup: Boolean(msg.is_group), who });
+  // A voice note in → a voice note back: flag the turn so the agent narrates a
+  // spoken say() and we synthesize it below. Text/image turns stay silent.
+  // Kill switch: WA_VOICE_REPLIES=0 disables spoken replies (falls back to text)
+  // with no redeploy — a live-demo safety valve if the sidecar/audio misbehaves.
+  const voiceOff = process.env.WA_VOICE_REPLIES === "0" || process.env.WA_VOICE_REPLIES === "false";
+  const viaVoice = !voiceOff && msg.media_kind === "audio" && Boolean(msg.media_b64);
+  await handleTurn(chat, text, { isGroup: Boolean(msg.is_group), who, voice: viaVoice });
 }
 
 async function handleTurn(
   chat: string,
   message: string,
-  ctx: { isGroup: boolean; who: string }
+  ctx: { isGroup: boolean; who: string; voice?: boolean }
 ): Promise<void> {
   const session = await getSession(sessionId(chat));
-  session.voice = false;
+  session.voice = Boolean(ctx.voice);
   if (!session.title) session.title = message.slice(0, 60);
 
   // In a group the agent needs to know WHO is talking and what was said
@@ -207,10 +229,14 @@ async function handleTurn(
   // does and what WhatsApp expects — a byte-identical "On it…" on every single
   // turn was the most bot-shaped thing in the whole channel.
   let text = "";
+  let speech = ""; // the say() spoken line — synthesized into a voice note below
   const blocks: UiBlock[] = [];
   const send = (event: StreamEvent) => {
     if (event.type === "text") text += event.delta;
-    if (event.type === "block" && event.block.type !== "speech") blocks.push(event.block);
+    if (event.type === "block") {
+      if (event.block.type === "speech") speech = event.block.text;
+      else blocks.push(event.block);
+    }
     if (event.type === "error") text += (text ? "\n\n" : "") + event.message;
   };
 
@@ -221,7 +247,26 @@ async function handleTurn(
     text = text || "Aiyo, something went wrong on my side 💔 — try that again?";
   }
 
-  if (text.trim()) await sendText(chat, mdToWhatsapp(text));
+  // Voice-note turns speak the reply: synthesize the say() line (or the written
+  // reply, stripped) into a WhatsApp voice note, sent BEFORE the product cards.
+  // The written text stays as the fallback so a voice turn is never left silent
+  // if TTS is unavailable (no key / provider down).
+  let spoke = false;
+  if (session.voice) {
+    const spoken = (speech || forSpeech(text)).trim();
+    if (spoken) {
+      try {
+        const ogg = await synthesizeVoiceNote(spoken);
+        if (ogg) {
+          await sendAudio(chat, ogg, estimateSeconds(spoken));
+          spoke = true;
+        }
+      } catch (err) {
+        console.error("[whatsapp] voice synth failed:", err instanceof Error ? err.message : err);
+      }
+    }
+  }
+  if (!spoke && text.trim()) await sendText(chat, mdToWhatsapp(text));
   // A turn that mutates the basket repeatedly emits a cart block per change —
   // on WhatsApp only the final state is worth a message.
   const lastCart = [...blocks].reverse().find((b) => b.type === "cart");

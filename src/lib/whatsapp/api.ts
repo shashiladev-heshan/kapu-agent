@@ -68,6 +68,17 @@ export async function sendImage(to: string, imageUrl: string, caption: string, f
   if (!ok && caption) await sendText(to, caption, final);
 }
 
+/**
+ * Send a spoken reply as a WhatsApp VOICE NOTE (PTT). `ogg` must already be
+ * OGG/Opus (what WhatsApp records natively) — the sidecar uploads it as audio
+ * and flags it PTT so it renders as the round waveform bubble, not a file.
+ * Returns false if the sidecar is dormant or the send failed (caller keeps the
+ * written reply as the fallback so a voice turn is never left silent).
+ */
+export async function sendAudio(to: string, ogg: Buffer, seconds = 0, final = false): Promise<boolean> {
+  return send({ to, audio_b64: ogg.toString("base64"), audio_seconds: seconds, final });
+}
+
 /** Tells the sidecar this answer is done so it can drop the typing indicator. */
 export async function endTurn(to: string): Promise<void> {
   await send({ to, final: true });

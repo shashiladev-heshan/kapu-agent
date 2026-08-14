@@ -15,7 +15,10 @@ const OPENAI_TTS_MODEL = () => process.env.OPENAI_TTS_MODEL?.trim() || "gpt-4o-m
 const OPENAI_TTS_VOICE = () => process.env.OPENAI_TTS_VOICE?.trim() || "coral";
 
 const ELEVEN_KEY = () => process.env.ELEVENLABS_API_KEY?.trim();
-const ELEVEN_VOICE = () => process.env.ELEVENLABS_VOICE_ID?.trim() || "21m00Tcm4TlvDq8ikWAM";
+// Sarah — a warm default voice that works on ElevenLabs FREE and paid tiers.
+// (The old default, Rachel/21m00…, is a paid "library voice": free keys 402 on
+// it and silently fall back to OpenAI, so English ElevenLabs never engaged.)
+const ELEVEN_VOICE = () => process.env.ELEVENLABS_VOICE_ID?.trim() || "EXAVITQu4vr4xnSDxMaL";
 const AZURE_KEY = () => process.env.AZURE_SPEECH_KEY?.trim();
 const AZURE_REGION = () => process.env.AZURE_SPEECH_REGION?.trim() || "southeastasia";
 

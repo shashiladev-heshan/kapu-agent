@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   // OpenTelemetry must not be bundled — the Langfuse span processor and the
   // tracer provider have to be one shared instance across the server.
   serverExternalPackages: [
+    "ffmpeg-static",
     "@langfuse/otel",
     "@langfuse/tracing",
     "@langfuse/client",

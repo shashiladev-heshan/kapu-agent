@@ -283,6 +283,10 @@ type sendReq struct {
 	Text     string `json:"text,omitempty"`
 	ImageURL string `json:"image_url,omitempty"` // fetched and uploaded
 	Caption  string `json:"caption,omitempty"`
+	// A spoken reply as a voice note: base64 OGG/Opus, sent PTT so WhatsApp
+	// renders the waveform bubble. AudioSeconds is the duration hint.
+	AudioB64     string `json:"audio_b64,omitempty"`
+	AudioSeconds uint32 `json:"audio_seconds,omitempty"`
 	// Last part of this answer — stop the typing indicator once it lands.
 	Final bool `json:"final,omitempty"`
 }
@@ -339,6 +343,34 @@ func sendImage(ctx context.Context, jid types.JID, url, caption string) error {
 	return err
 }
 
+// sendAudio delivers a spoken reply as a WhatsApp VOICE NOTE. The bytes must
+// already be OGG/Opus (what WhatsApp records natively); PTT=true makes it render
+// as the round waveform bubble rather than a downloadable audio file.
+func sendAudio(ctx context.Context, jid types.JID, b64 string, seconds uint32) error {
+	data, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return fmt.Errorf("audio b64 decode: %w", err)
+	}
+	up, err := client.Upload(ctx, data, whatsmeow.MediaAudio)
+	if err != nil {
+		return err
+	}
+	_, err = client.SendMessage(ctx, jid, &waE2E.Message{
+		AudioMessage: &waE2E.AudioMessage{
+			Mimetype:      proto.String("audio/ogg; codecs=opus"),
+			PTT:           proto.Bool(true),
+			URL:           proto.String(up.URL),
+			DirectPath:    proto.String(up.DirectPath),
+			MediaKey:      up.MediaKey,
+			FileEncSHA256: up.FileEncSHA256,
+			FileSHA256:    up.FileSHA256,
+			FileLength:    proto.Uint64(uint64(len(data))),
+			Seconds:       proto.Uint32(seconds),
+		},
+	})
+	return err
+}
+
 func handleSend(w http.ResponseWriter, r *http.Request) {
 	if secret != "" && r.Header.Get("X-Kapu-Secret") != secret {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -365,6 +397,13 @@ func handleSend(w http.ResponseWriter, r *http.Request) {
 	if req.ImageURL != "" {
 		if err := sendImage(ctx, jid, req.ImageURL, req.Caption); err != nil {
 			log.Printf("[wa] send image failed: %v", err)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	}
+	if req.AudioB64 != "" {
+		if err := sendAudio(ctx, jid, req.AudioB64, req.AudioSeconds); err != nil {
+			log.Printf("[wa] send audio failed: %v", err)
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
