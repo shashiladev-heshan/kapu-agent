@@ -502,7 +502,7 @@ export async function executeTool(
         products[pi] = { ...products[pi], pick: true };
         // cosine of the BEST result — if even the top hit is weakly related, the
         // catalog doesn't carry the thing (tuned low to avoid hiding real hits).
-        if (scores) weakMatch = Math.max(...eligible.map((i) => scores[i])) < 0.26;
+        if (scores) weakMatch = Math.max(...eligible.map((i) => scores[i])) < 0.33;
         if (products.length >= 3) {
           // BEST VALUE = cheapest eligible item near the pick's relevance
           // that undercuts the pick — not the cheapest accessory.
