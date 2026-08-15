@@ -5,7 +5,7 @@
 import { loadRailCache, saveRailCache } from "@/lib/db/mongo";
 import { kapruka, parseJson } from "@/lib/kapruka/shield";
 import { toSummary } from "@/lib/kapruka/normalize";
-import { nextFestival } from "@/lib/festivals";
+import { festivalByKey, nextFestival } from "@/lib/festivals";
 import type { ProductSummary } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -14,8 +14,21 @@ export const dynamic = "force-dynamic";
 let cache: { key: string; at: number; products: ProductSummary[] } | null = null;
 
 export async function GET(): Promise<Response> {
-  const fest = nextFestival();
-  if (!fest || fest.days > 60) return Response.json({ festival: null, products: [] });
+  // Off-season, the hero backdrop falls back to Christmas (SL's biggest
+  // gifting season, stocked year-round — hampers book out months early).
+  // The rail must agree with the decor: a tree with zero products under it
+  // reads as a bug, not a mood.
+  const fest = (() => {
+    const near = nextFestival();
+    if (near && near.days <= 60) return near;
+    const xmas = festivalByKey("christmas");
+    if (!xmas) return null;
+    const todaySL = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Colombo" }));
+    todaySL.setHours(0, 0, 0, 0);
+    const days = Math.round((new Date(`${xmas.date}T00:00:00+05:30`).getTime() - todaySL.getTime()) / 86400000);
+    return days >= 0 ? { ...xmas, days } : null;
+  })();
+  if (!fest) return Response.json({ festival: null, products: [] });
   try {
     if (!cache || cache.key !== fest.name || Date.now() - cache.at > 10 * 60_000) {
       const res = parseJson(await kapruka("kapruka_search_products", { q: fest.q, limit: 8, in_stock_only: true }));
