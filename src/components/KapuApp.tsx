@@ -4471,7 +4471,7 @@ interface SchedRow {
   id: string;
   title: string;
   kind: string;
-  cadence: { kind: string; at: string; date?: string; weekday?: number; day?: number };
+  cadence: { kind: string; at: string; date?: string; weekday?: number; day?: number; times?: string[]; everyHours?: number };
   allow_order: boolean;
   active: boolean;
   next_run: number;
@@ -4513,6 +4513,14 @@ function SchedulesSheet({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, action }),
     }).then(refresh);
+  // Test now: fire this schedule immediately (run_now + force) — it runs through
+  // the real pipeline within a runner tick and lands on the linked channel.
+  const [tested, setTested] = useState<string | null>(null);
+  const testNow = (id: string) => {
+    void fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "run_now", force: true }) });
+    setTested(id);
+    window.setTimeout(() => setTested((v) => (v === id ? null : v)), 6000);
+  };
 
   const link = async () => {
     if (code.trim().length < 4 || linking) return;
@@ -4535,13 +4543,17 @@ function SchedulesSheet({
   const cadenceLabel = (c: SchedRow["cadence"]) =>
     c.kind === "once"
       ? `${c.date ?? ""} ${c.at}`
-      : c.kind === "weekly"
-        ? `weekly · ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][c.weekday ?? 1]} ${c.at}`
-        : c.kind === "monthly"
-          ? `monthly · day ${c.day ?? 1} · ${c.at}`
-          : c.kind === "yearly"
-            ? `yearly · ${c.date ?? ""} · ${c.at}`
-            : `daily · ${c.at}`;
+      : c.kind === "hours"
+        ? `every ${c.everyHours ?? 6}h`
+        : c.kind === "weekly"
+          ? `weekly · ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][c.weekday ?? 1]} ${c.at}`
+          : c.kind === "monthly"
+            ? `monthly · day ${c.day ?? 1} · ${c.at}`
+            : c.kind === "yearly"
+              ? `yearly · ${c.date ?? ""} · ${c.at}`
+              : c.times?.length
+                ? `daily · ${[c.at, ...c.times].join(", ")}`
+                : `daily · ${c.at}`;
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" onClick={onClose}>
@@ -4603,12 +4615,20 @@ function SchedulesSheet({
             ) : data.schedules.length === 0 ? (
               <div className="mt-3 rounded-2xl border border-dashed border-edge p-4 text-center">
                 <p className="text-[12.5px] text-ink-soft">{t("schedEmpty")}</p>
-                <button
-                  onClick={() => onAsk("Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — send me the pay link on Telegram")}
-                  className="mt-2.5 rounded-full border border-edge bg-card px-3.5 py-2 text-[11.5px] font-medium text-leaf"
-                >
-                  {t("tryIt")}“flowers for Amma — every month-end”
-                </button>
+                <div className="mt-2.5 flex flex-col items-center gap-2">
+                  <button
+                    onClick={() => onAsk("Send me the latest flower deals to my WhatsApp twice a day — 9am and 6pm")}
+                    className="rounded-full border border-edge bg-card px-3.5 py-2 text-[11.5px] font-medium text-leaf"
+                  >
+                    {t("tryIt")}“flower deals — twice a day 🌸”
+                  </button>
+                  <button
+                    onClick={() => onAsk("Every month-end, pick fresh flowers under Rs 5,000 for Amma and schedule it — send me the pay link on Telegram")}
+                    className="rounded-full border border-edge bg-card px-3.5 py-2 text-[11.5px] font-medium text-leaf"
+                  >
+                    {t("tryIt")}“flowers for Amma — every month-end”
+                  </button>
+                </div>
               </div>
             ) : (
               <ul className="mt-3 flex flex-col gap-2">
@@ -4631,6 +4651,12 @@ function SchedulesSheet({
                       {x.active && t("schedNext", { when: new Date(x.next_run).toLocaleString("en-GB", { timeZone: "Asia/Colombo", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}
                       {x.last_result ? ` · ${x.last_result.slice(0, 60)}` : ""}
                     </p>
+                    <button
+                      onClick={() => testNow(x.id)}
+                      className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${tested === x.id ? "border-good/40 bg-good-soft text-good" : "border-edge bg-surface text-leaf hover:bg-leaf-soft"}`}
+                    >
+                      {tested === x.id ? t("schedTested") : `▶ ${t("schedTest")}`}
+                    </button>
                   </li>
                 ))}
               </ul>

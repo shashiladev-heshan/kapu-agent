@@ -8,8 +8,8 @@ import crypto from "crypto";
 import { loadSchedules, persistSchedule, removeSchedule } from "@/lib/db/mongo";
 
 export interface Cadence {
-  kind: "once" | "daily" | "weekly" | "monthly" | "yearly";
-  /** HH:mm, Sri Lanka time */
+  kind: "once" | "daily" | "weekly" | "monthly" | "yearly" | "hours";
+  /** HH:mm, Sri Lanka time — the first/only run time */
   at: string;
   /** once: YYYY-MM-DD · yearly: MM-DD */
   date?: string;
@@ -17,6 +17,10 @@ export interface Cadence {
   weekday?: number;
   /** monthly: 1–31 (clamped) */
   day?: number;
+  /** daily: extra run times (HH:mm) beyond `at` — e.g. ["18:00"] for 2×/day */
+  times?: string[];
+  /** hours: fire every N hours (1–24) — for sub-daily deal alerts */
+  everyHours?: number;
 }
 
 export interface Schedule {
@@ -91,13 +95,26 @@ export function computeNextRun(c: Cadence, fromEpoch = Date.now()): number {
     const base = new Date(Date.UTC(now.y, now.m, now.d + plusDays));
     return slEpoch(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm);
   };
+  const dayEpoch = (plusDays: number, h: number, m: number) => {
+    const base = new Date(Date.UTC(now.y, now.m, now.d + plusDays));
+    return slEpoch(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), h, m);
+  };
+  if (c.kind === "hours") {
+    const every = Math.min(Math.max(Math.round(c.everyHours ?? 6), 1), 24);
+    return fromEpoch + every * 3600_000;
+  }
   if (c.kind === "once") {
     const [y, mo, da] = (c.date ?? "").split("-").map(Number);
     return y ? slEpoch(y, mo - 1, da, hh, mm) : today(1);
   }
   if (c.kind === "daily") {
-    const t = today(0);
-    return t > fromEpoch ? t : today(1);
+    // one or more times-of-day (2×/day etc.) — the soonest future one
+    const slots = [...new Set([c.at, ...(c.times ?? [])].filter(Boolean))].map((tm) => tm.split(":").map(Number));
+    const cands = slots.map(([h, m]) => {
+      const t0 = dayEpoch(0, h || 0, m || 0);
+      return t0 > fromEpoch ? t0 : dayEpoch(1, h || 0, m || 0);
+    });
+    return cands.length ? Math.min(...cands) : today(1);
   }
   if (c.kind === "weekly") {
     const target = c.weekday ?? 1;

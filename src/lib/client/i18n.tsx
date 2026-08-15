@@ -498,6 +498,8 @@ const STR = {
   schedOrderOk: { en: "may place orders (you pay via link)", si: "order දාන්න පුළුවන් (ගෙවන්නේ ඔයා)", ta: "ஆர்டர் செய்யலாம் (நீங்கள் செலுத்துவீர்கள்)" },
   schedProposeOnly: { en: "proposals only", si: "යෝජනා විතරයි", ta: "முன்மொழிவுகள் மட்டும்" },
   schedPaused: { en: "paused", si: "නවත්තලා", ta: "இடைநிறுத்தம்" },
+  schedTest: { en: "Test now", si: "දැන් අත්හදන්න", ta: "இப்போது சோதி" },
+  schedTested: { en: "✓ On its way — check your alerts", si: "✓ එනවා — alerts බලන්න", ta: "✓ வருகிறது — alerts பாருங்கள்" },
   linkTg: { en: "Link Telegram / WhatsApp for updates", si: "Updates වලට Telegram / WhatsApp link කරන්න", ta: "புதுப்பிப்புகளுக்கு Telegram / WhatsApp-ஐ இணைக்கவும்" },
   linkTgHint: {
     en: "Send /link to @{bot} on Telegram, or “link” to Kapu on WhatsApp — then enter the 6-digit code:",

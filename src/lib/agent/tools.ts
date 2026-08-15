@@ -284,7 +284,7 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
     name: "create_schedule",
     description:
-      "Create a standing wish that runs AUTONOMOUSLY on a schedule (signed-in users only — check signed_in in context). Restate the plan and get a yes first. Results go to the user's linked Telegram/WhatsApp (or the web bell). kind 'watch_order' polls an order until delivered — and keeps watching for the delivery-proof photo.",
+      "Create a standing wish that runs AUTONOMOUSLY on a schedule (signed-in users only — check signed_in in context). Restate the plan and get a yes first. Results go to the user's linked Telegram/WhatsApp (or the web bell). kind 'watch_order' polls an order until delivered — and keeps watching for the delivery-proof photo. For recurring DEAL ALERTS ('send me flower deals twice a day') use kind 'task' with a search instruction and: once a day → cadence_kind 'daily' + at; twice a day → 'daily' + at + times:['18:00']; every N hours → cadence_kind 'hours' + every_hours. After creating, tell them they can hit 'Test now' in Standing wishes to preview it instantly.",
     input_schema: {
       type: "object",
       properties: {
@@ -293,8 +293,10 @@ export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
         kind: { type: "string", enum: ["task", "watch_order", "watch_price"] },
         order_number: { type: "string", description: "watch_order only — the EMAILED tracking number" },
         product_id: { type: "string", description: "watch_price only — the product to watch; alerts on a ≥2% drop via Telegram, then stops" },
-        cadence_kind: { type: "string", enum: ["once", "daily", "weekly", "monthly", "yearly"] },
-        at: { type: "string", description: "HH:mm Sri Lanka time, default 09:00" },
+        cadence_kind: { type: "string", enum: ["once", "daily", "weekly", "monthly", "yearly", "hours"] },
+        at: { type: "string", description: "HH:mm Sri Lanka time, default 09:00 (the first/only run time)" },
+        times: { type: "array", items: { type: "string" }, description: "daily: extra HH:mm run times beyond 'at' — e.g. ['18:00'] for TWICE a day (deal alerts)" },
+        every_hours: { type: "number", description: "cadence_kind 'hours': run every N hours (1-24), e.g. 6 = four times a day" },
         date: { type: "string", description: "once: YYYY-MM-DD · yearly: MM-DD" },
         weekday: { type: "number", description: "weekly: 0=Sunday … 6=Saturday" },
         day: { type: "number", description: "monthly: 1-31" },
@@ -1060,11 +1062,15 @@ export async function executeTool(
           ...(orderNumber ? { orderNumber } : {}),
           ...(input.product_id ? { productId: String(input.product_id).slice(0, 80) } : {}),
           cadence: {
-            kind: (input.cadence_kind as "once" | "daily" | "weekly" | "monthly" | "yearly") ?? "once",
+            kind: (input.cadence_kind as "once" | "daily" | "weekly" | "monthly" | "yearly" | "hours") ?? "once",
             at: typeof input.at === "string" && /^\d{1,2}:\d{2}$/.test(input.at) ? input.at : "09:00",
             ...(input.date ? { date: String(input.date) } : {}),
             ...(input.weekday != null ? { weekday: Number(input.weekday) } : {}),
             ...(input.day != null ? { day: Number(input.day) } : {}),
+            ...(Array.isArray(input.times)
+              ? { times: (input.times as unknown[]).filter((t): t is string => typeof t === "string" && /^\d{1,2}:\d{2}$/.test(t)).slice(0, 4) }
+              : {}),
+            ...(input.every_hours != null ? { everyHours: Math.min(Math.max(Math.round(Number(input.every_hours)), 1), 24) } : {}),
           },
           allowOrder: input.allow_order === true,
         });
