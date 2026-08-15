@@ -75,7 +75,7 @@ import { useInstallPrompt } from "@/lib/client/install";
 import { KAPU_PRESETS, loadActiveAgent, saveActiveAgent, type SpecialKapu } from "@/lib/client/agents";
 import { HERO_PHRASES, LangProvider, makeT, useT, type StrKey } from "@/lib/client/i18n";
 import { fileToCompressedDataUrl, scanMessage, type ScanResult } from "@/lib/client/scan";
-import { nextFestival } from "@/lib/festivals";
+import { festivalByKey, nextFestival, type Festival } from "@/lib/festivals";
 import type { AgentStep, Cart, CartRequest, Currency, Language, Occasion, ProductDetail, ProductSummary, SessionSnapshot, StreamEvent, UiBlock, UiTurn } from "@/lib/types";
 
 type VoiceState = "idle" | "listening" | "thinking" | "speaking";
@@ -817,6 +817,17 @@ export default function KapuApp() {
     };
     return G[language][slot];
   }, [language]);
+
+  // Seasonal hero backdrop: subtle festival glyphs drifting behind the hero.
+  // Auto-features the next festival within 45 days; otherwise Christmas (SL's
+  // biggest gifting season). `?season=<name>` forces one for previews/campaigns.
+  const [activeSeason, setActiveSeason] = useState<Festival | null>(null);
+  useEffect(() => {
+    const forced = new URLSearchParams(window.location.search).get("season");
+    if (forced) return setActiveSeason(festivalByKey(forced));
+    const nf = nextFestival();
+    setActiveSeason(nf && nf.days <= 45 ? nf : festivalByKey("christmas"));
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setDark((d) => {
@@ -2891,6 +2902,31 @@ export default function KapuApp() {
               <span aria-hidden className="pointer-events-none absolute left-[28%] top-[14%] h-1 w-1 rounded-full bg-gold/[0.16]" />
               <span aria-hidden className="floaty pointer-events-none absolute left-[8%] top-[40%] h-40 w-40 rounded-full bg-gold/[0.05] blur-[60px]" style={{ "--tilt": "0deg", animationDuration: "9s" } as React.CSSProperties} />
               <span aria-hidden className="floaty pointer-events-none absolute right-[10%] top-[18%] h-52 w-52 rounded-full bg-leaf/[0.08] blur-[70px]" style={{ "--tilt": "0deg", animationDuration: "11s", animationDelay: "1.4s" } as React.CSSProperties} />
+              {/* seasonal backdrop — subtle festival glyphs (🎄⭐🎁❄️ for Christmas) drifting behind the hero */}
+              {activeSeason &&
+                (() => {
+                  const gs = [...activeSeason.glyphs];
+                  const spots = [
+                    { l: "6%", t: "23%", s: 32, o: 0.22, dur: "12s", d: "0s" },
+                    { l: "87%", t: "31%", s: 26, o: 0.18, dur: "14s", d: "1.2s" },
+                    { l: "13%", t: "71%", s: 28, o: 0.2, dur: "11s", d: "0.6s" },
+                    { l: "82%", t: "70%", s: 34, o: 0.2, dur: "13s", d: "2s" },
+                    { l: "49%", t: "9%", s: 22, o: 0.15, dur: "15s", d: "0.3s" },
+                    { l: "31%", t: "41%", s: 19, o: 0.14, dur: "10s", d: "1.6s" },
+                    { l: "70%", t: "51%", s: 24, o: 0.16, dur: "12s", d: "0.9s" },
+                    { l: "22%", t: "15%", s: 18, o: 0.13, dur: "13s", d: "2.4s" },
+                  ];
+                  return spots.map((sp, i) => (
+                    <span
+                      key={`season-${i}`}
+                      aria-hidden
+                      className="floaty pointer-events-none absolute select-none"
+                      style={{ left: sp.l, top: sp.t, fontSize: sp.s, opacity: sp.o, "--tilt": "0deg", animationDuration: sp.dur, animationDelay: sp.d } as React.CSSProperties}
+                    >
+                      {gs[i % gs.length]}
+                    </span>
+                  ));
+                })()}
 
               <div className="relative w-full max-w-[880px] text-center">
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -5601,16 +5637,16 @@ function LandingShowcase({
         <div className="relative mx-auto flex min-h-[360px] w-full max-w-[420px] items-center justify-center">
           {/* festival countdown chip */}
           <span className="floaty absolute left-2 top-2 z-[2] rounded-full border border-gold/40 bg-gold-soft px-4 py-2 text-[11.5px] font-bold text-gold-deep shadow-lg" style={{ "--tilt": "-2deg" } as React.CSSProperties}>
-            🏮 ~36 DAYS TO ESALA PERAHERA · gift ideas
+            🎄 CHRISTMAS HAMPERS & CAKES · book early
           </span>
           {/* mini greeting card */}
           <div
             className="floaty absolute bottom-4 left-0 w-[190px] rounded-[18px] p-5 text-center text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
             style={{ background: "linear-gradient(180deg, #3A2868, #1c1236)", border: "1.5px solid rgba(255,184,0,0.4)", "--tilt": "-4deg", animationDelay: "0.6s" } as React.CSSProperties}
           >
-            <p className="text-[34px] leading-none">🐘</p>
+            <p className="text-[34px] leading-none">🎁</p>
             <p className="mt-2 text-[8px] uppercase tracking-[0.16em] text-white/60">to Amma</p>
-            <p className="font-display mt-1.5 text-[13.5px] leading-snug">සුබ පැතුම්! ඔයාට සෙත් පතනවා 🙏</p>
+            <p className="font-display mt-1.5 text-[13.5px] leading-snug">සුබ නත්තලක් අම්මේ! ❤️</p>
             <p className="mt-3 text-[7px] font-semibold text-gold">🌳 sent with Kapu</p>
           </div>
           {/* WhatsApp price-drop alert (standing-wish alerts land on WhatsApp too) */}
@@ -5624,7 +5660,7 @@ function LandingShowcase({
               <span className="ml-auto text-[8px] text-white/40">now</span>
             </div>
             <p className="mt-2 text-[11px] leading-snug text-white/90">
-              📉 <b>Price drop!</b> Avurudu Hamper
+              📉 <b>Price drop!</b> Christmas Cake Hamper
               <br />
               <s className="text-white/50">Rs 7,800</s> → <b className="text-[#6ab3f3]">Rs 7,200</b> (−8%)
             </p>
