@@ -485,6 +485,11 @@ export async function executeTool(
       // ("phone" → car chargers first). Cosine via the taste-engine
       // embeddings, ≤900ms, falling back to rank order.
       const sort = String(input.sort ?? "relevance");
+      // Weak-match guard: Kapruka's keyword search returns same-category
+      // siblings, not the thing itself ("webcam" → ink/laptops/stands). If
+      // nothing clears a real semantic-match bar, treat it as a no-result so the
+      // reply stays honest instead of mislabelling junk as what was asked for.
+      let weakMatch = false;
       if (products.length > 1 && (sort === "relevance" || sort === "bestseller")) {
         // candidates = results that aren't accessory noise for this query;
         // among them, the semantically closest to the query wins the badge
@@ -495,6 +500,9 @@ export async function executeTool(
         let pi = eligible[0];
         if (scores) for (const i of eligible) if (scores[i] > scores[pi]) pi = i;
         products[pi] = { ...products[pi], pick: true };
+        // cosine of the BEST result — if even the top hit is weakly related, the
+        // catalog doesn't carry the thing (tuned low to avoid hiding real hits).
+        if (scores) weakMatch = Math.max(...eligible.map((i) => scores[i])) < 0.26;
         if (products.length >= 3) {
           // BEST VALUE = cheapest eligible item near the pick's relevance
           // that undercuts the pick — not the cheapest accessory.
@@ -509,18 +517,27 @@ export async function executeTool(
           }
         }
       }
-      if (products.length > 0) {
+      if (products.length > 0 && !weakMatch) {
         emit({ type: "product_grid", title: typeof input.title === "string" ? input.title : undefined, products });
       } else {
         emit({ type: "no_results", query });
       }
-      // taste engine: index what was shown; the query itself is intent;
-      // the top hits also count as light (0.5) per-user signal
+      // taste engine: index what was shown; the query itself is intent; the top
+      // hits count as a light (0.5) per-user signal. On a weak match nothing was
+      // shown, so skip the per-user "seen" signal (don't pollute recs with
+      // off-type junk) — still embed for future scoring + record the intent.
       void recoSeen(products).catch(() => {});
-      void (async () => {
-        for (const p of products.slice(0, 6)) await recoProductEvent([session.userSub, session.id], p, 0.5);
-      })().catch(() => {});
+      if (!weakMatch)
+        void (async () => {
+          for (const p of products.slice(0, 6)) await recoProductEvent([session.userSub, session.id], p, 0.5);
+        })().catch(() => {});
       void recoQueryEvent([session.userSub, session.id], query).catch(() => {});
+      if (weakMatch)
+        return JSON.stringify({
+          count: 0,
+          weak_match: true,
+          note: `Kapruka returned items but NONE actually match "${query}" — its search surfaces same-category siblings (search "webcam" → ink/laptops/stands). Treat this as NOT FOUND: tell the user honestly you couldn't find "${query}" right now, do NOT present these as "${query}", and offer to try different words or a real alternative you can name.`,
+        });
       return JSON.stringify({ count: products.length, products: products.map(modelView) });
     }
 
