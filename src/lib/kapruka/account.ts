@@ -151,6 +151,87 @@ export function normalizeOrders(raw: any): AcctOrder[] {
     .filter((o: AcctOrder) => o.ref);
 }
 
+// ── gift memory: synthesise the customer's gifting life from order history ──
+export interface GiftRecipient {
+  name: string;
+  city: string | null;
+  last_gift: string | null;
+  gifts: string[];
+  occasion: string | null;
+}
+export interface GiftMemory {
+  recipients: GiftRecipient[];
+  active_refs: string[];
+  spend_lkr: number;
+  order_count: number;
+  top_recipient: string | null;
+  top_category: string | null;
+}
+
+const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+function occasionFromGreeting(g: string | null): string | null {
+  if (!g) return null;
+  const s = g.toLowerCase();
+  if (/happy birthday|birthday|upandin/.test(s)) return "birthday";
+  if (/anniversary/.test(s)) return "anniversary";
+  if (/congrat/.test(s)) return "congratulations";
+  if (/get well|speedy recovery/.test(s)) return "get-well";
+  if (/wedding|marriage/.test(s)) return "wedding";
+  if (/valentine/.test(s)) return "Valentine's";
+  if (/thank/.test(s)) return "thank-you";
+  return null;
+}
+const CATEGORY_HINTS: [RegExp, string][] = [
+  [/cake|gateau|dessert/i, "cakes"],
+  [/rose|flower|bouquet|arrangement/i, "flowers"],
+  [/chocolate|candy|sweet/i, "chocolates"],
+  [/hamper|gift set|gift box|combo/i, "hampers"],
+  [/phone|laptop|webcam|electronic|charger|speaker|watch/i, "electronics"],
+  [/saree|dress|apparel|fashion/i, "fashion"],
+];
+const categoryOf = (name: string) => CATEGORY_HINTS.find(([re]) => re.test(name))?.[1] ?? null;
+
+/** Synthesize the customer's gifting relationships from their order history:
+ *  who they gift, what/when, the occasion, active deliveries, and spend — the
+ *  raw material for proactive re-gifting, delivery-watch offers and insights.
+ *  Orders arrive newest-first, so the first sighting of a recipient is recent. */
+export function giftMemory(orders: AcctOrder[]): GiftMemory {
+  const byRecipient = new Map<string, GiftRecipient>();
+  const giftCount = new Map<string, number>();
+  const catCount = new Map<string, number>();
+  const active: string[] = [];
+  let spend = 0;
+  for (const o of orders) {
+    spend += o.total_lkr ?? 0;
+    if (o.ref && !/deliver|cancel|complete|refund/i.test(o.status)) active.push(o.ref);
+    for (const it of o.items) {
+      const cat = categoryOf(it.name);
+      if (cat) catCount.set(cat, (catCount.get(cat) ?? 0) + 1);
+    }
+    if (o.recipient) {
+      const key = o.recipient.trim().toLowerCase();
+      const r =
+        byRecipient.get(key) ??
+        { name: titleCase(o.recipient.trim()), city: o.city ? titleCase(o.city) : null, last_gift: null, gifts: [], occasion: null };
+      for (const it of o.items) if (it.name && !r.gifts.includes(it.name)) r.gifts.push(it.name);
+      if (!r.last_gift && o.items[0]) r.last_gift = o.items[0].name;
+      if (!r.occasion) r.occasion = occasionFromGreeting(o.greeting);
+      byRecipient.set(key, r);
+      giftCount.set(key, (giftCount.get(key) ?? 0) + 1);
+    }
+  }
+  const topKey = [...giftCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  return {
+    recipients: [...byRecipient.values()].slice(0, 8),
+    active_refs: active,
+    spend_lkr: Math.round(spend),
+    order_count: orders.length,
+    top_recipient: topKey ? byRecipient.get(topKey)?.name ?? null : null,
+    top_category: [...catCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+  };
+}
+
 export interface AcctAddress {
   name: string;
   address: string;

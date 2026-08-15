@@ -8,7 +8,7 @@ import { writeGiftMessages } from "@/lib/gift/writer";
 import { kapruka, parseJson, accountToolsReady } from "@/lib/kapruka/shield";
 import { getHotDeals } from "@/lib/kapruka/promos";
 import { importQuote, isAmazonUrl } from "@/lib/kapruka/globalshop";
-import { resolveAccountEmail, sniffError, normalizeCustomer, normalizeOrders, normalizeAddresses } from "@/lib/kapruka/account";
+import { resolveAccountEmail, sniffError, normalizeCustomer, normalizeOrders, normalizeAddresses, giftMemory } from "@/lib/kapruka/account";
 import { applyCartUpdate, cartSubtotal } from "@/lib/kapruka/cart";
 import { categoryName, money, toDetail, toSummary } from "@/lib/kapruka/normalize";
 import { listOrders, markBridgeGranted, recordOrder } from "@/lib/db/mongo";
@@ -1251,7 +1251,8 @@ export async function executeTool(
       return JSON.stringify({
         count: orders.length,
         orders: orders.map((o) => ({ ref: o.ref, status: o.status, when: o.when, delivery_date: o.delivery_date, total_lkr: o.total_lkr, recipient: o.recipient, city: o.city, items: o.items.map((i) => `${i.name} ×${i.qty}${i.product_id ? ` (${i.product_id})` : ""}`) })),
-        note: "Track any order by passing its ref to track_order. 'Buy again' → cart_update each item by its product_id. Avoid re-suggesting the exact same gift to the same recipient.",
+        gift_memory: giftMemory(orders),
+        note: "The order card already lists every order — DON'T re-list them. Be their gift concierge with gift_memory (see the account-memory rules): offer to WATCH active_refs deliveries (create_schedule watch_order), remember their PEOPLE by name and offer a FRESH re-gift (never the exact repeat — use get_recommendations), and one warm insight line. 'Buy again' still = cart_update each product_id. Pick the ONE most relevant move; end with suggest_replies chips.",
       });
     }
 
