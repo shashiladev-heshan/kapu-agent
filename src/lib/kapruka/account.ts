@@ -57,6 +57,21 @@ function userText(m: Anthropic.MessageParam): string {
 }
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const EMAIL_SCAN = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
+
+/** The most recent email the CUSTOMER typed in this conversation. Ground-rule
+ *  compliant (they entered it themselves), and it recovers the account when
+ *  session.account didn't carry between turns — so a follow-up like "show my
+ *  addresses" after a successful link doesn't wrongly ask them to re-type it. */
+function lastTypedEmail(session: Session): string | null {
+  for (let i = session.messages.length - 1; i >= 0; i--) {
+    const m = session.messages[i];
+    if (m.role !== "user") continue;
+    const found = userText(m).match(EMAIL_SCAN);
+    if (found?.length) return found[found.length - 1].toLowerCase();
+  }
+  return null;
+}
 
 /** Ground rule (enforced in code, not just prompt): only use an email the
  *  CUSTOMER typed in this conversation, or the one already linked. Never a
@@ -64,12 +79,17 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 export function resolveAccountEmail(session: Session, explicit?: string): string | null {
   const linked = session.account?.email ?? null;
   const e = explicit?.trim().toLowerCase();
+  // An explicit email is honoured ONLY if the customer actually typed it — never
+  // a guessed/looped address the model invented. If it wasn't typed, fall through
+  // rather than dead-ending, so we still use what we legitimately have.
   if (e && EMAIL_RE.test(e)) {
     if (linked && linked.toLowerCase() === e) return linked;
     const typed = session.messages.some((m) => m.role === "user" && userText(m).toLowerCase().includes(e));
-    return typed ? e : null;
+    if (typed) return e;
   }
-  return linked;
+  // The linked account, else the most recent email the customer typed themselves
+  // (recovers a link that didn't survive between turns).
+  return linked ?? lastTypedEmail(session);
 }
 
 // ── normalized shapes ──────────────────────────────────────────────────
