@@ -305,6 +305,7 @@ const STR = {
   shareFailed: { en: "Couldn't create a share link — try again.", si: "Share link එක හදන්න බැරි උනා — ආයෙ try කරන්න.", ta: "பகிர்வு இணைப்பை உருவாக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்." },
   // ── Kapruka account (Phase-2) + shareable card ──────────────────────
   acctGreet: { en: "Ayubowan, {name}! 👋 Welcome back", si: "ආයුබෝවන් {name}! 👋 නැවත සාදරයෙන්", ta: "ஆயுபோவன், {name}! 👋 மீண்டும் வரவேற்கிறோம்" },
+  acctLinked: { en: "Kapruka account", si: "Kapruka ගිණුම", ta: "Kapruka கணக்கு" },
   acctNoOrders: { en: "No Kapruka orders on this account yet.", si: "මේ account එකේ තාම Kapruka orders නෑ.", ta: "இந்த கணக்கில் இன்னும் Kapruka ஆர்டர்கள் இல்லை." },
   acctDeliver: { en: "delivery {d}", si: "බෙදාහැරීම {d}", ta: "டெலிவரி {d}" },
   acctTrack: { en: "Track", si: "Track කරන්න", ta: "கண்காணி" },

@@ -2133,8 +2133,8 @@ export function AccountCard({ block }: { block: Extract<UiBlock, { type: "accoun
         <IconCheckCircle size={20} />
       </span>
       <div className="min-w-0">
-        <p className="text-[13.5px] font-semibold">{t("acctGreet", { name: block.name })}</p>
-        <p className="truncate text-[11.5px] text-ink-soft">{block.email}</p>
+        <p className="text-[13.5px] font-semibold">{block.name}</p>
+        <p className="truncate text-[11.5px] text-ink-soft">{t("acctLinked")} · {block.email}</p>
       </div>
     </div>
   );
