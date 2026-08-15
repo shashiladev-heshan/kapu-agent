@@ -5613,13 +5613,13 @@ function LandingShowcase({
             <p className="font-display mt-1.5 text-[13.5px] leading-snug">සුබ පැතුම්! ඔයාට සෙත් පතනවා 🙏</p>
             <p className="mt-3 text-[7px] font-semibold text-gold">🌳 sent with Kapu</p>
           </div>
-          {/* TG price-drop alert */}
+          {/* WhatsApp price-drop alert (standing-wish alerts land on WhatsApp too) */}
           <div
-            className="floaty absolute right-0 top-24 z-[1] w-[230px] rounded-[16px] bg-[#1c2733] p-3.5 shadow-[0_24px_60px_rgba(0,0,0,0.5)]"
+            className="floaty absolute right-0 top-24 z-[1] w-[230px] rounded-[16px] bg-[#0b141a] p-3.5 shadow-[0_24px_60px_rgba(0,0,0,0.5)]"
             style={{ "--tilt": "3deg", animationDelay: "1.2s" } as React.CSSProperties}
           >
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2AABEE] text-white"><IconTelegram size={13} /></span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#25D366] text-white"><IconWhatsapp size={13} /></span>
               <span className="text-[11px] font-bold text-white">Kapu</span>
               <span className="ml-auto text-[8px] text-white/40">now</span>
             </div>
@@ -5757,31 +5757,79 @@ function LandingShowcase({
       {/* ── act 3: telegram ── */}
       <section id="land-tg" className="grid items-center gap-8 py-12 md:grid-cols-2">
         <div className="order-2 md:order-1">
-          <div className="mx-auto max-w-[360px] rounded-[26px] border border-line bg-[#1c2733] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-            <div className="mb-3 flex items-center gap-2.5 border-b border-white/10 pb-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2AABEE] text-white">
-                <IconTelegram size={17} />
-              </span>
-              <span>
-                <span className="block text-[13px] font-bold text-white">Family Group 🏠</span>
-                <span className="block text-[10px] text-white/50">Amma, Akki, Malli +2</span>
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="self-end rounded-[14px] rounded-br-[4px] bg-[#2b5278] px-3 py-1.5 text-[12px] text-white">
-                @{tgBot?.username ?? "KapuLKBot"} avurudu hamper ekak? 🧺
-              </p>
-              <div className="self-start rounded-[14px] rounded-bl-[4px] bg-[#182533] px-3 py-2 text-[12px] text-white/90">
-                <span className="mb-1 block text-[10px] font-bold text-[#6ab3f3]">Kapu</span>
-                Avurudu Hamper Pack 03 — <b>Rs 7,800</b> · one flat delivery 🚚
-                <span className="mt-2 flex gap-1.5">
-                  <span className="rounded-[8px] bg-white/10 px-2.5 py-1 text-[10.5px] font-semibold">➕ Add</span>
-                  <span className="rounded-[8px] bg-white/10 px-2.5 py-1 text-[10.5px] font-semibold">💳 Pay link</span>
+          {/* layered channels: WhatsApp voice-note reply (front) + Telegram family group (behind) */}
+          <div className="relative mx-auto h-[380px] w-full max-w-[380px]">
+            {/* Telegram family group — behind */}
+            <div
+              className="floaty absolute left-0 top-0 z-[1] w-[214px] rounded-[20px] border border-line bg-[#1c2733] p-3 shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
+              style={{ "--tilt": "-4deg" } as React.CSSProperties}
+            >
+              <div className="mb-2 flex items-center gap-2 border-b border-white/10 pb-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2AABEE] text-white">
+                  <IconTelegram size={13} />
+                </span>
+                <span>
+                  <span className="block text-[11px] font-bold text-white">Family Group 🏠</span>
+                  <span className="block text-[8.5px] text-white/50">Amma, Akki, Malli +2</span>
                 </span>
               </div>
-              <p className="self-start rounded-[14px] bg-[#182533] px-3 py-1.5 text-[11px] italic text-white/50">
-                ⏳ Comparing options… <s>Searching Kapruka ✓</s>
+              <p className="ml-auto w-fit rounded-[11px] rounded-br-[3px] bg-[#2b5278] px-2.5 py-1 text-[10px] text-white">
+                @{tgBot?.username ?? "KapuLKBot"} hamper ekak? 🧺
               </p>
+              <div className="mt-1.5 w-fit rounded-[11px] rounded-bl-[3px] bg-[#182533] px-2.5 py-1.5 text-[10px] text-white/90">
+                <span className="mb-0.5 block text-[8.5px] font-bold text-[#6ab3f3]">Kapu</span>
+                Hamper Pack 03 — <b>Rs 7,800</b> 🚚
+              </div>
+            </div>
+
+            {/* WhatsApp voice-note reply — front, the flagship */}
+            <div
+              className="floaty absolute bottom-0 right-0 z-[2] w-[264px] rounded-[24px] bg-[#0b141a] p-3.5 shadow-[0_28px_70px_rgba(0,0,0,0.5)]"
+              style={{ "--tilt": "2.5deg", animationDelay: "0.6s" } as React.CSSProperties}
+            >
+              <div className="mb-2.5 flex items-center gap-2 border-b border-white/10 pb-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white">
+                  <IconWhatsapp size={16} />
+                </span>
+                <span className="flex-1">
+                  <span className="block text-[12px] font-bold text-white">Kapu</span>
+                  <span className="block text-[9px] text-[#25D366]">online</span>
+                </span>
+              </div>
+              {/* the user's Sinhala voice note (outgoing) */}
+              <div className="mb-1.5 ml-auto flex w-fit items-center gap-2 rounded-[13px] rounded-br-[4px] bg-[#005c4b] px-2.5 py-2">
+                <IconMic size={13} className="shrink-0 text-white/70" />
+                <span className="flex items-end gap-[2px]">
+                  {[6, 10, 5, 13, 8, 11, 4, 9].map((h, i) => (
+                    <span key={i} className="w-[2px] rounded-full bg-white/60" style={{ height: `${h}px` }} />
+                  ))}
+                </span>
+                <span className="text-[8.5px] text-white/50">0:04</span>
+              </div>
+              {/* Kapu's spoken reply (incoming) + the product it's about */}
+              <div className="w-fit max-w-[94%] rounded-[13px] rounded-bl-[4px] bg-[#1f2c34] px-2.5 py-2">
+                <span className="mb-1.5 flex items-center gap-1 text-[8.5px] font-bold text-[#25D366]">
+                  <IconVolume size={10} /> Kapu replies out loud
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#25D366]">
+                    <span className="ml-[1px] h-0 w-0 border-y-[4px] border-l-[7px] border-y-transparent border-l-[#0b3d21]" />
+                  </span>
+                  <span className="flex flex-1 items-end gap-[2px]">
+                    {[5, 9, 14, 7, 11, 6, 12, 8, 5, 10].map((h, i) => (
+                      <span key={i} className="w-[2px] rounded-full bg-white/45" style={{ height: `${h}px` }} />
+                    ))}
+                  </span>
+                  <span className="text-[8.5px] text-white/50">0:07</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2 rounded-[11px] bg-white/[0.06] p-1.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-[#25D366]/15 text-[16px]">🎂</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[10px] font-semibold text-white">Ribbon Chocolate Cake 1kg</span>
+                    <span className="block text-[10px] font-bold text-[#25D366]">Rs 4,850</span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

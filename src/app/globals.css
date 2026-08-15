@@ -24,8 +24,8 @@
   --color-gold-deep: #9a6b00;
   --color-good: #2e9e5b;
   --color-good-soft: #e7f5ec;
-  --font-display: var(--font-display-var), "Instrument Serif", Georgia, serif;
-  --font-body: var(--font-body-var), "Instrument Sans", var(--font-sinhala-var), "Noto Sans Sinhala", var(--font-tamil-var), "Noto Sans Tamil", system-ui, sans-serif;
+  --font-display: var(--font-display-var), "Instrument Serif", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", Georgia, serif;
+  --font-body: var(--font-body-var), "Instrument Sans", var(--font-sinhala-var), "Noto Sans Sinhala", var(--font-tamil-var), "Noto Sans Tamil", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
 }
 
 /* Dark — same token names, flipped values; purple glows brighter, gold stays gold */
