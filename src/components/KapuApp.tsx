@@ -73,6 +73,7 @@ import { setFx } from "@/lib/client/fx";
 import { gsiSignOutHint, renderGoogleButton } from "@/lib/client/gsi";
 import { useInstallPrompt } from "@/lib/client/install";
 import { KAPU_PRESETS, loadActiveAgent, saveActiveAgent, type SpecialKapu } from "@/lib/client/agents";
+import { routeAgent } from "@/lib/client/agent-router";
 import { HERO_PHRASES, LangProvider, makeT, useT, type StrKey } from "@/lib/client/i18n";
 import { fileToCompressedDataUrl, scanMessage, type ScanResult } from "@/lib/client/scan";
 import { festivalByKey, nextFestival, type Festival } from "@/lib/festivals";
@@ -384,6 +385,12 @@ export default function KapuApp() {
   const [agentOpen, setAgentOpen] = useState(false);
   const [myAgents, setMyAgents] = useState<SpecialKapu[]>([]);
   const agentRef = useRef<SpecialKapu | null>(null);
+  // Specialist chosen BY the message rather than by a tap ([[specialist-agents]]).
+  // Lives per thread and is never written to localStorage — a hat you didn't
+  // pick must not still be on tomorrow. A manual pick always outranks it.
+  const [autoAgent, setAutoAgent] = useState<SpecialKapu | null>(null);
+  const autoAgentRef = useRef<SpecialKapu | null>(null);
+  const myAgentsRef = useRef<SpecialKapu[]>([]);
   const [productOpen, setProductOpen] = useState<ProductSummary | null>(null);
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [productExtras, setProductExtras] = useState<ProductExtras | null>(null);
@@ -475,6 +482,14 @@ export default function KapuApp() {
     agentRef.current = agent;
   }, [agent]);
 
+  useEffect(() => {
+    autoAgentRef.current = autoAgent;
+  }, [autoAgent]);
+
+  useEffect(() => {
+    myAgentsRef.current = myAgents;
+  }, [myAgents]);
+
   // restore the active specialist hat; refetch the custom library on sign-in
   // and after managing the sheet
   useEffect(() => {
@@ -496,6 +511,11 @@ export default function KapuApp() {
   const pickAgent = useCallback((a: SpecialKapu | null) => {
     setAgent(a);
     saveActiveAgent(a);
+    // Any deliberate pick clears the auto-picked hat — including tapping plain
+    // "Kapu", which must visibly drop the specialist rather than leave the ✨
+    // pill sitting there. Auto is free to re-engage on the next message.
+    autoAgentRef.current = null;
+    setAutoAgent(null);
   }, []);
 
   const setVoice = useCallback((s: VoiceState) => {
@@ -885,6 +905,17 @@ export default function KapuApp() {
       setNotifOpen(false);
       setSchedOpen(false);
       upsertRecent(message);
+      // Auto-pick a specialist from the wording, but only into an empty slot:
+      // a hat the user tapped is their decision and stays put. Runs before the
+      // request so the specialist shapes THIS turn, not the next one.
+      let routed = agentRef.current;
+      if (!routed) {
+        routed = routeAgent(message, myAgentsRef.current, autoAgentRef.current)?.agent ?? null;
+        if (routed?.id !== autoAgentRef.current?.id) {
+          autoAgentRef.current = routed;
+          setAutoAgent(routed);
+        }
+      }
       let speakBuffer = "";
       let spokenOverride = "";
       if (voiceOnRef.current) {
@@ -1024,9 +1055,7 @@ export default function KapuApp() {
               ? { favorites: Object.values(favs).slice(0, 8).map((f) => `${f.name} (${f.id})`) }
               : {}),
             ...(rules.trim() ? { rules: rules.trim() } : {}),
-            ...(agentRef.current
-              ? { agent: { name: agentRef.current.name, emoji: agentRef.current.emoji, instructions: agentRef.current.instructions } }
-              : {}),
+            ...(routed ? { agent: { name: routed.name, emoji: routed.emoji, instructions: routed.instructions } } : {}),
           }),
         });
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -1831,6 +1860,8 @@ export default function KapuApp() {
     stopVoice();
     pendingEditResetRef.current = null; // don't carry a pending edit across wishes
     setFeedback({}); // idx-keyed — reset for the fresh transcript
+    autoAgentRef.current = null; // an auto-picked hat belongs to its thread only
+    setAutoAgent(null);
     const prev = sessionIdRef.current;
     sessionIdRef.current = newSessionId();
     localStorage.setItem("kapu_session", sessionIdRef.current);
@@ -2605,15 +2636,24 @@ export default function KapuApp() {
             </span>
           </button>
 
-          {/* active specialist hat — tap to switch */}
-          {agent && (
+          {/* Active specialist hat — tap to switch. An AUTO-picked one wears a
+              ✨ and a dashed edge: the user never chose it, so it must look
+              different from a hat they pinned, and stay one tap from changing. */}
+          {(agent ?? autoAgent) && (
             <button
               onClick={() => setAgentOpen(true)}
-              className="inline-flex max-w-[140px] shrink-0 items-center gap-1.5 rounded-full border border-gold/40 bg-gold-soft px-2.5 py-1 text-[10.5px] font-bold text-gold-deep transition active:scale-95"
-              title={agent.tagline || agent.name}
+              className={`inline-flex max-w-[140px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-bold text-gold-deep transition active:scale-95 ${
+                agent ? "border border-gold/40 bg-gold-soft" : "border border-dashed border-gold/50 bg-gold-soft/60"
+              }`}
+              title={
+                agent
+                  ? agent.tagline || agent.name
+                  : `${autoAgent!.name} — ${t("agentAuto")}`
+              }
             >
-              <span className="text-[13px] leading-none">{agent.emoji}</span>
-              <span className="hidden truncate sm:block">{agent.name}</span>
+              <span className="text-[13px] leading-none">{(agent ?? autoAgent)!.emoji}</span>
+              <span className="hidden truncate sm:block">{(agent ?? autoAgent)!.name}</span>
+              {!agent && <span className="text-[9px] leading-none opacity-70">✨</span>}
             </button>
           )}
 

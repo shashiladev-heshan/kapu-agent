@@ -514,6 +514,11 @@ const STR = {
 
   // ── specialist Kapus ─────────────────────────────────────────────────
   agentsTitle: { en: "Specialist Kapus", si: "විශේෂඥ Kapu ලා", ta: "சிறப்பு Kapu-க்கள்" },
+  agentAuto: {
+    en: "picked automatically from your wish — tap to change",
+    si: "ඔයාගේ ඉල්ලීමෙන් තෝරාගත්තා — වෙනස් කරන්න tap කරන්න",
+    ta: "உங்கள் கோரிக்கையிலிருந்து தானாக தேர்ந்தது — மாற்ற தட்டவும்",
+  },
   agentsSub: {
     en: "One Kapu, many hats — pick a specialist for the job, or build your own.",
     si: "එක Kapu — hats ගොඩක්. වැඩේට ගැලපෙන කෙනා තෝරන්න, නැත්නම් ඔයාගේම කෙනෙක් හදන්න.",

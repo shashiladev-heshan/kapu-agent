@@ -21,3 +21,11 @@ demo-video/
 
 # internal working docs — reverse-engineered endpoints + strategy; keep out of the PUBLIC repo
 docs/IMPLEMENTATION-PLAN.md
+
+# Google service-account keys — downloaded JSON, NEVER commit
+red-alloy-*.json
+*service-account*.json
+gcp-*key*.json
+
+# A/B voice clips from local probes
+scratch/
